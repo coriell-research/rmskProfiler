@@ -49,7 +49,10 @@
 #'
 #' @return NULL
 #' @export
-#'
+#' @examples
+#' \dontrun{
+#' downloadResources(out_dir = "/path/to/rmsk-resources")
+#' }
 downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TRUE) {
   species <- match.arg(species)
 

@@ -23,3 +23,8 @@ RepeatMasker mm10.fa.out file, GENCODE M25 transcript sequences, primary
 assembly, and annotation GTF. If any of these file names already exist in the
 out_dir they will be skipped.
 }
+\examples{
+\dontrun{
+downloadResources(out_dir = "/path/to/rmsk-resources")
+}
+}
