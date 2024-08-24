@@ -15,3 +15,16 @@ RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+Imports: 
+    annotatr,
+    Biostrings,
+    curl,
+    data.table,
+    edgeR,
+    GenomicFeatures,
+    GenomicRanges,
+    jsonlite,
+    reticulate,
+    rtracklayer,
+    stringi,
+    SummarizedExperiment
