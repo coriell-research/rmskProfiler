@@ -5,4 +5,4 @@
 .DS_Store
 .quarto
 .vscode
-__pycache__/
+inst/python/__pycache__
