@@ -11,17 +11,16 @@ createAnnotation(resource_dir, stranded = TRUE)
 Output is saved to this location.}
 
 \item{stranded}{Should the annotation be created with respect to strand? Default
-TRUE. If stranded=FALSE then overlap annotation is performed on sequence
-positions without respect to strand.}
+TRUE. If stranded=FALSE then TE overlap annotation is performed without respect
+to strand, i.e. findOverlaps(..., ignore.strand = TRUE).}
 }
 \description{
 This function produces multiple annotation files used to annotate downstream
-counts generated after quantification with Salmon. It creates: GRangesList
-object for each Hash value and all unique ranges for the hash and A
-tab-delimited file of unique hash-by-overlap information. This function
-generates overlap annotations with respect to the annotations provided by
-annotatr::build_annotations() on either hg38_basicgenes or mm10_basicgenes,
-depending on the resources detected.
+counts generated after quantification with Salmon. It creates a GRangesList
+object for each hash and a tab-delimited file containing annotation
+information for each hash with indicator values for the types of genic
+features they overlap. Overlap annotations are generated with respect to the
+downloaded gencode GTF file.
 }
 \examples{
 \dontrun{
