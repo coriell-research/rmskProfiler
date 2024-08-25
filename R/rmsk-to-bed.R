@@ -52,4 +52,6 @@ rmskToBed <- function(resource_dir, exclude = c(
     error = function(e) print(e)
     )
   message("BED file generation complete.")
+
+  return(invisible(NULL))
 }
