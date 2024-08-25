@@ -14,8 +14,6 @@
 #' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
 #' @param min_len Minimum sequence length of a record. Default 31. Records
 #' shorter than this length are excluded from the resulting BED file.
-#' @param overwrite Overwrite existing BED file if found in resource directory.
-#' Default FALSE
 #' @return NULL
 #' @export
 #'
@@ -27,22 +25,11 @@ rmskToBed <- function(resource_dir, exclude = c(
                        "Simple_repeat", "Low_complexity",
                        "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
                        "tRNA", "Unknown"
-                     ),
-                     min_len = 31,
-                     overwrite = FALSE
-                     ) {
+                     ), min_len = 31) {
 
   rmsk_file <- list.files(resource_dir, pattern = "*.out.gz", full.names = TRUE)
   if (length(rmsk_file) != 1) {
     stop("rmsk.out.fa.gz file not found in given directory. Check that the file exists")
-  }
-
-  out_file <- gsub(".gz", ".bed", rmsk_file)
-  if (file.exists(out_file)) {
-    if (isFALSE(overwrite)) {
-      message(out_file, " exists! Skipping BED file generation.")
-      return(invisible(NULL))
-    }
   }
 
   message("Extracting contents of ", rmsk_file, " to a BED file...")

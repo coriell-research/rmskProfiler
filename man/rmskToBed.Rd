@@ -8,8 +8,7 @@ rmskToBed(
   resource_dir,
   exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
     "scRNA", "srpRNA", "tRNA", "Unknown"),
-  min_len = 31,
-  overwrite = FALSE
+  min_len = 31
 )
 }
 \arguments{
@@ -22,9 +21,6 @@ resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 
 \item{min_len}{Minimum sequence length of a record. Default 31. Records
 shorter than this length are excluded from the resulting BED file.}
-
-\item{overwrite}{Overwrite existing BED file if found in resource directory.
-Default FALSE}
 }
 \description{
 This function extracts the contents of the RepeatMasker out file into a BED
