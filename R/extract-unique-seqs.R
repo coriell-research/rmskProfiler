@@ -9,9 +9,6 @@
 #'
 #' @param resource_dir Path to the directory containing index generation resources.
 #' Output is saved to this location.
-#' @param remove_tmp The genome fasta file needs to be temporarily unzipped for
-#' feature extraction. Should the unzipped file be removed after processing?
-#' Default TRUE
 #'
 #' @return NULL
 #' @export
@@ -20,7 +17,7 @@
 #' \dontrun{
 #' extractUniqueSeqs(resource_dir = "/path/to/rmsk-resources")
 #' }
-extractUniqueSeqs <- function(resource_dir, remove_tmp = TRUE) {
+extractUniqueSeqs <- function(resource_dir) {
 
   resources <- list.files(resource_dir, full.names = TRUE)
   genome_fa <- grep("primary_assembly.genome.fa.gz", resources, value = TRUE)
@@ -51,10 +48,7 @@ extractUniqueSeqs <- function(resource_dir, remove_tmp = TRUE) {
   )
 
   # Unzipped version of the genome_fa can be safely removed
-  if (isTRUE(remove_tmp)) {
-    message("Removing temporary uzipped genome fasta...")
-    file.remove(uz_genome_fa)
-  }
+  file.remove(uz_genome_fa)
 
   return(invisible(NULL))
 }

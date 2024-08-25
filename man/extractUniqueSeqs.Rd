@@ -4,15 +4,11 @@
 \alias{extractUniqueSeqs}
 \title{Extract unique RepeatMasker sequences to a fasta file}
 \usage{
-extractUniqueSeqs(resource_dir, remove_tmp = TRUE)
+extractUniqueSeqs(resource_dir)
 }
 \arguments{
 \item{resource_dir}{Path to the directory containing index generation resources.
 Output is saved to this location.}
-
-\item{remove_tmp}{The genome fasta file needs to be temporarily unzipped for
-feature extraction. Should the unzipped file be removed after processing?
-Default TRUE}
 }
 \description{
 This function will extract all unique RepeatMasker sequences from the genome
