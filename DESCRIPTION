@@ -24,7 +24,11 @@ Imports:
     GenomicFeatures,
     GenomicRanges,
     jsonlite,
+    R.utils,
     reticulate,
     rtracklayer,
+    S4Vectors,
     stringi,
-    SummarizedExperiment
+    SummarizedExperiment,
+    TxDb.Hsapiens.UCSC.hg38.knownGene,
+    TxDb.Mmusculus.UCSC.mm10.knownGene
