@@ -54,6 +54,11 @@ library(rmskProfiler)
 reticulate::use_condaenv("r-rmskProfiler")
 ```
 
+**However**, if you do not wish to generate your own indexes and instead use one 
+of the pre-built versions (hg38 and mm10 using defaults), then you don't have to 
+worry about Python dependencies since Python is only used during index 
+generation.
+
 ### Salmon dependency
 
 This package assumes that you have a recent version of [Salmon](https://salmon.readthedocs.io/en/latest/salmon.html) installed and 
@@ -76,17 +81,18 @@ library(rmskProfiler)
 reticulate::use_condaenv("r-rmskProfiler")
 
 
-# Generate the Salmon Index for humans using 12 threads
-generateIndex("rmsk-resources", species = "Hs", threads = 12)
+# Generate the Salmon index for humans using 12 threads
+generateIndex("hg38-resources", species = "Hs", threads = 12)
 
 # TODO: Perform quantification with Salmon on fastq files
 fq1 <- c("sample1.R1.fq.gz", "sample2.R1.fq.gz", "sample3.R1.fq.gz")
 fq2 <- c("sample1.R2.fq.gz", "sample2.R2.fq.gz", "sample3.R2.fq.gz")
 sample_names <- c("sample1", "sample2", "sample3")
-salmonQuant(fq1, fq2, sample_names, out_dir = "quants", gibbs = 30, threads = 12)
+salmonQuant(fq1, fq2, sample_names, resources_dir = "hg38-resources", 
+            out_dir = "quants", gibbs = 30, threads = 12)
 
 # TODO: Import quants as SummarizedExperiment
-se <- importQuants("quants")
+se <- importQuants("quants", resources_dir = "hg38-resources")
 
 # TODO: Summarize counts to gene / subfamily level
 summarized <- aggregateCounts(se)
