@@ -16,7 +16,6 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
-    annotatr,
     Biostrings,
     curl,
     data.table,
@@ -30,5 +29,4 @@ Imports:
     S4Vectors,
     stringi,
     SummarizedExperiment,
-    TxDb.Hsapiens.UCSC.hg38.knownGene,
-    TxDb.Mmusculus.UCSC.mm10.knownGene
+    txdbmaker
