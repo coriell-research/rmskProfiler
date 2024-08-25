@@ -56,10 +56,15 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
                           min_len = 31, stranded = TRUE, create_index = TRUE,
                           threads = 1) {
 
+  message("Downloading resources ----------")
   downloadResources(out_dir = out_dir, species = species, check_integrity = check_integrity)
+  message("Converting rmsk out to BED ----------")
   rmskToBed(resource_dir = out_dir, exclude = exclude, min_len = min_len)
+  message("Extracting unique rmsk sequences from genome ----------")
   extractUniqueSeqs(resource_dir = out_dir)
+  message("Annotating unique sequences with genomic features ----------")
   createAnnotation(resource_dir = out_dir, stranded = stranded)
+  message("Creating gentrome for Salmon index generation ----------")
   createGentrome(resource_dir = out_dir, create_index = create_index, threads = threads)
 
   return(invisible(NULL))
