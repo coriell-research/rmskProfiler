@@ -102,4 +102,6 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
     }
     message("Success!")
   }
+
+  return(invisible(NULL))
 }
