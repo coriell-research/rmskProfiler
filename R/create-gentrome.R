@@ -62,7 +62,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   # Get the names of the genome fasta headers for the decoys file
   decoys <- names(genome_seqs)
   decoy_file <- file.path(resource_dir, "decoys.txt")
-  message("Writing out decoys to", decoy_file)
+  message("Writing out decoys to ", decoy_file)
   write.table(
     decoys,
     file = decoy_file,
