@@ -84,12 +84,22 @@ reticulate::use_condaenv("r-rmskProfiler")
 # Generate the Salmon index for humans using 12 threads
 generateIndex("hg38-resources", species = "Hs", threads = 12)
 
-# TODO: Perform quantification with Salmon on fastq files
+# Perform quantification with Salmon on fastq files
 fq1 <- c("sample1.R1.fq.gz", "sample2.R1.fq.gz", "sample3.R1.fq.gz")
 fq2 <- c("sample1.R2.fq.gz", "sample2.R2.fq.gz", "sample3.R2.fq.gz")
 sample_names <- c("sample1", "sample2", "sample3")
-salmonQuant(fq1, fq2, sample_names, resources_dir = "hg38-resources", 
-            out_dir = "quants", gibbs = 30, threads = 12)
+
+salmonQuant(
+  fq1 = fq1, 
+  fq2 = fq2, 
+  sample_names = sample_names, 
+  resources_dir = "hg38-resources", 
+  out_dir = "quants", 
+  "--gcBias",                       # Additional arguments can be passed as character strings
+  "--seqBias",
+  "--posBias",
+  "--threads 12"
+  )
 
 # TODO: Import quants as SummarizedExperiment
 se <- importQuants("quants", resources_dir = "hg38-resources")
