@@ -39,15 +39,36 @@
 #' transcript, a 3 prime UTR by transcript, a 5 prime UTR by transcript, or
 #' a promoter by gene.
 #'
-#' @param gtffile Path to GTF file to create annotation from
 #' @param x A GRanges object of TE loci
-#' @param stranded TRUE/FALSE should overlaps be computed with respect to strand
+#' @param ignore TRUE/FALSE should overlaps be computed with respect to strand
+#' @param gtffile Path to GTF file to create annotation from
+#' @param resource_dir Path to the rmsk resource directory. TxDb will be saved here.
 #'
 #' @return List of hash vectors overlapping genomic features
 #'
-.getHashOverlaps <- function(x, ignore, gtffile) {
+.getHashOverlaps <- function(x, ignore, gtffile, resource_dir) {
+
   message("Creating TxDb from GTF...")
-  txdb <- suppressWarnings(txdbmaker::makeTxDbFromGFF(gtffile))
+  organism <- "Homo sapiens"
+  taxid <- 9606
+  data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/gencode.v36.annotation.gtf.gz"
+  if (grepl("M25", gtffile)) {
+    organism <- "Mus Musculus"
+    taxid <- 10090
+    data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
+  }
+
+  txdb <- suppressWarnings(
+  txdbmaker::makeTxDbFromGFF(
+    file = gtffile,
+    format = "gtf",
+    organism = organism,
+    taxonomyId = taxid,
+    dataSource = data_source
+    )
+  )
+  dbfile <- gsub(".gtf.gz", ".txdb", basename(gtffile), fixed = TRUE)
+  AnnotationDbi::saveDb(txdb, file.path(resource_dir, dbfile))
 
   message("Extracting genomic regions from txdb...")
   exons_by_tx <- unlist(GenomicFeatures::exonsBy(txdb, by = "tx"))
@@ -117,7 +138,7 @@ createAnnotation <- function(resource_dir, stranded = TRUE) {
   gr <- GenomicRanges::makeGRangesFromDataFrame(dt, keep.extra.columns = TRUE)
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
-  ov <- .getHashOverlaps(gr, stranded, gtf_file)
+  ov <- .getHashOverlaps(gr, stranded, gtf_file, resource_dir)
 
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
@@ -142,8 +163,8 @@ createAnnotation <- function(resource_dir, stranded = TRUE) {
     has5UTR = Hash %chin% ov$hash_in_5utr)][,
     hasIntergenic := (!hasExonic & !hasIntronic & !has3UTR & !has5UTR)]
 
-  message("Writing out hash-level rowData to: ", file.path(resource_dir, "rmsk-rowData.tsv"))
-  data.table::fwrite(by_hash, file.path(resource_dir, "rmsk-rowData.tsv"), sep = "\t")
+  message("Writing out hash-level rowData to: ", file.path(resource_dir, "rmsk-rowData.tsv.gz"))
+  data.table::fwrite(by_hash, file.path(resource_dir, "rmsk-rowData.tsv.gz"), sep = "\t")
 
   message("Writing TE GRangesList to: ", file.path(resource_dir, "rmsk-grl.rds"))
   saveRDS(grl, file.path(resource_dir, "rmsk-grl.rds"))
