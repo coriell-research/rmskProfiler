@@ -23,7 +23,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   resources <- list.files(resource_dir, full.names = TRUE)
   genome_fa <- grep("primary_assembly.genome.fa.gz", resources, value = TRUE)
   tx_fa <- grep("transcripts.fa.gz", resources, value = TRUE)
-  rmsk_fa <- grep("rmsk-unique.fa", resources, value = TRUE)
+  rmsk_fa <- grep("rmsk-unique.fa.gz", resources, value = TRUE)
 
   if (length(genome_fa) != 1) {
     stop("<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists")
@@ -32,7 +32,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
     stop("<>.transcripts.fa.gz file not found in given directory. Check that the file exists")
   }
   if (length(rmsk_fa) != 1) {
-    stop("rmsk-unique.fa file not found in given directory. Check that the file exists")
+    stop("rmsk-unique.fa.gz file not found in given directory. Check that the file exists")
   }
 
   # Gentrome generation ---------------------------------------------------------
