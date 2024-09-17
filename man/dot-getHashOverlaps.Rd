@@ -13,7 +13,7 @@
 
 \item{gtffile}{Path to GTF file to create annotation from}
 
-\item{resource_dirPath}{to the rmsk resource directory. TxDb will be saved here.}
+\item{resource_dir}{Path to the rmsk resource directory. TxDb will be saved here.}
 }
 \value{
 List of hash vectors overlapping genomic features
