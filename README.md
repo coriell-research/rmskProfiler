@@ -84,7 +84,7 @@ salmonQuant(
   fq1 = fq1, 
   fq2 = fq2, 
   sample_names = sample_names, 
-  resources_dir = "hg38-resources", 
+  resource_dir = "hg38-resources", 
   out_dir = "quants", 
   "--gcBias",                       # Additional arguments can be passed as character strings
   "--seqBias",
