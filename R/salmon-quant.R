@@ -14,7 +14,9 @@
 #' @param resource_dir path to the rmskProfiler resource directory containing an rmsk.salmon_index directory
 #' @param out_dir path to save the quant directories for each sample. This will
 #' be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants
-#' @param nGibbs integer number of Gibbs samples to perform. Set to (180 / n_samples)
+#' @param nGibbs integer number of Gibbs samples to perform. Default 30. Published
+#' work suggests this number can be set to around 180 / length(samples) but 30
+#' ensures a good coverage with minimal cost in terms of speed.
 #' @param ... Additional arguments passed to Salmon as character strings, e.g.
 #' "--gcBias", "--seqBias" "--threads 12", see examples below
 #'
@@ -47,8 +49,7 @@
 #'   )
 #' }
 salmonQuant <- function(fq1, fq2, sample_names, resource_dir, out_dir,
-                        nGibbs = 180 / length(sample_names),
-                        ...) {
+                        nGibbs = 30, ...) {
 
   stopifnot("fq1, fq2, and sample_names differ in length" = (length(fq1) == length(fq2)) == (length(fq1) == length(sample_names)))
 

@@ -4,15 +4,7 @@
 \alias{salmonQuant}
 \title{Quantify TEs and transcripts using Salmon with Gibbs sampling}
 \usage{
-salmonQuant(
-  fq1,
-  fq2,
-  sample_names,
-  resource_dir,
-  out_dir,
-  nGibbs = 180/length(sample_names),
-  ...
-)
+salmonQuant(fq1, fq2, sample_names, resource_dir, out_dir, nGibbs = 30, ...)
 }
 \arguments{
 \item{fq1}{vector of file paths to fastq read 1 files}
@@ -26,7 +18,9 @@ salmonQuant(
 \item{out_dir}{path to save the quant directories for each sample. This will
 be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants}
 
-\item{nGibbs}{integer number of Gibbs samples to perform. Set to (180 / n_samples)}
+\item{nGibbs}{integer number of Gibbs samples to perform. Default 30. Published
+work suggests this number can be set to around 180 / length(samples) but 30
+ensures a good coverage with minimal cost in terms of speed.}
 
 \item{...}{Additional arguments passed to Salmon as character strings, e.g.
 "--gcBias", "--seqBias" "--threads 12", see examples below}
