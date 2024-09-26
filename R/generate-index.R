@@ -29,7 +29,6 @@
 #' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
 #' @param min_len Minimum sequence length of a record. Default 31. Records
 #' shorter than this length are excluded from the resulting BED file and index.
-#' @param stranded TRUE/FALSE should overlaps be computed with respect to strand
 #' @param create_index TRUE/FALSE Create salmon index after generating resources? Default TRUE.
 #' This assumes that "salmon" is available on your PATH
 #' @param threads Number of threads to use for salmon index generation. Default 1
@@ -53,8 +52,7 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
                           exclude = c("Simple_repeat", "Low_complexity",
                                       "Satellite", "RNA", "rRNA", "snRNA",
                                       "scRNA", "srpRNA", "tRNA", "Unknown"),
-                          min_len = 31, stranded = TRUE, create_index = TRUE,
-                          threads = 1) {
+                          min_len = 31, create_index = TRUE, threads = 1) {
 
   message("Downloading resources ----------")
   downloadResources(out_dir = out_dir, species = species, check_integrity = check_integrity)
@@ -63,7 +61,7 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
   message("Extracting unique rmsk sequences from genome ----------")
   extractUniqueSeqs(resource_dir = out_dir)
   message("Annotating unique sequences with genomic features ----------")
-  createAnnotation(resource_dir = out_dir, stranded = stranded)
+  createAnnotation(resource_dir = out_dir)
   message("Creating gentrome for Salmon index generation ----------")
   createGentrome(resource_dir = out_dir, create_index = create_index, threads = threads)
 
