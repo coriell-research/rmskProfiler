@@ -40,13 +40,12 @@
 #' a promoter by gene.
 #'
 #' @param x A GRanges object of TE loci
-#' @param ignore TRUE/FALSE should overlaps be computed with respect to strand
 #' @param gtffile Path to GTF file to create annotation from
 #' @param resource_dir Path to the rmsk resource directory. TxDb will be saved here.
 #'
 #' @return List of hash vectors overlapping genomic features
 #'
-.getHashOverlaps <- function(x, ignore, gtffile, resource_dir) {
+.getHashOverlaps <- function(x, gtffile, resource_dir) {
 
   message("Creating TxDb from GTF...")
   organism <- "Homo sapiens"
@@ -58,17 +57,22 @@
     data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
   }
 
-  txdb <- suppressWarnings(
-  txdbmaker::makeTxDbFromGFF(
-    file = gtffile,
-    format = "gtf",
-    organism = organism,
-    taxonomyId = taxid,
-    dataSource = data_source
-    )
-  )
   dbfile <- gsub(".gtf.gz", ".txdb", basename(gtffile), fixed = TRUE)
-  AnnotationDbi::saveDb(txdb, file.path(resource_dir, dbfile))
+  if (!file.exists(dbfile)) {
+    txdb <- suppressWarnings(
+      txdbmaker::makeTxDbFromGFF(
+        file = gtffile,
+        format = "gtf",
+        organism = organism,
+        taxonomyId = taxid,
+        dataSource = data_source
+      )
+    )
+    AnnotationDbi::saveDb(txdb, file.path(resource_dir, dbfile))
+  } else {
+    message("DB file found in resource directory. Loading txdb from file.")
+    txdb <- AnnotationDbi::loadDb(dbfile)
+  }
 
   message("Extracting genomic regions from txdb...")
   exons_by_tx <- unlist(GenomicFeatures::exonsBy(txdb, by = "tx"))
@@ -78,11 +82,17 @@
   fiveUTR_by_tx <- unlist(GenomicFeatures::fiveUTRsByTranscript(txdb))
 
   message("Finding overlaps between TE loci and genomic features...")
-  exon_hits <- GenomicRanges::findOverlaps(x, exons_by_tx, ignore.strand = !ignore)
-  intron_hits <- GenomicRanges::findOverlaps(x, introns_by_tx, ignore.strand = !ignore)
-  promoter_hits <- GenomicRanges::findOverlaps(x, promoters_by_gene, ignore.strand = !ignore)
-  threeUTR_hits <- GenomicRanges::findOverlaps(x, threeUTR_by_tx, ignore.strand = !ignore)
-  fiveUTR_hits <- GenomicRanges::findOverlaps(x, fiveUTR_by_tx, ignore.strand = !ignore)
+  exon_hits <- GenomicRanges::findOverlaps(x, exons_by_tx, ignore.strand = FALSE)
+  intron_hits <- GenomicRanges::findOverlaps(x, introns_by_tx, ignore.strand = FALSE)
+  promoter_hits <- GenomicRanges::findOverlaps(x, promoters_by_gene, ignore.strand = FALSE)
+  threeUTR_hits <- GenomicRanges::findOverlaps(x, threeUTR_by_tx, ignore.strand = FALSE)
+  fiveUTR_hits <- GenomicRanges::findOverlaps(x, fiveUTR_by_tx, ignore.strand = FALSE)
+
+  u_exon_hits <- GenomicRanges::findOverlaps(x, exons_by_tx, ignore.strand = TRUE)
+  u_intron_hits <- GenomicRanges::findOverlaps(x, introns_by_tx, ignore.strand = TRUE)
+  u_promoter_hits <- GenomicRanges::findOverlaps(x, promoters_by_gene, ignore.strand = TRUE)
+  u_threeUTR_hits <- GenomicRanges::findOverlaps(x, threeUTR_by_tx, ignore.strand = TRUE)
+  u_fiveUTR_hits <- GenomicRanges::findOverlaps(x, fiveUTR_by_tx, ignore.strand = TRUE)
 
   message("Collecting results...")
   hash_in_exon <- unique(x[S4Vectors::queryHits(exon_hits), ]$Hash)
@@ -91,12 +101,23 @@
   hash_in_3utr <- unique(x[S4Vectors::queryHits(threeUTR_hits), ]$Hash)
   hash_in_5utr <- unique(x[S4Vectors::queryHits(fiveUTR_hits), ]$Hash)
 
+  u_hash_in_exon <- unique(x[S4Vectors::queryHits(u_exon_hits), ]$Hash)
+  u_hash_in_intron <- unique(x[S4Vectors::queryHits(u_intron_hits), ]$Hash)
+  u_hash_in_promoter <- unique(x[S4Vectors::queryHits(u_promoter_hits), ]$Hash)
+  u_hash_in_3utr <- unique(x[S4Vectors::queryHits(u_threeUTR_hits), ]$Hash)
+  u_hash_in_5utr <- unique(x[S4Vectors::queryHits(u_fiveUTR_hits), ]$Hash)
+
   result <- list(
      hash_in_exon = hash_in_exon,
      hash_in_intron = hash_in_intron,
      hash_in_promoter = hash_in_promoter,
      hash_in_3utr = hash_in_3utr,
-     hash_in_5utr = hash_in_5utr
+     hash_in_5utr = hash_in_5utr,
+     u_hash_in_exon = u_hash_in_exon,
+     u_hash_in_intron = u_hash_in_intron,
+     u_hash_in_promoter = u_hash_in_promoter,
+     u_hash_in_3utr = u_hash_in_3utr,
+     u_hash_in_5utr = u_hash_in_5utr
     )
 
   return(result)
@@ -114,9 +135,6 @@
 #'
 #' @param resource_dir Path to the directory containing index generation resources.
 #' Output is saved to this location.
-#' @param stranded Should the annotation be created with respect to strand? Default
-#' TRUE. If stranded=FALSE then TE overlap annotation is performed without respect
-#' to strand, i.e. findOverlaps(..., ignore.strand = TRUE).
 #'
 #' @return NULL
 #' @import data.table
@@ -126,7 +144,7 @@
 #' \dontrun{
 #' createAnnotation(resource_dir = "/path/to/rmsk-resources")
 #' }
-createAnnotation <- function(resource_dir, stranded = TRUE) {
+createAnnotation <- function(resource_dir) {
 
   resources <- list.files(resource_dir, full.names = TRUE)
   info_json <- grep("rmsk-duplicateInfo.json", resources, value = TRUE)
@@ -138,7 +156,7 @@ createAnnotation <- function(resource_dir, stranded = TRUE) {
   gr <- GenomicRanges::makeGRangesFromDataFrame(dt, keep.extra.columns = TRUE)
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
-  ov <- .getHashOverlaps(gr, stranded, gtf_file, resource_dir)
+  ov <- .getHashOverlaps(gr, gtf_file, resource_dir)
 
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
@@ -160,8 +178,15 @@ createAnnotation <- function(resource_dir, stranded = TRUE) {
     hasExonic = Hash %chin% ov$hash_in_exon,
     hasIntronic = Hash %chin% ov$hash_in_intron,
     has3UTR = Hash %chin% ov$hash_in_3utr,
-    has5UTR = Hash %chin% ov$hash_in_5utr)][,
-    hasIntergenic := (!hasExonic & !hasIntronic & !has3UTR & !has5UTR)]
+    has5UTR = Hash %chin% ov$hash_in_5utr,
+    hasUnstrandedPromoter = Hash %chin% ov$u_hash_in_promoter,
+    hasUnstrandedExonic = Hash %chin% ov$u_hash_in_exon,
+    hasUnstrandedIntronic = Hash %chin% ov$u_hash_in_intron,
+    hasUnstranded3UTR = Hash %chin% ov$u_hash_in_3utr,
+    hasUnstranded5UTR = Hash %chin% ov$u_hash_in_5utr)
+    ][, `:=`(hasIntergenic = (!hasExonic & !hasIntronic & !has3UTR & !has5UTR),
+             hasUnstrandedIntergenic = (!hasUnstrandedExonic & !hasUnstrandedIntronic & !hasUnstranded3UTR & !hasUnstranded5UTR)
+             )]
 
   message("Writing out hash-level rowData to: ", file.path(resource_dir, "rmsk-rowData.tsv.gz"))
   data.table::fwrite(by_hash, file.path(resource_dir, "rmsk-rowData.tsv.gz"), sep = "\t")
