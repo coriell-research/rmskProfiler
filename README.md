@@ -92,9 +92,5 @@ salmonQuant(
   "--threads 12"
   )
 
-# TODO: Import quants as SummarizedExperiment
 se <- importQuants("quants", resources_dir = "hg38-resources")
-
-# TODO: Summarize counts to gene / subfamily level
-summarized <- aggregateCounts(se)
 ```
