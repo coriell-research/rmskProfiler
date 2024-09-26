@@ -4,12 +4,10 @@
 \alias{.getHashOverlaps}
 \title{Find overlaps of TE loci regions with genomic features}
 \usage{
-.getHashOverlaps(x, ignore, gtffile, resource_dir)
+.getHashOverlaps(x, gtffile, resource_dir)
 }
 \arguments{
 \item{x}{A GRanges object of TE loci}
-
-\item{ignore}{TRUE/FALSE should overlaps be computed with respect to strand}
 
 \item{gtffile}{Path to GTF file to create annotation from}
 

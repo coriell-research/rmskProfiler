@@ -4,15 +4,11 @@
 \alias{createAnnotation}
 \title{Generate annotation resources for annotating TE loci and genes}
 \usage{
-createAnnotation(resource_dir, stranded = TRUE)
+createAnnotation(resource_dir)
 }
 \arguments{
 \item{resource_dir}{Path to the directory containing index generation resources.
 Output is saved to this location.}
-
-\item{stranded}{Should the annotation be created with respect to strand? Default
-TRUE. If stranded=FALSE then TE overlap annotation is performed without respect
-to strand, i.e. findOverlaps(..., ignore.strand = TRUE).}
 }
 \description{
 This function produces multiple annotation files used to annotate downstream

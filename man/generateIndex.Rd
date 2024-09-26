@@ -11,7 +11,6 @@ generateIndex(
   exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
     "scRNA", "srpRNA", "tRNA", "Unknown"),
   min_len = 31,
-  stranded = TRUE,
   create_index = TRUE,
   threads = 1
 )
@@ -30,8 +29,6 @@ resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 
 \item{min_len}{Minimum sequence length of a record. Default 31. Records
 shorter than this length are excluded from the resulting BED file and index.}
-
-\item{stranded}{TRUE/FALSE should overlaps be computed with respect to strand}
 
 \item{create_index}{TRUE/FALSE Create salmon index after generating resources? Default TRUE.
 This assumes that "salmon" is available on your PATH}
