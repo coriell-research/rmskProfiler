@@ -80,7 +80,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
       "-p", threads,
       "-k", 27,
       "-i", file.path(resource_dir, "rmsk.salmon_index"),
-      "--gencode",
+      "--gencode"
     )
 
     tryCatch(
