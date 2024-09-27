@@ -47,7 +47,7 @@ extractUniqueSeqs <- function(resource_dir) {
     }
   )
   message("Gzipping unique RepeatMasker sequences...")
-  R.utils::gzip(file.path(resource_dir, "rmsk-unique.fa"), remove = TRUE)
+  R.utils::gzip(file.path(resource_dir, "rmsk-unique.fa"), remove = TRUE, overwrite = TRUE)
 
   # Unzipped version of the genome_fa can be safely removed
   file.remove(uz_genome_fa)
