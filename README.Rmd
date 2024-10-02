@@ -55,7 +55,7 @@ reticulate::use_condaenv("r-rmskProfiler")
 ```
 
 **However**, if you do not wish to generate your own indexes and instead use one 
-of the pre-built versions (hg38 and mm10 using function defaults), then you 
+of the [pre-built versions](https://drive.google.com/drive/folders/1pvxQ9evNGOotktH6Kp2p44UAIU5mQw0U?usp=drive_link) (hg38 and mm10 using function defaults), then you 
 don't have to worry about Python dependencies since Python is only used during 
 index generation.
 
