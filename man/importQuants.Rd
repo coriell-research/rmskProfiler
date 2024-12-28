@@ -27,13 +27,13 @@ the locations for each of the TE loci and transcipts.
 The SummarizedEperiment object contains two assays, 'counts' and 'orig.' The
 'counts' assay contains the counts \emph{after} adjusting for over dispersion.
 This is the assay to be used for downstream differential expression analyses.
-The orig' assay contains the counts before scaling. The metadata slot contains
-the annotation data.frame returned from catchSalmon. The rowData slot of the
-SummarizedExperiment contains columns with boolean values for each TE loci
-indicating whether or not that loci has an overlap with a given feature. For
-example, hasExonic==TRUE would indicate that loci has an overlap with some
-exon on the same strand. hasUnstrandedExonic==TRUE would indicate that the
-loci has an overlap with an exon on either strand. The rowData also contains
-an additional column 'Ranges' that contains a GRangesList for every
+The 'orig' assay contains the counts before down-scaling. The metadata slot
+contains the annotation data.frame returned from catchSalmon. The rowData
+slot of the SummarizedExperiment contains columns with boolean values for
+each TE loci indicating whether or not that loci has an overlap with a given
+feature. For example, hasExonic==TRUE would indicate that loci has an overlap
+with some exon on the same strand. hasUnstrandedExonic==TRUE would indicate
+that the loci has an overlap with an exon on either strand. The rowData also
+contains an additional column 'Ranges' that contains a GRangesList for every
 transcript and TE hash location.
 }
