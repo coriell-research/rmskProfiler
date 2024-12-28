@@ -47,7 +47,6 @@
 #'
 .getHashOverlaps <- function(x, gtffile, resource_dir) {
 
-  message("Creating TxDb from GTF...")
   organism <- "Homo sapiens"
   taxid <- 9606
   data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/gencode.v36.annotation.gtf.gz"
@@ -57,8 +56,9 @@
     data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
   }
 
-  dbfile <- gsub(".gtf.gz", ".txdb", basename(gtffile), fixed = TRUE)
+  dbfile <- gsub(".gtf.gz", ".txdb", gtffile, fixed = TRUE)
   if (!file.exists(dbfile)) {
+    message("Creating TxDb from GTF...")
     txdb <- suppressWarnings(
       txdbmaker::makeTxDbFromGFF(
         file = gtffile,
@@ -156,6 +156,7 @@ createAnnotation <- function(resource_dir) {
   gr <- GenomicRanges::makeGRangesFromDataFrame(dt, keep.extra.columns = TRUE)
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
+  message("Computing overlaps of TE-loci with transcript annotations...")
   ov <- .getHashOverlaps(gr, gtf_file, resource_dir)
 
   message("Getting all unique hash-element pairs...")
@@ -188,11 +189,22 @@ createAnnotation <- function(resource_dir) {
              hasUnstrandedIntergenic = (!hasUnstrandedExonic & !hasUnstrandedIntronic & !hasUnstranded3UTR & !hasUnstranded5UTR)
              )]
 
-  message("Writing out hash-level rowData to: ", file.path(resource_dir, "rmsk-rowData.tsv.gz"))
-  data.table::fwrite(by_hash, file.path(resource_dir, "rmsk-rowData.tsv.gz"), sep = "\t")
+  message("Reading in range information for transcripts...")
+  gtf <- rtracklayer::import(gtf_file)
+  tx <- gtf[gtf$type == "transcript", ]
+  tx_dt <- data.table::as.data.table(data.frame(tx))[, .(transcript_id, gene_id, gene_name, gene_type)]
+  names(tx) <- tx$transcript_id
+  tx <- as(tx, "GRangesList")
+  rmsk_grl <- c(tx, grl)
 
-  message("Writing TE GRangesList to: ", file.path(resource_dir, "rmsk-grl.rds"))
-  saveRDS(grl, file.path(resource_dir, "rmsk-grl.rds"))
+  # Combine annotation DataFrames
+  rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
+  rd <- S4Vectors::DataFrame(rd)
+  rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
+  rd$Ranges <- rmsk_grl[rownames(rd)]
+
+  message("Writing out rowData to: ", file.path(resource_dir, "rmsk-rowData.rds"))
+  saveRDS(rd, file.path(resource_dir, "rmsk-rowData.rds"))
   message("Done.")
 
   return(invisible(NULL))
