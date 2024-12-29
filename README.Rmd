@@ -106,5 +106,48 @@ salmonQuant(
 # rowData contains transcript and TE annotations and GRanges
 se <- importQuants("quants", resources_dir = "hg38-resources")
 
-# Proceed to downstream analysis
+# Proceed to downstream analysis using edgeR
+```
+
+## Filtering and aggregating
+
+The imported object contains information on the TE-loci and transcript levels 
+but sometimes a gene/subfamily-level analysis is desired. The following code can 
+be used to filter out TE-loci assigned to exons and then summarize counts for 
+TE-loci to the subfamily level and transcripts to the gene-level. 
+
+Below, any TE-loci that overlaps with an exon, 3'UTR, 5'UTR on either strand or
+has more than one exact sequence location in the genome are removed from 
+downstream analysis. Protein coding transcripts are selected for downstream 
+analysis. 
+
+```{r, eval=FALSE}
+library(SummarizedExperiment)
+
+# Select loci to keep
+loci <- subset(
+  rowData(se), 
+  !is.na(Hash) & 
+  hasUnstrandedExonic == FALSE & 
+  hasUnstranded3UTR == FALSE & 
+  hasUnstranded5UTR == FALSE &
+  N_Loci == 1,
+  select = "Hash",
+  drop = TRUE
+  )
+
+# Select only protein coding transcripts
+tx <- subset(
+  rowData(se), 
+  !is.na(transcript_id) & gene_type == "protein_coding", 
+  "transcript_id", 
+  drop = TRUE
+  )
+
+# Filter the Summarized experiment object
+keep <- rownames(se) %in% c(tx, loci)
+filtered <- se[keep, ]
+
+# Sum assays to the gene/subfamily level
+aggregated <- aggregateCounts(filtered, level = "subfamily")
 ```
