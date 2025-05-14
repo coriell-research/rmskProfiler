@@ -27,13 +27,13 @@ aggregateCounts <- function(x, level = "subfamily") {
   agg_level <- match.arg(level, choices = c("subfamily", "family", "class"))
   SummarizedExperiment::rowData(x)$repElem <-
     switch(agg_level,
-           subfamily = stringr::str_c(SummarizedExperiment::rowData(x)$Class,
+           subfamily = stringr::str_c(SummarizedExperiment::rowData(x)$Subfamily,
                                       SummarizedExperiment::rowData(x)$Family,
-                                      SummarizedExperiment::rowData(x)$Subfamily,
-                                      sep = "."),
-           family = stringr::str_c(SummarizedExperiment::rowData(x)$Class,
-                                   SummarizedExperiment::rowData(x)$Family,
-                                   sep = "."),
+                                      SummarizedExperiment::rowData(x)$Class,
+                                      sep = ":"),
+           family = stringr::str_c(SummarizedExperiment::rowData(x)$Family,
+                                   SummarizedExperiment::rowData(x)$Class,
+                                   sep = ":"),
            class = SummarizedExperiment::rowData(x)$Class
            )
 
