@@ -58,14 +58,14 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
 
   urls <- c(
     "http://repeatmasker.org/genomes/hg38/RepeatMasker-rm405-db20140131/hg38.fa.out.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/gencode.v36.annotation.gtf.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/gencode.v36.transcripts.fa.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/GRCh38.primary_assembly.genome.fa.gz"
+    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.basic.annotation.gtf.gz",
+    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.transcripts.fa.gz",
+    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/GRCh38.primary_assembly.genome.fa.gz"
   )
   fnames <- basename(urls)
 
   # Hashsums only for GENCODE files - annotation, transcripts, assembly
-  md5sums <- c("c03931958d4572148650d62eb6dec41a", "d9046028f532a5f42e6af438a7330c34", "e7d5fc50346e2d6dfd2861db31871dfa")
+  md5sums <- c("a8ac6cd463006654d253fd8cb29d1913", "e4a4d396cca5dd6d0889248b9e93b42a", "42e38e8dd5027dd2ae8aeb8f3a990d07")
 
   if (species == "Mm") {
     urls <- c(

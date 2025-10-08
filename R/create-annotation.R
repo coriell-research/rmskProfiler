@@ -49,7 +49,7 @@
 
   organism <- "Homo sapiens"
   taxid <- 9606
-  data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_36/gencode.v36.annotation.gtf.gz"
+  data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.basic.annotation.gtf.gz"
   if (grepl("M25", gtffile)) {
     organism <- "Mus Musculus"
     taxid <- 10090
