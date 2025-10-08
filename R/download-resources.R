@@ -36,7 +36,7 @@
 #'
 #' This function will attempt to download all of the necessary resources for
 #' generating the rmsk-gentrome index. For humans, it will download the RepeatMasker
-#' hg38.fa.out file from RepeatMasker.org, GENCODE v36 transcript sequences,
+#' hg38.fa.out file from RepeatMasker.org, GENCODE v48 transcript sequences,
 #' primary assembly, and annotation GTF. For mouse, it will download the
 #' RepeatMasker mm10.fa.out file, GENCODE M25 transcript sequences, primary
 #' assembly, and annotation GTF. If any of these file names already exist in the
@@ -57,7 +57,7 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
   species <- match.arg(species)
 
   urls <- c(
-    "http://repeatmasker.org/genomes/hg38/RepeatMasker-rm405-db20140131/hg38.fa.out.gz",
+    "https://repeatmasker.org/genomes/hg38/rmsk4.0.5_rb20140131/hg38.fa.out.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.basic.annotation.gtf.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.transcripts.fa.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/GRCh38.primary_assembly.genome.fa.gz"
