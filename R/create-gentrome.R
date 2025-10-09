@@ -2,8 +2,8 @@
 #'
 #' This function creates the gentrome (transcripts + unique rmsk sequences +
 #' decoy) fasta and (optionally) the Salmon index. If index generation is
-#' desired then the function assumes that salmon is on your PATH. This function
-#' will create a gentrome.fa file, decoys.txt file, and (optionally) a salmon
+#' desired then the function assumes that Salmon is on your PATH. This function
+#' will create a gentrome.fa file, decoys.txt file, and (optionally) a Salmon
 #' index from these files in the resource directory.
 #'
 #' @param resource_dir Path to the directory containing index generation resources.
@@ -25,13 +25,13 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   tx_fa <- grep("transcripts.fa.gz", resources, value = TRUE)
   rmsk_fa <- grep("rmsk-unique.fa.gz", resources, value = TRUE)
 
-  if (length(genome_fa) != 1) {
+  if (!file.exists(genome_fa)) {
     stop("<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists")
   }
-  if (length(tx_fa) != 1) {
+  if (!file.exists(tx_fa)) {
     stop("<>.transcripts.fa.gz file not found in given directory. Check that the file exists")
   }
-  if (length(rmsk_fa) != 1) {
+  if (!file.exists(rmsk_fa)) {
     stop("rmsk-unique.fa.gz file not found in given directory. Check that the file exists")
   }
 
@@ -78,7 +78,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
       "salmon index -t", gentrome_fa,
       "-d", decoy_file,
       "-p", threads,
-      "-k", 27,
+      "-k", 31,
       "-i", file.path(resource_dir, "rmsk.salmon_index"),
       "--gencode"
     )
