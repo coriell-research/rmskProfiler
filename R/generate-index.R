@@ -4,7 +4,7 @@
 #' generating all of the files needed to create a Salmon index in order to
 #' quantify transcripts and TEs at the loci level. This function requires
 #' calls to Python programs so before running ensure that you have created and
-#' activated the neccessary "r-rmskProfiler" environment with
+#' activated the necessary "r-rmskProfiler" environment with
 #' \code{install_rmskProfiler()} and \code{reticulate::use_condaenv("r-rmskProfiler", ...)}
 #'
 #' @details
