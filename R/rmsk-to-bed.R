@@ -12,7 +12,7 @@
 #' @param exclude A character vector specifying which elements to exclude from the
 #' resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 #' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
-#' @param min_len Minimum sequence length of a record. Default 31. Records
+#' @param min_len Minimum sequence length of a record. Default 32. Records
 #' shorter than this length are excluded from the resulting BED file.
 #' @return NULL
 #' @export
@@ -25,7 +25,7 @@ rmskToBed <- function(resource_dir, exclude = c(
                        "Simple_repeat", "Low_complexity",
                        "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
                        "tRNA", "Unknown"
-                     ), min_len = 31) {
+                     ), min_len = 32) {
 
   rmsk_file <- list.files(resource_dir, pattern = "*.out.gz", full.names = TRUE)
   if (length(rmsk_file) != 1) {
