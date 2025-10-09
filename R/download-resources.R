@@ -69,7 +69,7 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
 
   if (species == "Mm") {
     urls <- c(
-      "http://repeatmasker.org/genomes/mm10/RepeatMasker-rm405-db20140131/mm10.fa.out.gz",
+      "https://repeatmasker.org/genomes/mm10/rmsk4.0.5_rb20140131/mm10.fa.out.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.transcripts.fa.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/GRCm38.primary_assembly.genome.fa.gz"
