@@ -27,7 +27,7 @@
 #' @param exclude A character vector specifying which elements to exclude from the
 #' resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 #' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
-#' @param min_len Minimum sequence length of a record. Default 31. Records
+#' @param min_len Minimum sequence length of a record. Default 32. Records
 #' shorter than this length are excluded from the resulting BED file and index.
 #' @param create_index TRUE/FALSE Create salmon index after generating resources? Default TRUE.
 #' This assumes that "salmon" is available on your PATH
@@ -52,7 +52,7 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
                           exclude = c("Simple_repeat", "Low_complexity",
                                       "Satellite", "RNA", "rRNA", "snRNA",
                                       "scRNA", "srpRNA", "tRNA", "Unknown"),
-                          min_len = 31, create_index = TRUE, threads = 1) {
+                          min_len = 32, create_index = TRUE, threads = 1) {
 
   message("Downloading resources ----------")
   downloadResources(out_dir = out_dir, species = species, check_integrity = check_integrity)
