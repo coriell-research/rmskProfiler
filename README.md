@@ -4,49 +4,22 @@
 # rmskProfiler
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 This package provides an end-to-end solution for accurately quantifying
-transposable elements from RNA-seq data at the loci-level and properly
-importing into R for downstream analysis.
+transposable elements from RNA-seq data at the locus-level and importing
+into R for downstream analysis.
 
 ## Installation
 
-You can install the development version of rmskProfiler from
+You can install the development version of `rmskProfiler` from
 [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("pak")
 pak::pak("coriell-research/rmskProfiler")
 ```
-
-### Python dependencies
-
-This package also requires an installation of Python (either conda or
-virtualenv). A helper function in this package exists to download the
-necessary Python dependencies to a special environment called
-“r-rmskProfiler” using `reticulate`. For example, on my machine which
-uses mambaforge, I can install the env like so:
-
-    install_rmskProfiler(
-      method = "conda",
-      conda = "/home/gennaro/mambaforge/condabin/conda",
-      channel = "bioconda"
-      )
-
-Once installed, you should load subsequent runs of the package with:
-
-``` r
-library(rmskProfiler)
-reticulate::use_condaenv("r-rmskProfiler")
-```
-
-**However**, if you do not wish to generate your own indexes and instead
-use one of the [pre-built
-versions](https://drive.google.com/drive/folders/1pvxQ9evNGOotktH6Kp2p44UAIU5mQw0U?usp=drive_link)
-(hg38 and mm10 using function defaults), then you don’t have to worry
-about Python dependencies since Python is only used during index
-generation.
 
 ### Salmon dependency
 
@@ -55,6 +28,28 @@ This package assumes that you have a recent version of
 and available on your PATH. If not, please follow the latest
 [installation](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
 instructions before using this package.
+
+## Overview of the method
+
+This package simply creates a Salmon index using GENCODE v48 annotated
+transcripts, unique RepeatMasker repeat regions, and a full genomic
+decoy and provides utilities for importing Salmon quants into R. The
+imported counts are stored along with their annotation information
+(including GenomicRanges) as a SummarizedExperiment object that is ready
+for downstream analysis.
+
+By default, not all repeats are included in the generated index.
+“Simple_repeat”, “Low_complexity”, “Satellite”, “RNA”, “rRNA”, “snRNA”,
+“scRNA”, “srpRNA”, “tRNA”, and “Unknown” loci are excluded.
+Additionally, TE loci with lengths \<=31 bp are removed (as these are
+the size of the minimum k-mer length used by Salmon).
+
+After the index has been created, reads are then quantified using a
+minimum of 30 Gibbs re-samples. The Gibbs re-sampled quants are imported
+into R using `edgeR::catchSalmon()`. The original counts from Salmon
+along with the overdispersion corrected counts from `catchSalmon()` are
+stored as separate assays in the resulting `SummarizedExperiment`
+object.
 
 ## Usage
 
@@ -71,7 +66,6 @@ importing of quants looks like:
 
 ``` r
 library(rmskProfiler)
-reticulate::use_condaenv("r-rmskProfiler")
 
 
 # Generate the Salmon index for humans using 12 threads 
@@ -83,13 +77,16 @@ fq2 <- c("/path/to/sample1.R2.fq.gz", "/path/to/sample2.R2.fq.gz", "/path/to/sam
 sample_names <- c("sample1", "sample2", "sample3")
 
 # Perform quantification with Salmon on fastq files
+# NOTE: Once the index is built you can quantify reads using any workflow
+#       just make sure you perform Gibbs re-sampling
 salmonQuant(
   fq1 = fq1, 
   fq2 = fq2, 
   sample_names = sample_names, 
   resource_dir = "hg38-resources", 
   out_dir = "quants", 
-  "--gcBias",                       # Additional arguments can be passed as character strings
+  n_gibbs = 30,
+  "--gcBias",       # Additional arguments can be passed as character strings
   "--seqBias",
   "--posBias",
   "--threads 12"
@@ -102,7 +99,7 @@ se <- importQuants("quants", resources_dir = "hg38-resources")
 # Proceed to downstream analysis using edgeR
 ```
 
-## Filtering and aggregating
+### Filtering and aggregating
 
 The imported object contains information on the TE-loci and transcript
 levels but sometimes a gene/subfamily-level analysis is desired. The
@@ -116,7 +113,9 @@ removed from downstream analysis. Protein coding transcripts are
 selected for downstream analysis.
 
 ``` r
+library(rmskProfiler)
 library(SummarizedExperiment)
+
 
 # Select loci to keep
 loci <- subset(
