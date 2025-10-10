@@ -54,6 +54,9 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
                                       "scRNA", "srpRNA", "tRNA", "Unknown"),
                           min_len = 32, create_index = TRUE, threads = 1) {
 
+  reticulate::py_require("pybedtools")
+  reticulate::py_require(python_version = ">=3.10")
+
   message("Downloading resources ----------")
   downloadResources(out_dir = out_dir, species = species, check_integrity = check_integrity)
   message("Converting rmsk out to BED ----------")
