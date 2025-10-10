@@ -43,9 +43,12 @@ This package simply creates a Salmon index using GENCODE v48 annotated transcrip
 
 By default, not all repeats are included in the generated index. "Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown" loci are excluded. Additionally, TE loci with lengths <=31 bp are removed (as these are the size of the minimum k-mer length used by Salmon). 
 
-After the index has been created, reads are then quantified using a minimum of 
-30 Gibbs re-samples. The Gibbs re-sampled quants are imported into R using `edgeR::catchSalmon()`. The original counts from Salmon along with the overdispersion corrected counts from `catchSalmon()` are stored as separate 
+After the index has been created, reads are then quantified using a minimum 
+of 30 Gibbs re-samples. The Gibbs re-sampled quants are imported into R using `edgeR::catchSalmon()`. The original counts from Salmon along with the overdispersion corrected counts from `catchSalmon()` are stored as separate 
 assays in the resulting `SummarizedExperiment` object. 
+
+All intermediate files and and the Salmon index are stored in the created
+resources directory for further inspection and re-use. 
 
 ## Usage
 

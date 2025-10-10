@@ -51,6 +51,9 @@ along with the overdispersion corrected counts from `catchSalmon()` are
 stored as separate assays in the resulting `SummarizedExperiment`
 object.
 
+All intermediate files and and the Salmon index are stored in the
+created resources directory for further inspection and re-use.
+
 ## Usage
 
 The package has three main components:
