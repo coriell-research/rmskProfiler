@@ -10,7 +10,7 @@ generateIndex(
   check_integrity = TRUE,
   exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
     "scRNA", "srpRNA", "tRNA", "Unknown"),
-  min_len = 31,
+  min_len = 32,
   create_index = TRUE,
   threads = 1
 )
@@ -27,7 +27,7 @@ species to download resources for}
 resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
-\item{min_len}{Minimum sequence length of a record. Default 31. Records
+\item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file and index.}
 
 \item{create_index}{TRUE/FALSE Create salmon index after generating resources? Default TRUE.
@@ -40,7 +40,7 @@ This function is a wrapper around several other functions for downloading and
 generating all of the files needed to create a Salmon index in order to
 quantify transcripts and TEs at the loci level. This function requires
 calls to Python programs so before running ensure that you have created and
-activated the neccessary "r-rmskProfiler" environment with
+activated the necessary "r-rmskProfiler" environment with
 \code{install_rmskProfiler()} and \code{reticulate::use_condaenv("r-rmskProfiler", ...)}
 }
 \details{

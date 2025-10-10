@@ -18,8 +18,8 @@ This assumes that "salmon" is available on your PATH}
 \description{
 This function creates the gentrome (transcripts + unique rmsk sequences +
 decoy) fasta and (optionally) the Salmon index. If index generation is
-desired then the function assumes that salmon is on your PATH. This function
-will create a gentrome.fa file, decoys.txt file, and (optionally) a salmon
+desired then the function assumes that Salmon is on your PATH. This function
+will create a gentrome.fa file, decoys.txt file, and (optionally) a Salmon
 index from these files in the resource directory.
 }
 \examples{

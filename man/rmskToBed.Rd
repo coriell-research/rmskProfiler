@@ -8,7 +8,7 @@ rmskToBed(
   resource_dir,
   exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
     "scRNA", "srpRNA", "tRNA", "Unknown"),
-  min_len = 31
+  min_len = 32
 )
 }
 \arguments{
@@ -19,7 +19,7 @@ downloaded. this should be the same path specified by downloadResources().}
 resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
-\item{min_len}{Minimum sequence length of a record. Default 31. Records
+\item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file.}
 }
 \description{
