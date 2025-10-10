@@ -11,7 +11,7 @@
 #' @param fq1 vector of file paths to fastq read 1 files
 #' @param fq2 vector of file paths to fastq read 2 files
 #' @param sample_names character vector of samples names matching each pair of fastq files
-#' @param resource_dir path to the rmskProfiler resource directory containing an rmsk.salmon_index directory
+#' @param resource_dir path to the rmskProfiler resource directory containing an rmsk-salmon_index directory
 #' @param out_dir path to save the quant directories for each sample. This will
 #' be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants
 #' @param n_gibbs integer number of Gibbs samples to perform. Default 30. Published
@@ -53,8 +53,8 @@ salmonQuant <- function(fq1, fq2, sample_names, resource_dir, out_dir,
 
   stopifnot("fq1, fq2, and sample_names differ in length" = (length(fq1) == length(fq2)) == (length(fq1) == length(sample_names)))
 
-  idx <- file.path(resource_dir, "rmsk.salmon_index")
-  stopifnot("rmsk.salmon_index does not exist in resource directory!" = dir.exists(idx))
+  idx <- file.path(resource_dir, "rmsk-salmon_index")
+  stopifnot("rmsk-salmon_index does not exist in resource directory!" = dir.exists(idx))
 
   out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
 

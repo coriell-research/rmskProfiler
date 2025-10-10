@@ -13,7 +13,7 @@ salmonQuant(fq1, fq2, sample_names, resource_dir, out_dir, n_gibbs = 30, ...)
 
 \item{sample_names}{character vector of samples names matching each pair of fastq files}
 
-\item{resource_dir}{path to the rmskProfiler resource directory containing an rmsk.salmon_index directory}
+\item{resource_dir}{path to the rmskProfiler resource directory containing an rmsk-salmon_index directory}
 
 \item{out_dir}{path to save the quant directories for each sample. This will
 be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants}

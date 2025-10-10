@@ -79,7 +79,7 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
       "-d", decoy_file,
       "-p", threads,
       "-k", 31,
-      "-i", file.path(resource_dir, "rmsk.salmon_index"),
+      "-i", file.path(resource_dir, "rmsk-salmon_index"),
       "--gencode",
       "--no-clip"
     )
