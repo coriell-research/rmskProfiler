@@ -58,14 +58,15 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
 
   urls <- c(
     "https://repeatmasker.org/genomes/hg38/rmsk4.0.5_rb20140131/hg38.fa.out.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.basic.annotation.gtf.gz",
+    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.transcripts.fa.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/GRCh38.primary_assembly.genome.fa.gz"
   )
   fnames <- basename(urls)
 
   # Hashsums only for GENCODE files - annotation, transcripts, assembly
-  md5sums <- c("a8ac6cd463006654d253fd8cb29d1913", "e4a4d396cca5dd6d0889248b9e93b42a", "42e38e8dd5027dd2ae8aeb8f3a990d07")
+  # https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/MD5SUMS
+  md5sums <- c("f7ffc813464f52e428c116bc3b83dce1", "e4a4d396cca5dd6d0889248b9e93b42a", "42e38e8dd5027dd2ae8aeb8f3a990d07")
 
   if (species == "Mm") {
     urls <- c(
