@@ -87,7 +87,7 @@
         dataSource = data_source
       )
     )
-    AnnotationDbi::saveDb(txdb, file.path(resource_dir, dbfile))
+    AnnotationDbi::saveDb(txdb, dbfile)
   } else {
     message("DB file found in resource directory. Loading txdb from file.")
     txdb <- AnnotationDbi::loadDb(dbfile)
