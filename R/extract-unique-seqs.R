@@ -18,16 +18,28 @@
 #' extractUniqueSeqs(resource_dir = "/path/to/rmsk-resources")
 #' }
 extractUniqueSeqs <- function(resource_dir) {
+  reticulate::py_require("pybedtools")
+  reticulate::py_require(python_version = ">=3.10")
+  reticulate::source_python(system.file(
+    "python",
+    "rmsk_profiler.py",
+    package = "rmskProfiler",
+    mustWork = TRUE
+  ))
 
   resources <- list.files(resource_dir, full.names = TRUE)
   genome_fa <- grep("primary_assembly.genome.fa.gz", resources, value = TRUE)
   rmsk_bed <- grep("fa.out.bed", resources, value = TRUE)
 
   if (length(genome_fa) != 1) {
-    stop("<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists")
+    stop(
+      "<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists"
+    )
   }
-  if(length(rmsk_bed) != 1) {
-    stop("<>.fa.out.bed file not found in given directory. Check that the file exists")
+  if (length(rmsk_bed) != 1) {
+    stop(
+      "<>.fa.out.bed file not found in given directory. Check that the file exists"
+    )
   }
 
   # Genome fasta needs to be unzipped to work with pybedtools
@@ -47,7 +59,11 @@ extractUniqueSeqs <- function(resource_dir) {
     }
   )
   message("Gzipping unique RepeatMasker sequences...")
-  R.utils::gzip(file.path(resource_dir, "rmsk-unique.fa"), remove = TRUE, overwrite = TRUE)
+  R.utils::gzip(
+    file.path(resource_dir, "rmsk-unique.fa"),
+    remove = TRUE,
+    overwrite = TRUE
+  )
 
   # Unzipped version of the genome_fa can be safely removed
   file.remove(uz_genome_fa)

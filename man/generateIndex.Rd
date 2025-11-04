@@ -58,14 +58,7 @@ functions:
 }
 \examples{
 \dontrun{
-
-# Ensure Python dependencies are installed
-install_rmskProfiler()
-
-# Activate the Python environment
-reticulate::use_condaenv("r-rmskProfiler")
-
 # Run pipeline for downloading and creating Salmon index and annotations
-generateIndex(out_dir = "rmsk-resources")
+generateIndex(out_dir = "rmsk-resources", species = "hs")
 }
 }

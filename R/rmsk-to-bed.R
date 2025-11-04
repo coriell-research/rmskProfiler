@@ -21,23 +21,44 @@
 #' \dontrun{
 #' rmskToBed(resource_dir = "/path/to/rmsk-resources")
 #' }
-rmskToBed <- function(resource_dir, exclude = c(
-                       "Simple_repeat", "Low_complexity",
-                       "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
-                       "tRNA", "Unknown"
-                     ), min_len = 32) {
+rmskToBed <- function(
+  resource_dir,
+  exclude = c(
+    "Simple_repeat",
+    "Low_complexity",
+    "Satellite",
+    "RNA",
+    "rRNA",
+    "snRNA",
+    "scRNA",
+    "srpRNA",
+    "tRNA",
+    "Unknown"
+  ),
+  min_len = 32
+) {
+  reticulate::py_require("pybedtools")
+  reticulate::py_require(python_version = ">=3.10")
+  reticulate::source_python(system.file(
+    "python",
+    "rmsk_profiler.py",
+    package = "rmskProfiler",
+    mustWork = TRUE
+  ))
 
   rmsk_file <- list.files(resource_dir, pattern = "*.out.gz", full.names = TRUE)
   if (length(rmsk_file) != 1) {
-    stop("rmsk.out.fa.gz file not found in given directory. Check that the file exists")
+    stop(
+      "rmsk.out.fa.gz file not found in given directory. Check that the file exists"
+    )
   }
 
   message("Extracting contents of ", rmsk_file, " to a BED file...")
   tryCatch(
-    rmsk_profiler$rmsk2bed(rmsk_file, exclude, min_len),
+    rmsk2bed(rmsk_file, exclude, min_len),
     warning = function(w) print(w),
     error = function(e) print(e)
-    )
+  )
   message("BED file generation complete.")
 
   return(invisible(NULL))

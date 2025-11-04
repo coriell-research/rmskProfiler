@@ -38,27 +38,35 @@
 #'
 #' @examples
 #' \dontrun{
-#'
-#' # Ensure Python dependencies are installed
-#' install_rmskProfiler()
-#'
-#' # Activate the Python environment
-#' reticulate::use_condaenv("r-rmskProfiler")
-#'
 #' # Run pipeline for downloading and creating Salmon index and annotations
-#' generateIndex(out_dir = "rmsk-resources")
+#' generateIndex(out_dir = "rmsk-resources", species = "hs")
 #' }
-generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TRUE,
-                          exclude = c("Simple_repeat", "Low_complexity",
-                                      "Satellite", "RNA", "rRNA", "snRNA",
-                                      "scRNA", "srpRNA", "tRNA", "Unknown"),
-                          min_len = 32, create_index = TRUE, threads = 1) {
-
-  reticulate::py_require("pybedtools")
-  reticulate::py_require(python_version = ">=3.10")
-
+generateIndex <- function(
+  out_dir,
+  species = c("Hs", "Mm"),
+  check_integrity = TRUE,
+  exclude = c(
+    "Simple_repeat",
+    "Low_complexity",
+    "Satellite",
+    "RNA",
+    "rRNA",
+    "snRNA",
+    "scRNA",
+    "srpRNA",
+    "tRNA",
+    "Unknown"
+  ),
+  min_len = 32,
+  create_index = TRUE,
+  threads = 1
+) {
   message("Downloading resources ----------")
-  downloadResources(out_dir = out_dir, species = species, check_integrity = check_integrity)
+  downloadResources(
+    out_dir = out_dir,
+    species = species,
+    check_integrity = check_integrity
+  )
   message("Converting rmsk out to BED ----------")
   rmskToBed(resource_dir = out_dir, exclude = exclude, min_len = min_len)
   message("Extracting unique rmsk sequences from genome ----------")
@@ -66,7 +74,11 @@ generateIndex <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TR
   message("Annotating unique sequences with genomic features ----------")
   createAnnotation(resource_dir = out_dir)
   message("Creating gentrome for Salmon index generation ----------")
-  createGentrome(resource_dir = out_dir, create_index = create_index, threads = threads)
+  createGentrome(
+    resource_dir = out_dir,
+    create_index = create_index,
+    threads = threads
+  )
 
   return(invisible(NULL))
 }
