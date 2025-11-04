@@ -52,7 +52,7 @@ extractUniqueSeqs <- function(resource_dir) {
   }
 
   tryCatch(
-    rmsk_profiler$extract_unique_records(rmsk_bed, uz_genome_fa),
+    extract_unique_records(rmsk_bed, uz_genome_fa),
     warning = function(w) print(w),
     error = function(e) {
       stop("An error occured during fasta extraction!")
