@@ -26,13 +26,19 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   rmsk_fa <- grep("rmsk-unique.fa.gz", resources, value = TRUE)
 
   if (!file.exists(genome_fa)) {
-    stop("<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists")
+    stop(
+      "<>.primary_assembly.genome.fa.gz file not found in given directory. Check that the file exists"
+    )
   }
   if (!file.exists(tx_fa)) {
-    stop("<>.transcripts.fa.gz file not found in given directory. Check that the file exists")
+    stop(
+      "<>.transcripts.fa.gz file not found in given directory. Check that the file exists"
+    )
   }
   if (!file.exists(rmsk_fa)) {
-    stop("rmsk-unique.fa.gz file not found in given directory. Check that the file exists")
+    stop(
+      "rmsk-unique.fa.gz file not found in given directory. Check that the file exists"
+    )
   }
 
   # Gentrome generation ---------------------------------------------------------
@@ -43,7 +49,10 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   genome_seqs <- genome_seqs[grepl("chr[0-9]+|chr[XY]", names(genome_seqs))]
 
   # Fix the names of the DNAStringSet (they import as "chr1 1", "chr2 2", etc.)
-  names(genome_seqs) <- regmatches(names(genome_seqs), regexpr("chr[0-9]+|chr[XY]", names(genome_seqs)))
+  names(genome_seqs) <- regmatches(
+    names(genome_seqs),
+    regexpr("chr[0-9]+|chr[XY]", names(genome_seqs))
+  )
 
   message("Reading in transcripts fasta...")
   tx_seqs <- Biostrings::readDNAStringSet(tx_fa, format = "fasta")
@@ -55,7 +64,11 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   gentrome <- c(tx_seqs, rmsk_seqs, genome_seqs)
   gentrome_fa <- file.path(resource_dir, "rmsk-gentrome.fa.gz")
 
-  message("Writing out gentrome to ", gentrome_fa, "... (this may take some time)")
+  message(
+    "Writing out gentrome to ",
+    gentrome_fa,
+    "... (this may take some time)"
+  )
   Biostrings::writeXStringSet(gentrome, filepath = gentrome_fa, compress = TRUE)
 
   # Decoy generation -------------------------------------------------------------
@@ -75,11 +88,16 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
   if (isTRUE(create_index)) {
     message("Creating salmon index...")
     cmd <- paste(
-      "salmon index -t", gentrome_fa,
-      "-d", decoy_file,
-      "-p", threads,
-      "-k", 31,
-      "-i", file.path(resource_dir, "rmsk-salmon_index"),
+      "salmon index -t",
+      gentrome_fa,
+      "-d",
+      decoy_file,
+      "-p",
+      threads,
+      "-k",
+      31,
+      "-i",
+      file.path(resource_dir, "rmsk-salmon_index"),
       "--gencode",
       "--no-clip"
     )
@@ -87,7 +105,9 @@ createGentrome <- function(resource_dir, create_index = TRUE, threads = 1) {
     tryCatch(
       system(cmd),
       warning = function(w) print(w),
-      error = function(e) stop("An error occurred during index generation! Check Salmon logs")
+      error = function(e) {
+        stop("An error occurred during index generation! Check Salmon logs")
+      }
     )
   }
 

@@ -28,7 +28,6 @@
 #' @export
 #'
 importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE) {
-
   message("Importing quants with edgeR::catchSalmon...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
   catch <- edgeR::catchSalmon(paths, verbose = FALSE)
@@ -37,7 +36,7 @@ importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE) {
     assays = list(
       counts = catch$counts / catch$annotation$Overdispersion,
       orig = catch$counts
-      ),
+    ),
     metadata = list(annotation = catch$annotation)
   )
   colnames(se) <- basename(colnames(se))

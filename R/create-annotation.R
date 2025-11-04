@@ -5,7 +5,11 @@
 #' @return data.table
 #'
 .dupInfoToDT <- function(jsonfile) {
-  message("Reading in the duplicate information from ", basename(jsonfile), "...")
+  message(
+    "Reading in the duplicate information from ",
+    basename(jsonfile),
+    "..."
+  )
   info <- jsonlite::fromJSON(jsonfile)
 
   message("Creating data.table from json information...")
@@ -15,18 +19,34 @@
   dt <- dt[, .(Instance = as.character(unlist(Instance))), by = Hash]
 
   message("Extracting repetitive element names from location strings...")
-  dt[, c("ID", "Location") := data.table::tstrsplit(Instance, "::", fixed = TRUE)]
+  dt[,
+    c("ID", "Location") := data.table::tstrsplit(Instance, "::", fixed = TRUE)
+  ]
   dt[, `:=`(
     RepID = stringi::stri_replace(ID, "", regex = "\\..*"),
     RepName = stringi::stri_replace(ID, "", regex = "^[0-9]+\\.")
   )]
 
   message("Extracting position information...")
-  dt[, c("seqnames", "position") := data.table::tstrsplit(Location, ":", fixed = TRUE)]
-  dt[, strand := data.table::fifelse(stringi::stri_detect(position, regex = "\\(+\\)"), "+", "-")]
+  dt[,
+    c("seqnames", "position") := data.table::tstrsplit(
+      Location,
+      ":",
+      fixed = TRUE
+    )
+  ]
+  dt[,
+    strand := data.table::fifelse(
+      stringi::stri_detect(position, regex = "\\(+\\)"),
+      "+",
+      "-"
+    )
+  ]
   dt[, position := stringi::stri_replace(position, "", regex = "\\(.\\)")][,
-       c("start", "end") := data.table::tstrsplit(position, "-", fixed = TRUE)][,
-       `:=`(start = as.integer(start), end = as.integer(end))]
+    c("start", "end") := data.table::tstrsplit(position, "-", fixed = TRUE)
+  ][,
+    `:=`(start = as.integer(start), end = as.integer(end))
+  ]
   dt[, `:=`(Location = NULL, position = NULL, Instance = NULL, ID = NULL)]
 
   return(dt)
@@ -46,7 +66,6 @@
 #' @return List of hash vectors overlapping genomic features
 #'
 .getHashOverlaps <- function(x, gtffile, resource_dir) {
-
   organism <- "Homo sapiens"
   taxid <- 9606
   data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
@@ -82,17 +101,57 @@
   fiveUTR_by_tx <- unlist(GenomicFeatures::fiveUTRsByTranscript(txdb))
 
   message("Finding overlaps between TE loci and genomic features...")
-  exon_hits <- GenomicRanges::findOverlaps(x, exons_by_tx, ignore.strand = FALSE)
-  intron_hits <- GenomicRanges::findOverlaps(x, introns_by_tx, ignore.strand = FALSE)
-  promoter_hits <- GenomicRanges::findOverlaps(x, promoters_by_gene, ignore.strand = FALSE)
-  threeUTR_hits <- GenomicRanges::findOverlaps(x, threeUTR_by_tx, ignore.strand = FALSE)
-  fiveUTR_hits <- GenomicRanges::findOverlaps(x, fiveUTR_by_tx, ignore.strand = FALSE)
+  exon_hits <- GenomicRanges::findOverlaps(
+    x,
+    exons_by_tx,
+    ignore.strand = FALSE
+  )
+  intron_hits <- GenomicRanges::findOverlaps(
+    x,
+    introns_by_tx,
+    ignore.strand = FALSE
+  )
+  promoter_hits <- GenomicRanges::findOverlaps(
+    x,
+    promoters_by_gene,
+    ignore.strand = FALSE
+  )
+  threeUTR_hits <- GenomicRanges::findOverlaps(
+    x,
+    threeUTR_by_tx,
+    ignore.strand = FALSE
+  )
+  fiveUTR_hits <- GenomicRanges::findOverlaps(
+    x,
+    fiveUTR_by_tx,
+    ignore.strand = FALSE
+  )
 
-  u_exon_hits <- GenomicRanges::findOverlaps(x, exons_by_tx, ignore.strand = TRUE)
-  u_intron_hits <- GenomicRanges::findOverlaps(x, introns_by_tx, ignore.strand = TRUE)
-  u_promoter_hits <- GenomicRanges::findOverlaps(x, promoters_by_gene, ignore.strand = TRUE)
-  u_threeUTR_hits <- GenomicRanges::findOverlaps(x, threeUTR_by_tx, ignore.strand = TRUE)
-  u_fiveUTR_hits <- GenomicRanges::findOverlaps(x, fiveUTR_by_tx, ignore.strand = TRUE)
+  u_exon_hits <- GenomicRanges::findOverlaps(
+    x,
+    exons_by_tx,
+    ignore.strand = TRUE
+  )
+  u_intron_hits <- GenomicRanges::findOverlaps(
+    x,
+    introns_by_tx,
+    ignore.strand = TRUE
+  )
+  u_promoter_hits <- GenomicRanges::findOverlaps(
+    x,
+    promoters_by_gene,
+    ignore.strand = TRUE
+  )
+  u_threeUTR_hits <- GenomicRanges::findOverlaps(
+    x,
+    threeUTR_by_tx,
+    ignore.strand = TRUE
+  )
+  u_fiveUTR_hits <- GenomicRanges::findOverlaps(
+    x,
+    fiveUTR_by_tx,
+    ignore.strand = TRUE
+  )
 
   message("Collecting results...")
   hash_in_exon <- unique(x[S4Vectors::queryHits(exon_hits), ]$Hash)
@@ -108,17 +167,17 @@
   u_hash_in_5utr <- unique(x[S4Vectors::queryHits(u_fiveUTR_hits), ]$Hash)
 
   result <- list(
-     hash_in_exon = hash_in_exon,
-     hash_in_intron = hash_in_intron,
-     hash_in_promoter = hash_in_promoter,
-     hash_in_3utr = hash_in_3utr,
-     hash_in_5utr = hash_in_5utr,
-     u_hash_in_exon = u_hash_in_exon,
-     u_hash_in_intron = u_hash_in_intron,
-     u_hash_in_promoter = u_hash_in_promoter,
-     u_hash_in_3utr = u_hash_in_3utr,
-     u_hash_in_5utr = u_hash_in_5utr
-    )
+    hash_in_exon = hash_in_exon,
+    hash_in_intron = hash_in_intron,
+    hash_in_promoter = hash_in_promoter,
+    hash_in_3utr = hash_in_3utr,
+    hash_in_5utr = hash_in_5utr,
+    u_hash_in_exon = u_hash_in_exon,
+    u_hash_in_intron = u_hash_in_intron,
+    u_hash_in_promoter = u_hash_in_promoter,
+    u_hash_in_3utr = u_hash_in_3utr,
+    u_hash_in_5utr = u_hash_in_5utr
+  )
 
   return(result)
 }
@@ -145,7 +204,6 @@
 #' createAnnotation(resource_dir = "/path/to/rmsk-resources")
 #' }
 createAnnotation <- function(resource_dir) {
-
   resources <- list.files(resource_dir, full.names = TRUE)
   info_json <- grep("rmsk-duplicateInfo.json", resources, value = TRUE)
   gtf_file <- grep("annotation.gtf.gz", resources, value = TRUE)
@@ -161,18 +219,27 @@ createAnnotation <- function(resource_dir) {
 
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
-  hash_dt[, c("Class", "Family", "Subfamily") := data.table::tstrsplit(RepName, ".", fixed = TRUE)]
+  hash_dt[,
+    c("Class", "Family", "Subfamily") := data.table::tstrsplit(
+      RepName,
+      ".",
+      fixed = TRUE
+    )
+  ]
 
   message("Collapsing hash-level information into rowData...")
-  by_hash <- hash_dt[, .(
-    Class = stringi::stri_flatten(unique(Class), collapse = ","),
-    Family = stringi::stri_flatten(unique(Family), collapse = ","),
-    Subfamily = stringi::stri_flatten(unique(Subfamily), collapse = ","),
-    N_Loci = sum(N_Loci),
-    N_Class = length(unique(Class)),
-    N_Family = length(unique(Family)),
-    N_Subfamily = length(unique(Subfamily))
-  ), by = Hash]
+  by_hash <- hash_dt[,
+    .(
+      Class = stringi::stri_flatten(unique(Class), collapse = ","),
+      Family = stringi::stri_flatten(unique(Family), collapse = ","),
+      Subfamily = stringi::stri_flatten(unique(Subfamily), collapse = ","),
+      N_Loci = sum(N_Loci),
+      N_Class = length(unique(Class)),
+      N_Family = length(unique(Family)),
+      N_Subfamily = length(unique(Subfamily))
+    ),
+    by = Hash
+  ]
 
   by_hash[, `:=`(
     hasPromoter = Hash %chin% ov$hash_in_promoter,
@@ -184,15 +251,24 @@ createAnnotation <- function(resource_dir) {
     hasUnstrandedExonic = Hash %chin% ov$u_hash_in_exon,
     hasUnstrandedIntronic = Hash %chin% ov$u_hash_in_intron,
     hasUnstranded3UTR = Hash %chin% ov$u_hash_in_3utr,
-    hasUnstranded5UTR = Hash %chin% ov$u_hash_in_5utr)
-    ][, `:=`(hasIntergenic = (!hasExonic & !hasIntronic & !has3UTR & !has5UTR),
-             hasUnstrandedIntergenic = (!hasUnstrandedExonic & !hasUnstrandedIntronic & !hasUnstranded3UTR & !hasUnstranded5UTR)
-             )]
+    hasUnstranded5UTR = Hash %chin% ov$u_hash_in_5utr
+  )][, `:=`(
+    hasIntergenic = (!hasExonic & !hasIntronic & !has3UTR & !has5UTR),
+    hasUnstrandedIntergenic = (!hasUnstrandedExonic &
+      !hasUnstrandedIntronic &
+      !hasUnstranded3UTR &
+      !hasUnstranded5UTR)
+  )]
 
   message("Reading in range information for transcripts...")
   gtf <- rtracklayer::import(gtf_file)
   tx <- gtf[gtf$type == "transcript", ]
-  tx_dt <- data.table::as.data.table(data.frame(tx))[, .(transcript_id, gene_id, gene_name, gene_type)]
+  tx_dt <- data.table::as.data.table(data.frame(tx))[, .(
+    transcript_id,
+    gene_id,
+    gene_name,
+    gene_type
+  )]
   names(tx) <- tx$transcript_id
   tx <- as(tx, "GRangesList")
   rmsk_grl <- c(tx, grl)
@@ -203,7 +279,10 @@ createAnnotation <- function(resource_dir) {
   rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
   rd$Ranges <- rmsk_grl[rownames(rd)]
 
-  message("Writing out rowData to: ", file.path(resource_dir, "rmsk-rowData.rds"))
+  message(
+    "Writing out rowData to: ",
+    file.path(resource_dir, "rmsk-rowData.rds")
+  )
   saveRDS(rd, file.path(resource_dir, "rmsk-rowData.rds"))
   message("Done.")
 

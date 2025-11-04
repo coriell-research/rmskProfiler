@@ -48,13 +48,25 @@
 #'   "--threads 12"
 #'   )
 #' }
-salmonQuant <- function(fq1, fq2, sample_names, resource_dir, out_dir,
-                        n_gibbs = 30, ...) {
-
-  stopifnot("fq1, fq2, and sample_names differ in length" = (length(fq1) == length(fq2)) == (length(fq1) == length(sample_names)))
+salmonQuant <- function(
+  fq1,
+  fq2,
+  sample_names,
+  resource_dir,
+  out_dir,
+  n_gibbs = 30,
+  ...
+) {
+  stopifnot(
+    "fq1, fq2, and sample_names differ in length" = (length(fq1) ==
+      length(fq2)) ==
+      (length(fq1) == length(sample_names))
+  )
 
   idx <- file.path(resource_dir, "rmsk-salmon_index")
-  stopifnot("rmsk-salmon_index does not exist in resource directory!" = dir.exists(idx))
+  stopifnot(
+    "rmsk-salmon_index does not exist in resource directory!" = dir.exists(idx)
+  )
 
   out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
 
@@ -62,19 +74,26 @@ salmonQuant <- function(fq1, fq2, sample_names, resource_dir, out_dir,
   more_args <- unlist(dots)
 
   for (i in seq_along(fq1)) {
-    system2("salmon",
-            args = c(
-              "quant",
-              "--libType", "A",
-              "--mates1", fq1[i],
-              "--mates2", fq2[i],
-              "--output", out_dirs[i],
-              "--index", idx,
-              "--numGibbsSamples", n_gibbs,
-              more_args
-            ))
+    system2(
+      "salmon",
+      args = c(
+        "quant",
+        "--libType",
+        "A",
+        "--mates1",
+        fq1[i],
+        "--mates2",
+        fq2[i],
+        "--output",
+        out_dirs[i],
+        "--index",
+        idx,
+        "--numGibbsSamples",
+        n_gibbs,
+        more_args
+      )
+    )
   }
 
   return(invisible(NULL))
 }
-

@@ -22,33 +22,46 @@
 #'
 #' }
 aggregateCounts <- function(x, level = "subfamily") {
-
   # Create grouping variable for summarizing
   agg_level <- match.arg(level, choices = c("subfamily", "family", "class"))
   SummarizedExperiment::rowData(x)$repElem <-
-    switch(agg_level,
-           subfamily = stringr::str_c(SummarizedExperiment::rowData(x)$Subfamily,
-                                      SummarizedExperiment::rowData(x)$Family,
-                                      SummarizedExperiment::rowData(x)$Class,
-                                      sep = ":"),
-           family = stringr::str_c(SummarizedExperiment::rowData(x)$Family,
-                                   SummarizedExperiment::rowData(x)$Class,
-                                   sep = ":"),
-           class = SummarizedExperiment::rowData(x)$Class
-           )
+    switch(
+      agg_level,
+      subfamily = stringr::str_c(
+        SummarizedExperiment::rowData(x)$Subfamily,
+        SummarizedExperiment::rowData(x)$Family,
+        SummarizedExperiment::rowData(x)$Class,
+        sep = ":"
+      ),
+      family = stringr::str_c(
+        SummarizedExperiment::rowData(x)$Family,
+        SummarizedExperiment::rowData(x)$Class,
+        sep = ":"
+      ),
+      class = SummarizedExperiment::rowData(x)$Class
+    )
 
   feature_id <- data.table::fcoalesce(
     SummarizedExperiment::rowData(x)$gene_id,
     SummarizedExperiment::rowData(x)$repElem
-    )
+  )
 
   rd <- data.table::as.data.table(data.frame(table(feature_id)))
 
   # Add on gene information from original se for easier downstream analysis
-  df <- SummarizedExperiment::rowData(x)[startsWith(rownames(x), "ENS"), c("gene_id", "gene_name", "gene_type")]
+  df <- SummarizedExperiment::rowData(x)[
+    startsWith(rownames(x), "ENS"),
+    c("gene_id", "gene_name", "gene_type")
+  ]
   df <- data.table::as.data.table(data.frame(df))
   df <- unique(df)
-  rd <- data.table::merge.data.table(rd, df, by.x = "feature_id", by.y = "gene_id", all.x = TRUE)
+  rd <- data.table::merge.data.table(
+    rd,
+    df,
+    by.x = "feature_id",
+    by.y = "gene_id",
+    all.x = TRUE
+  )
   data.table::setDF(rd, rownames = rd$feature_id)
 
   counts <- rowsum(SummarizedExperiment::assay(x, "counts"), group = feature_id)

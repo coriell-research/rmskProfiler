@@ -53,7 +53,11 @@
 #' \dontrun{
 #' downloadResources(out_dir = "/path/to/rmsk-resources")
 #' }
-downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity = TRUE) {
+downloadResources <- function(
+  out_dir,
+  species = c("Hs", "Mm"),
+  check_integrity = TRUE
+) {
   species <- match.arg(species)
 
   urls <- c(
@@ -66,7 +70,11 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
 
   # Hashsums only for GENCODE files - annotation, transcripts, assembly
   # https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/MD5SUMS
-  md5sums <- c("f7ffc813464f52e428c116bc3b83dce1", "e4a4d396cca5dd6d0889248b9e93b42a", "42e38e8dd5027dd2ae8aeb8f3a990d07")
+  md5sums <- c(
+    "f7ffc813464f52e428c116bc3b83dce1",
+    "e4a4d396cca5dd6d0889248b9e93b42a",
+    "42e38e8dd5027dd2ae8aeb8f3a990d07"
+  )
 
   if (species == "Mm") {
     urls <- c(
@@ -76,7 +84,11 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/GRCm38.primary_assembly.genome.fa.gz"
     )
     fnames <- basename(urls)
-    md5sums <- c("0c38fc4ccbc731a2708fc91e7f1c2efd", "a821c0dde39c48b9d2c4b48d36b0180c", "3bc591be24b77f710b6ba5d41022fc5a")
+    md5sums <- c(
+      "0c38fc4ccbc731a2708fc91e7f1c2efd",
+      "a821c0dde39c48b9d2c4b48d36b0180c",
+      "3bc591be24b77f710b6ba5d41022fc5a"
+    )
   }
 
   if (!dir.exists(out_dir)) {
@@ -98,7 +110,10 @@ downloadResources <- function(out_dir, species = c("Hs", "Mm"), check_integrity 
     message("Checking file integrity of downloaded files...")
     badfile <- md5sums != as.vector(tools::md5sum(outfiles[2:4]))
     if (any(badfile)) {
-      msg <- paste(outfiles[2:4][which(badfile)], "Did not download properly. Remove this file and retry.")
+      msg <- paste(
+        outfiles[2:4][which(badfile)],
+        "Did not download properly. Remove this file and retry."
+      )
       stop(msg)
     }
     message("Success!")
