@@ -4,10 +4,12 @@
 \alias{aggregateCounts}
 \title{Aggregate counts to gene/subfamily level}
 \usage{
-aggregateCounts(x, level = "subfamily")
+aggregateCounts(x, resource_dir, level = "subfamily")
 }
 \arguments{
-\item{x}{SummarizedExperiment object produced by importQuants()}
+\item{x}{SummarizedExperiment object produced by \code{importQuants()}}
+
+\item{resource_dir}{Path to the rmskProfiler resources directory}
 
 \item{level}{One of "subfamily" (default), "family", or "class" indicating
 the level of classification to sum TE-loci to.}
@@ -21,13 +23,17 @@ level for all transcripts and TE-loci. A new SummarizedExperiment object is
 returned with two assays, 'counts' and 'orig' representing the aggregated
 counts from the catchSalmon down-scaled and original Salmon counts matrices,
 respectively. rowData is added to the object indicating the number of TE-loci
-or transcripts that were summed for each resulting feature.
+or transcripts that were summed for each resulting feature. rowData of the
+aggregated object also contains a column called 'feature_length'. For genes,
+'feature_length' is the sum of the reduced exon widths. For TEs, feature_length
+is the sum of the length of all TE-loci that are members of the subfamily,
+family, or class.
 }
 \examples{
 \dontrun{
 
-se <- importQuants("quants", resources_dir = "hg38-resources")
-aggregated <- aggregateCounts(se, level = "subfamily")
+se <- importQuants("quants", resource_dir = "hg38-resources")
+aggregated <- aggregateCounts(se, resource_dir = "hg38-resources", level = "subfamily")
 
 }
 }

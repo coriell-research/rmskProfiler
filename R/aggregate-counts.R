@@ -5,9 +5,14 @@
 #' returned with two assays, 'counts' and 'orig' representing the aggregated
 #' counts from the catchSalmon down-scaled and original Salmon counts matrices,
 #' respectively. rowData is added to the object indicating the number of TE-loci
-#' or transcripts that were summed for each resulting feature.
+#' or transcripts that were summed for each resulting feature. rowData of the
+#' aggregated object also contains a column called 'feature_length'. For genes,
+#' 'feature_length' is the sum of the reduced exon widths. For TEs, feature_length
+#' is the sum of the length of all TE-loci that are members of the subfamily,
+#' family, or class.
 #'
-#' @param x SummarizedExperiment object produced by importQuants()
+#' @param x SummarizedExperiment object produced by \code{importQuants()}
+#' @param resource_dir Path to the rmskProfiler resources directory
 #' @param level One of "subfamily" (default), "family", or "class" indicating
 #' the level of classification to sum TE-loci to.
 #'
@@ -17,11 +22,11 @@
 #' @examples
 #' \dontrun{
 #'
-#' se <- importQuants("quants", resources_dir = "hg38-resources")
-#' aggregated <- aggregateCounts(se, level = "subfamily")
+#' se <- importQuants("quants", resource_dir = "hg38-resources")
+#' aggregated <- aggregateCounts(se, resource_dir = "hg38-resources", level = "subfamily")
 #'
 #' }
-aggregateCounts <- function(x, level = "subfamily") {
+aggregateCounts <- function(x, resource_dir, level = "subfamily") {
   # Create grouping variable for summarizing
   agg_level <- match.arg(level, choices = c("subfamily", "family", "class"))
   SummarizedExperiment::rowData(x)$repElem <-
@@ -46,15 +51,33 @@ aggregateCounts <- function(x, level = "subfamily") {
     SummarizedExperiment::rowData(x)$repElem
   )
 
-  rd <- data.table::as.data.table(data.frame(table(feature_id)))
+  # Compute feature lengths
+  # For genes, get the reduced exon lengths
+  resources <- list.files(resource_dir, full.names = TRUE)
+  dbfile <- grep("annotation.txdb", resources, value = TRUE)
+  txdb <- AnnotationDbi::loadDb(dbfile)
+  exons_by_gene <- suppressWarnings(GenomicFeatures::exonsBy(txdb, by = "gene"))
+  reduced_exon_lengths <- sum(width(reduce(exons_by_gene)))
+  names(reduced_exon_lengths) <- names(exons_by_gene)
 
-  # Add on gene information from original se for easier downstream analysis
+  # For TEs, compute the sum of the widths of all loci
+  feature_widths <- sum(width(SummarizedExperiment::rowData(x)$Ranges))
+  sum_feature_widths <- tapply(feature_widths, feature_id, sum, na.rm = TRUE)
+  sum_feature_widths <- sum_feature_widths[
+    !startsWith(names(sum_feature_widths), "ENS")
+  ]
+  final_widths <- c(reduced_exon_lengths, sum_feature_widths)
+
+  # Extract useful gene information
   df <- SummarizedExperiment::rowData(x)[
     startsWith(rownames(x), "ENS"),
     c("gene_id", "gene_name", "gene_type")
   ]
   df <- data.table::as.data.table(data.frame(df))
   df <- unique(df)
+
+  # Combine the gene information with the length data
+  rd <- data.table::as.data.table(data.frame(table(feature_id)))
   rd <- data.table::merge.data.table(
     rd,
     df,
@@ -63,7 +86,9 @@ aggregateCounts <- function(x, level = "subfamily") {
     all.x = TRUE
   )
   data.table::setDF(rd, rownames = rd$feature_id)
+  rd$feature_length <- final_widths[rownames(rd)]
 
+  # Sum the assay data
   counts <- rowsum(SummarizedExperiment::assay(x, "counts"), group = feature_id)
   orig <- rowsum(SummarizedExperiment::assay(x, "orig"), group = feature_id)
 
