@@ -97,7 +97,7 @@ salmonQuant(
 
 # Import the transcripts and TE loci counts as a SummarizedExperiment object
 # rowData contains transcript and TE annotations and GRanges
-se <- importQuants("quants", resources_dir = "hg38-resources")
+se <- importQuants("quants", resource_dir = "hg38-resources")
 
 # Proceed to downstream analysis using edgeR
 ```
@@ -145,5 +145,5 @@ keep <- rownames(se) %in% c(tx, loci)
 filtered <- se[keep, ]
 
 # Sum assays to the gene/subfamily level
-aggregated <- aggregateCounts(filtered, level = "subfamily")
+aggregated <- aggregateCounts(filtered, resource_dir = "hg38-resources", level = "subfamily")
 ```
