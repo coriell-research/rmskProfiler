@@ -7,11 +7,12 @@
 #' the locations for each of the TE loci and transcipts.
 #'
 #' @details
-#' The SummarizedEperiment object contains two assays, 'counts' and 'orig.' The
-#' 'counts' assay contains the counts \emph{after} adjusting for over dispersion.
+#' The SummarizedExperiment object contains three assays, 'counts', 'orig.' and 'tpms'.
+#' The 'counts' assay contains the counts \emph{after} adjusting for over dispersion.
 #' This is the assay to be used for downstream differential expression analyses.
-#' The 'orig' assay contains the counts before down-scaling. The metadata slot
-#' contains the annotation data.frame returned from catchSalmon. The rowData
+#' The 'orig' assay contains the counts before down-scaling. The 'tpms' assay
+#' contains TPM values from the Salmon quant files. The metadata slot
+#' contains the annotation data.frame returned from \code{catchSalmon()}. The rowData
 #' slot of the SummarizedExperiment contains columns with boolean values for
 #' each TE loci indicating whether or not that loci has an overlap with a given
 #' feature. For example, hasExonic==TRUE would indicate that loci has an overlap
@@ -20,7 +21,7 @@
 #' contains an additional column 'Ranges' that contains a GRangesList for every
 #' transcript and TE hash location.
 #'
-#' @param quant_dir Path to the directories created by salmonQuant
+#' @param quant_dir Path to the directories created by \code{salmonQuant()} or Salmon
 #' @param resource_dir Path to the directory containing index generation resources
 #' @param remove_zeros Should all zero rows be removed before returning object. Default TRUE
 #'
@@ -40,6 +41,27 @@ importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE) {
     metadata = list(annotation = catch$annotation)
   )
   colnames(se) <- basename(colnames(se))
+
+  message("Importing TPM values from Salmon quants...")
+  quant_files <- file.path(paths, "quant.sf")
+  names(quant_files) <- colnames(se)
+  tpms <- data.table::rbindlist(
+    lapply(
+      quant_files,
+      data.table::fread,
+      showProgress = FALSE,
+      select = c("Name", "TPM")
+    ),
+    idcol = "sample"
+  )
+  tpms <- data.table::dcast(
+    tpms,
+    Name ~ sample,
+    value.var = "TPM",
+    value.fill = 0.0
+  )
+  tpms <- as.matrix(tpms, rownames = "Name")
+  SummarizedExperiment::assay(se, "tpms") <- tpms[rownames(se), colnames(se)]
 
   message("Reading in annotation information for transcripts and TE loci...")
   resources <- list.files(resource_dir, full.names = TRUE)
