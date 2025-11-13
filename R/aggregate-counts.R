@@ -2,14 +2,13 @@
 #'
 #' This function will sum counts to the gene and the subfamily (default)
 #' level for all transcripts and TE-loci. A new SummarizedExperiment object is
-#' returned with two assays, 'counts' and 'orig' representing the aggregated
-#' counts from the catchSalmon down-scaled and original Salmon counts matrices,
-#' respectively. rowData is added to the object indicating the number of TE-loci
-#' or transcripts that were summed for each resulting feature. rowData of the
-#' aggregated object also contains a column called 'feature_length'. For genes,
-#' 'feature_length' is the sum of the reduced exon widths. For TEs, feature_length
-#' is the sum of the length of all TE-loci that are members of the subfamily,
-#' family, or class.
+#' returned with three assays, 'counts', 'orig', and 'tpms' representing the aggregated
+#' counts from the \code{catchSalmon()} down-scaled ('counts'), the original Salmon
+#' counts ('orig'), and the aggregated TPM values ('tpms'), respectively. rowData is added to
+#' the object indicating the number of TE-loci or transcripts that were summed for each resulting
+#' feature ('Freq'). rowData of the aggregated object also contains a column called 'feature_length'.
+#' For genes, 'feature_length' is the sum of the reduced exon widths. For TEs, 'feature_length'
+#' is the sum of the length of all TE-loci that are members of the subfamily, family, or class.
 #'
 #' @param x SummarizedExperiment object produced by \code{importQuants()}
 #' @param resource_dir Path to the rmskProfiler resources directory
