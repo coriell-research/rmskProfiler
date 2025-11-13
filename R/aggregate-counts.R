@@ -91,9 +91,10 @@ aggregateCounts <- function(x, resource_dir, level = "subfamily") {
   # Sum the assay data
   counts <- rowsum(SummarizedExperiment::assay(x, "counts"), group = feature_id)
   orig <- rowsum(SummarizedExperiment::assay(x, "orig"), group = feature_id)
+  tpms <- rowsum(SummarizedExperiment::assay(x, "tpms"), group = feature_id)
 
   result <- SummarizedExperiment::SummarizedExperiment(
-    assays = list("counts" = counts, "orig" = orig),
+    assays = list("counts" = counts, "orig" = orig, "tpms" = tpms),
     rowData = rd[rownames(counts), ],
     colData = SummarizedExperiment::colData(x),
     metadata = S4Vectors::metadata(x)
