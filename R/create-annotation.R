@@ -64,11 +64,11 @@
 #' @param resource_dir Path to the rmsk resource directory. TxDb will be saved here.
 #'
 #' @return List of hash vectors overlapping genomic features
-#'
 .getHashOverlaps <- function(x, gtffile, resource_dir) {
   organism <- "Homo sapiens"
   taxid <- 9606
   data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
+
   if (grepl("M25", gtffile)) {
     organism <- "Mus Musculus"
     taxid <- 10090
@@ -76,6 +76,7 @@
   }
 
   dbfile <- gsub(".gtf.gz", ".txdb", gtffile, fixed = TRUE)
+
   if (!file.exists(dbfile)) {
     message("Creating TxDb from GTF...")
     txdb <- suppressWarnings(
@@ -89,94 +90,64 @@
     )
     AnnotationDbi::saveDb(txdb, dbfile)
   } else {
-    message("DB file found in resource directory. Loading txdb from file.")
+    message("Loading TxDb...")
     txdb <- AnnotationDbi::loadDb(dbfile)
   }
 
-  message("Extracting genomic regions from txdb...")
-  exons_by_tx <- unlist(GenomicFeatures::exonsBy(txdb, by = "tx"))
-  introns_by_tx <- unlist(GenomicFeatures::intronsByTranscript(txdb))
-  promoters_by_gene <- GenomicRanges::promoters(GenomicFeatures::genes(txdb))
-  threeUTR_by_tx <- unlist(GenomicFeatures::threeUTRsByTranscript(txdb))
-  fiveUTR_by_tx <- unlist(GenomicFeatures::fiveUTRsByTranscript(txdb))
+  message("Preparing reduced genomic features...")
+  gr_exons <- GenomicFeatures::exons(txdb)
+  GenomicRanges::mcols(gr_exons)$type <- "exon"
 
-  message("Finding overlaps between TE loci and genomic features...")
-  exon_hits <- GenomicRanges::findOverlaps(
-    x,
-    exons_by_tx,
-    ignore.strand = FALSE
-  )
-  intron_hits <- GenomicRanges::findOverlaps(
-    x,
-    introns_by_tx,
-    ignore.strand = FALSE
-  )
-  promoter_hits <- GenomicRanges::findOverlaps(
-    x,
-    promoters_by_gene,
-    ignore.strand = FALSE
-  )
-  threeUTR_hits <- GenomicRanges::findOverlaps(
-    x,
-    threeUTR_by_tx,
-    ignore.strand = FALSE
-  )
-  fiveUTR_hits <- GenomicRanges::findOverlaps(
-    x,
-    fiveUTR_by_tx,
-    ignore.strand = FALSE
+  gr_promoters <- GenomicRanges::promoters(GenomicFeatures::genes(txdb))
+  GenomicRanges::mcols(gr_promoters)$type <- "promoter"
+
+  gr_introns <- reduce(unlist(GenomicFeatures::intronsByTranscript(txdb)))
+  GenomicRanges::mcols(gr_introns)$type <- "intron"
+
+  gr_3utr <- reduce(unlist(GenomicFeatures::threeUTRsByTranscript(txdb)))
+  GenomicRanges::mcols(gr_3utr)$type <- "3utr"
+
+  gr_5utr <- reduce(unlist(GenomicFeatures::fiveUTRsByTranscript(txdb)))
+  GenomicRanges::mcols(gr_5utr)$type <- "5utr"
+
+  gr_features <- c(gr_exons, gr_introns, gr_promoters, gr_3utr, gr_5utr)
+
+  message("Finding overlaps...")
+  hits <- GenomicRanges::findOverlaps(x, gr_features, ignore.strand = TRUE)
+
+  dt_hits <- data.table(
+    query_idx = S4Vectors::queryHits(hits),
+    subject_idx = S4Vectors::subjectHits(hits)
   )
 
-  u_exon_hits <- GenomicRanges::findOverlaps(
-    x,
-    exons_by_tx,
-    ignore.strand = TRUE
-  )
-  u_intron_hits <- GenomicRanges::findOverlaps(
-    x,
-    introns_by_tx,
-    ignore.strand = TRUE
-  )
-  u_promoter_hits <- GenomicRanges::findOverlaps(
-    x,
-    promoters_by_gene,
-    ignore.strand = TRUE
-  )
-  u_threeUTR_hits <- GenomicRanges::findOverlaps(
-    x,
-    threeUTR_by_tx,
-    ignore.strand = TRUE
-  )
-  u_fiveUTR_hits <- GenomicRanges::findOverlaps(
-    x,
-    fiveUTR_by_tx,
-    ignore.strand = TRUE
-  )
+  dt_hits[, Hash := GenomicRanges::mcols(x)$Hash[query_idx]]
+  dt_hits[, q_strand := as.character(strand(x)[query_idx])]
 
-  message("Collecting results...")
-  hash_in_exon <- unique(x[S4Vectors::queryHits(exon_hits), ]$Hash)
-  hash_in_intron <- unique(x[S4Vectors::queryHits(intron_hits), ]$Hash)
-  hash_in_promoter <- unique(x[S4Vectors::queryHits(promoter_hits), ]$Hash)
-  hash_in_3utr <- unique(x[S4Vectors::queryHits(threeUTR_hits), ]$Hash)
-  hash_in_5utr <- unique(x[S4Vectors::queryHits(fiveUTR_hits), ]$Hash)
+  dt_hits[, feature := GenomicRanges::mcols(gr_features)$type[subject_idx]]
+  dt_hits[, s_strand := as.character(strand(gr_features)[subject_idx])]
 
-  u_hash_in_exon <- unique(x[S4Vectors::queryHits(u_exon_hits), ]$Hash)
-  u_hash_in_intron <- unique(x[S4Vectors::queryHits(u_intron_hits), ]$Hash)
-  u_hash_in_promoter <- unique(x[S4Vectors::queryHits(u_promoter_hits), ]$Hash)
-  u_hash_in_3utr <- unique(x[S4Vectors::queryHits(u_threeUTR_hits), ]$Hash)
-  u_hash_in_5utr <- unique(x[S4Vectors::queryHits(u_fiveUTR_hits), ]$Hash)
+  dt_hits[, strand_match := (q_strand == s_strand)]
+
+  getHashes <- function(dt, feat, stranded = FALSE) {
+    if (isTRUE(stranded)) {
+      unique(dt[feature == feat & strand_match == TRUE, Hash])
+    } else {
+      unique(dt[feature == feat, Hash])
+    }
+  }
 
   result <- list(
-    hash_in_exon = hash_in_exon,
-    hash_in_intron = hash_in_intron,
-    hash_in_promoter = hash_in_promoter,
-    hash_in_3utr = hash_in_3utr,
-    hash_in_5utr = hash_in_5utr,
-    u_hash_in_exon = u_hash_in_exon,
-    u_hash_in_intron = u_hash_in_intron,
-    u_hash_in_promoter = u_hash_in_promoter,
-    u_hash_in_3utr = u_hash_in_3utr,
-    u_hash_in_5utr = u_hash_in_5utr
+    hash_in_exon = getHashes(dt_hits, "exon", TRUE),
+    hash_in_intron = getHashes(dt_hits, "intron", TRUE),
+    hash_in_promoter = getHashes(dt_hits, "promoter", TRUE),
+    hash_in_3utr = getHashes(dt_hits, "3utr", TRUE),
+    hash_in_5utr = getHashes(dt_hits, "5utr", TRUE),
+
+    u_hash_in_exon = getHashes(dt_hits, "exon", FALSE),
+    u_hash_in_intron = getHashes(dt_hits, "intron", FALSE),
+    u_hash_in_promoter = getHashes(dt_hits, "promoter", FALSE),
+    u_hash_in_3utr = getHashes(dt_hits, "3utr", FALSE),
+    u_hash_in_5utr = getHashes(dt_hits, "5utr", FALSE)
   )
 
   return(result)
