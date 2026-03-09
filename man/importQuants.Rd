@@ -4,7 +4,12 @@
 \alias{importQuants}
 \title{Import rmsk quants as a SummarizedExperiment object}
 \usage{
-importQuants(quant_dir, resource_dir, remove_zeros = TRUE)
+importQuants(
+  quant_dir,
+  resource_dir,
+  remove_zeros = TRUE,
+  std_chromosomes = TRUE
+)
 }
 \arguments{
 \item{quant_dir}{Path to the directories created by \code{salmonQuant()} or Salmon}
@@ -12,6 +17,9 @@ importQuants(quant_dir, resource_dir, remove_zeros = TRUE)
 \item{resource_dir}{Path to the directory containing index generation resources}
 
 \item{remove_zeros}{Should all zero rows be removed before returning object. Default TRUE}
+
+\item{std_chromosomes}{Should only transcripts from standard chromosomes be
+kept in the resulting object. Default TRUE.}
 }
 \value{
 SummarizedExperiment
@@ -37,4 +45,9 @@ with some exon on the same strand. hasUnstrandedExonic==TRUE would indicate
 that the loci has an overlap with an exon on either strand. The rowData also
 contains an additional column 'Ranges' that contains a GRangesList for every
 transcript and TE hash location.
+
+The rmskProfiler index contains transcripts from the "patch_hapl_scaff"
+annotations. By default, \code{importQuants()} will exclude these transcripts
+from the resulting object. The exclusion criteria a transcript where any of
+its ranges does not lie within a standard chromosome will be excluded.
 }

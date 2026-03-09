@@ -21,14 +21,21 @@
 #' contains an additional column 'Ranges' that contains a GRangesList for every
 #' transcript and TE hash location.
 #'
+#' The rmskProfiler index contains transcripts from the "patch_hapl_scaff"
+#' annotations. By default, \code{importQuants()} will exclude these transcripts
+#' from the resulting object. The exclusion criteria a transcript where any of
+#' its ranges does not lie within a standard chromosome will be excluded.
+#'
 #' @param quant_dir Path to the directories created by \code{salmonQuant()} or Salmon
 #' @param resource_dir Path to the directory containing index generation resources
 #' @param remove_zeros Should all zero rows be removed before returning object. Default TRUE
+#' @param std_chromosomes Should only transcripts from standard chromosomes be
+#' kept in the resulting object. Default TRUE.
 #'
 #' @return SummarizedExperiment
 #' @export
 #'
-importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE) {
+importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE, std_chromosomes = TRUE) {
   message("Importing quants with edgeR::catchSalmon...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
   catch <- edgeR::catchSalmon(paths, verbose = FALSE)
@@ -72,6 +79,14 @@ importQuants <- function(quant_dir, resource_dir, remove_zeros = TRUE) {
   if (isTRUE(remove_zeros)) {
     message("Removing any all zero rows...")
     se <- se[rowSums(SummarizedExperiment::assay(se, "counts")) > 0, ]
+  }
+
+  if (isTRUE(std_chromosomes)) {
+    message("Dropping transcripts from non-standard chromosomes...")
+    std_chrom <- paste0("chr", c(1:22, "X", "Y"))
+    chroms <- S4Vectors::runValue(GenomicRanges::seqnames(SummarizedExperiment::rowData(se)$Ranges))
+    is_std <- all(chroms %in% std_chrom)
+    se <- se[is_std, ]
   }
 
   message("Done.")
