@@ -41,7 +41,7 @@ importQuants <- function(
   remove_zeros = TRUE,
   std_chromosomes = TRUE
 ) {
-  message("Importing quants with edgeR::catchSalmon...")
+  message("Importing quants...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
   catch <- .catchSalmon2(paths, verbose = FALSE)
 
