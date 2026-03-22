@@ -50,8 +50,8 @@
     }
 
     Type <- Meta$samp_type
-    if (is.null(ResampleType)) {
-      Type <- "bootstrap"
+    if (is.null(Type)) {
+      ResampleType[j] <- "bootstrap"
     } else {
       ResampleType[j] <- Type
     }
@@ -68,7 +68,11 @@
       Quant1 <- suppressWarnings(data.table::fread(
         QuantFile,
         sep = "\t",
-        colClasses = "cdddd",
+        select = c(
+          "Name" = "character",
+          "TPM" = "numeric",
+          "NumReads" = "numeric"
+        ),
         showProgress = FALSE
       ))
       Counts[, 1L] <- Quant1$NumReads
@@ -77,7 +81,7 @@
       Quant <- suppressWarnings(data.table::fread(
         QuantFile,
         sep = "\t",
-        colClasses = "___dd",
+        select = c("TPM" = "numeric", "NumReads" = "numeric"),
         showProgress = FALSE
       ))
       Counts[, j] <- Quant$NumReads
@@ -89,8 +93,7 @@
       Boot <- readBin(
         BootFileCon,
         what = "double",
-        n = NTx *
-          NBoot
+        n = NTx * NBoot
       )
       close(BootFileCon)
       dim(Boot) <- c(NTx, NBoot)
@@ -117,8 +120,7 @@
       OverDispPrior <- 1
     }
     OverDisp[i] <- (DFPrior * OverDispPrior + DF[i] * OverDisp[i]) /
-      (DFPrior +
-        DF[i])
+      (DFPrior + DF[i])
     OverDisp <- pmax(OverDisp, 1)
     OverDisp[!i] <- OverDispPrior
   } else {
