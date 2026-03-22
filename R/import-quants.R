@@ -43,37 +43,17 @@ importQuants <- function(
 ) {
   message("Importing quants with edgeR::catchSalmon...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
-  catch <- edgeR::catchSalmon(paths, verbose = FALSE)
+  catch <- .catchSalmon2(paths, verbose = FALSE)
 
   se <- SummarizedExperiment::SummarizedExperiment(
     assays = list(
       counts = catch$counts / catch$annotation$Overdispersion,
-      orig = catch$counts
+      orig = catch$counts,
+      tpms = catch$tpm
     ),
     metadata = list(annotation = catch$annotation)
   )
   colnames(se) <- basename(colnames(se))
-
-  message("Importing TPM values from Salmon quants...")
-  quant_files <- file.path(paths, "quant.sf")
-  names(quant_files) <- colnames(se)
-  tpms <- data.table::rbindlist(
-    lapply(
-      quant_files,
-      data.table::fread,
-      showProgress = FALSE,
-      select = c("Name", "TPM")
-    ),
-    idcol = "sample"
-  )
-  tpms <- data.table::dcast(
-    tpms,
-    Name ~ sample,
-    value.var = "TPM",
-    value.fill = 0.0
-  )
-  tpms <- as.matrix(tpms, rownames = "Name")
-  SummarizedExperiment::assay(se, "tpms") <- tpms[rownames(se), colnames(se)]
 
   message("Reading in annotation information for transcripts and TE loci...")
   resources <- list.files(resource_dir, full.names = TRUE)

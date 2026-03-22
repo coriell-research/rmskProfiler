@@ -6,6 +6,9 @@
 #' https://github.com/plbaldoni/TranscriptDE-code/blob/main/code/pkg/R/utils.R#L52
 #'
 #' It is analogous to catchSalmon but imports TPM values as well
+#' @param character vector giving paths to the sample-specific directories created by a kallisto or
+#' Salmon. Each entry corresponds to one RNA-seq sample.
+#' @param logical. If TRUE, progress information will be sent to standard output as each sample is processed.
 #' @keywords internal
 .catchSalmon2 <- function(paths, verbose = TRUE) {
   NSamples <- length(paths)
@@ -20,11 +23,11 @@
     stop("readr package required but is not installed (or can't be loaded)")
   }
 
+  ResampleType <- rep_len("", NSamples)
   for (j in 1L:NSamples) {
     if (verbose) {
       cat("Reading ", paths[j], ", ", sep = "")
     }
-
     MetaFile <- file.path(paths[j], "aux_info", "meta_info.json")
     QuantFile <- file.path(paths[j], "quant.sf")
     BootFile <- file.path(paths[j], "aux_info", "bootstrap", "bootstraps.gz")
@@ -32,9 +35,10 @@
     if (!file.exists(QuantFile)) {
       stop("quant.sf file not found at specified path")
     }
-    Meta <- jsonlite::fromJSON(MetaFile)
 
+    Meta <- jsonlite::fromJSON(MetaFile)
     NTx <- Meta$num_targets
+
     if (is.null(NTx)) {
       NTx <- Meta$num_valid_targets
     }
@@ -48,8 +52,15 @@
       stop("Can't find number of bootstraps")
     }
 
+    Type <- Meta$samp_type
+    if (is.null(ResampleType)) {
+      Type <- "bootstrap"
+    } else {
+      ResampleType[j] <- Type
+    }
+
     if (verbose) {
-      cat(NTx, "transcripts,", NBoot, "bootstraps\n")
+      cat(NTx, "transcripts,", NBoot, Type, "samples\n")
     }
 
     if (j == 1L) {
@@ -59,7 +70,7 @@
       OverDisp <- rep_len(0, NTx)
       Quant1 <- suppressWarnings(readr::read_tsv(
         QuantFile,
-        col_types = "cdddd",
+        col_types = "cdd_d",
         progress = FALSE
       ))
       Counts[, 1L] <- Quant1$NumReads
@@ -67,7 +78,7 @@
     } else {
       Quant <- suppressWarnings(readr::read_tsv(
         QuantFile,
-        col_types = "___dd",
+        col_types = "____d",
         progress = FALSE
       ))
       Counts[, j] <- Quant$NumReads
@@ -107,7 +118,8 @@
       OverDispPrior <- 1
     }
     OverDisp[i] <- (DFPrior * OverDispPrior + DF[i] * OverDisp[i]) /
-      (DFPrior + DF[i])
+      (DFPrior +
+        DF[i])
     OverDisp <- pmax(OverDisp, 1)
     OverDisp[!i] <- OverDispPrior
   } else {
@@ -127,6 +139,7 @@
     counts = Counts,
     tpm = TPM,
     annotation = Quant1,
-    overdispersion.prior = OverDispPrior
+    overdispersion.prior = OverDispPrior,
+    resample.type = ResampleType
   )
 }
