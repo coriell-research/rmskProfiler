@@ -1,14 +1,16 @@
 #' Import transcript-level counts with offset
 #'
 #' @details
-#' This function is lifted from:
+#' This function is mostly lifted from:
 #'
 #' https://github.com/plbaldoni/TranscriptDE-code/blob/main/code/pkg/R/utils.R#L52
 #'
-#' It is analogous to catchSalmon but imports TPM values as well
+#' and combined with existing catchSalmon code. I only used data.table::fread in place of readr so
+#' as to not add more dependencies.
+#'
 #' @param character vector giving paths to the sample-specific directories created by a kallisto or
 #' Salmon. Each entry corresponds to one RNA-seq sample.
-#' @param logical. If TRUE, progress information will be sent to standard output as each sample is processed.
+#' @param logical If TRUE, progress information will be sent to standard output as each sample is processed.
 #' @keywords internal
 .catchSalmon2 <- function(paths, verbose = TRUE) {
   NSamples <- length(paths)
@@ -16,11 +18,6 @@
   OK <- requireNamespace("jsonlite", quietly = TRUE)
   if (!OK) {
     stop("jsonlite package required but is not installed (or can't be loaded)")
-  }
-
-  OK <- requireNamespace("readr", quietly = TRUE)
-  if (!OK) {
-    stop("readr package required but is not installed (or can't be loaded)")
   }
 
   ResampleType <- rep_len("", NSamples)
@@ -68,18 +65,20 @@
       TPM <- matrix(0, NTx, NSamples)
       DF <- rep_len(0L, NTx)
       OverDisp <- rep_len(0, NTx)
-      Quant1 <- suppressWarnings(readr::read_tsv(
+      Quant1 <- suppressWarnings(data.table::fread(
         QuantFile,
-        col_types = "cdd_d",
-        progress = FALSE
+        sep = "\t",
+        colClasses = "cdddd",
+        showProgress = FALSE
       ))
       Counts[, 1L] <- Quant1$NumReads
       TPM[, 1L] <- Quant1$TPM
     } else {
-      Quant <- suppressWarnings(readr::read_tsv(
+      Quant <- suppressWarnings(data.table::fread(
         QuantFile,
-        col_types = "____d",
-        progress = FALSE
+        sep = "\t",
+        colClasses = "___dd",
+        showProgress = FALSE
       ))
       Counts[, j] <- Quant$NumReads
       TPM[, j] <- Quant$TPM

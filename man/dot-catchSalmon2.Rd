@@ -10,16 +10,17 @@
 \item{character}{vector giving paths to the sample-specific directories created by a kallisto or
 Salmon. Each entry corresponds to one RNA-seq sample.}
 
-\item{logical.}{If TRUE, progress information will be sent to standard output as each sample is processed.}
+\item{logical}{If TRUE, progress information will be sent to standard output as each sample is processed.}
 }
 \description{
 Import transcript-level counts with offset
 }
 \details{
-This function is lifted from:
+This function is mostly lifted from:
 
 https://github.com/plbaldoni/TranscriptDE-code/blob/main/code/pkg/R/utils.R#L52
 
-It is analogous to catchSalmon but imports TPM values as well
+and combined with existing catchSalmon code. I only used data.table::fread in place of readr so
+as to not add more dependencies.
 }
 \keyword{internal}
