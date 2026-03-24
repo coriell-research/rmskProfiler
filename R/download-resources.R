@@ -61,7 +61,6 @@ downloadResources <- function(
   species <- match.arg(species)
 
   urls <- c(
-    "https://repeatmasker.org/genomes/hg38/rmsk4.0.5_rb20140131/hg38.fa.out.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.transcripts.fa.gz",
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/GRCh38.primary_assembly.genome.fa.gz"
@@ -78,7 +77,6 @@ downloadResources <- function(
 
   if (species == "Mm") {
     urls <- c(
-      "https://repeatmasker.org/genomes/mm10/rmsk4.0.5_rb20140131/mm10.fa.out.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.transcripts.fa.gz",
       "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/GRCm38.primary_assembly.genome.fa.gz"
@@ -108,10 +106,10 @@ downloadResources <- function(
 
   if (isTRUE(check_integrity)) {
     message("Checking file integrity of downloaded files...")
-    badfile <- md5sums != as.vector(tools::md5sum(outfiles[2:4]))
+    badfile <- md5sums != as.vector(tools::md5sum(outfiles))
     if (any(badfile)) {
       msg <- paste(
-        outfiles[2:4][which(badfile)],
+        outfiles[which(badfile)],
         "Did not download properly. Remove this file and retry."
       )
       stop(msg)
