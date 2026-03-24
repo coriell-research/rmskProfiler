@@ -21,9 +21,9 @@ generateIndex(
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
 species to download resources for}
 
-\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files}
+\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files after downloading}
 
-\item{exclude}{A character vector specifying which elements to exclude from the
+\item{exclude}{A character vector specifying which elements (repClass) to exclude from the
 resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
@@ -38,10 +38,7 @@ This assumes that "salmon" is available on your PATH}
 \description{
 This function is a wrapper around several other functions for downloading and
 generating all of the files needed to create a Salmon index in order to
-quantify transcripts and TEs at the loci level. This function requires
-calls to Python programs so before running ensure that you have created and
-activated the necessary "r-rmskProfiler" environment with
-\code{install_rmskProfiler()} and \code{reticulate::use_condaenv("r-rmskProfiler", ...)}
+quantify transcripts and TEs at the loci level.
 }
 \details{
 This function creates a Salmon index from all GENCODE transcripts + selected
@@ -53,7 +50,7 @@ functions:
 \item{"rmskToBed()"}{Extracts and filters RepeatMasker to BED file}
 \item{"extractUniqueSeqs()"}{Extracts all unique RepeatMasker sequences from the genome}
 \item{"createAnnotation()"}{Creates annotations of all TE loci with respect to annotations in GTF}
-\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon index ans calls 'Salmon index'}
+\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon index and calls 'Salmon index'}
 }
 }
 \examples{
