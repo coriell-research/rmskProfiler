@@ -29,7 +29,7 @@ extractUniqueSeqs <- function(resource_dir) {
 
   resources <- list.files(resource_dir, full.names = TRUE)
   genome_fa <- grep("primary_assembly.genome.fa.gz", resources, value = TRUE)
-  rmsk_bed <- grep("fa.out.bed", resources, value = TRUE)
+  rmsk_bed <- grep("rmsk.bed", resources, value = TRUE)
 
   if (length(genome_fa) != 1) {
     stop(
@@ -38,7 +38,7 @@ extractUniqueSeqs <- function(resource_dir) {
   }
   if (length(rmsk_bed) != 1) {
     stop(
-      "<>.fa.out.bed file not found in given directory. Check that the file exists"
+      "rmsk.bed file not found in given directory. Check that the file exists"
     )
   }
 
