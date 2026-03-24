@@ -20,12 +20,12 @@
 
   message("Extracting repetitive element names from location strings...")
   dt[,
-    c("ID", "Location") := data.table::tstrsplit(Instance, "::", fixed = TRUE)
+    c("RepName", "Location") := data.table::tstrsplit(
+      Instance,
+      "::",
+      fixed = TRUE
+    )
   ]
-  dt[, `:=`(
-    RepID = stringi::stri_replace(ID, "", regex = "\\..*"),
-    RepName = stringi::stri_replace(ID, "", regex = "^[0-9]+\\.")
-  )]
 
   message("Extracting position information...")
   dt[,
@@ -47,7 +47,7 @@
   ][,
     `:=`(start = as.integer(start), end = as.integer(end))
   ]
-  dt[, `:=`(Location = NULL, position = NULL, Instance = NULL, ID = NULL)]
+  dt[, `:=`(Location = NULL, position = NULL, Instance = NULL)]
 
   return(dt)
 }
@@ -191,9 +191,9 @@ createAnnotation <- function(resource_dir) {
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
   hash_dt[,
-    c("Class", "Family", "Subfamily") := data.table::tstrsplit(
+    c("Subfamily", "Family", "Class") := data.table::tstrsplit(
       RepName,
-      ".",
+      ":",
       fixed = TRUE
     )
   ]
