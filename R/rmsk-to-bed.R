@@ -21,8 +21,10 @@
 #' \dontrun{
 #' rmskToBed(resource_dir = "/path/to/rmsk-resources")
 #' }
+#'
 rmskToBed <- function(
   resource_dir,
+  species = c("Hs", "Mm"),
   exclude = c(
     "Simple_repeat",
     "Low_complexity",
@@ -37,29 +39,22 @@ rmskToBed <- function(
   ),
   min_len = 32
 ) {
-  reticulate::py_require("pybedtools")
-  reticulate::py_require(python_version = ">=3.10")
-  reticulate::source_python(system.file(
-    "python",
-    "rmsk_profiler.py",
-    package = "rmskProfiler",
-    mustWork = TRUE
-  ))
+  species <- match.arg(species)
 
-  rmsk_file <- list.files(resource_dir, pattern = "*.out.gz", full.names = TRUE)
-  if (length(rmsk_file) != 1) {
-    stop(
-      "rmsk.out.fa.gz file not found in given directory. Check that the file exists"
-    )
+  ah <- AnnotationHub::AnnotationHub()
+  if (species == "Hs") {
+    # UCSC RepeatMasker annotations (Oct2022) for Human (hg38)
+    gr <- ah[["AH111333"]]
+  } else {
+    # UCSC RepeatMasker annotations (Apr2021) for Mouse (mm10)
+    gr <- ah[["AH99012"]]
   }
 
-  message("Extracting contents of ", rmsk_file, " to a BED file...")
-  tryCatch(
-    rmsk2bed(rmsk_file, exclude, min_len),
-    warning = function(w) print(w),
-    error = function(e) print(e)
-  )
-  message("BED file generation complete.")
+  # Standard chromosomes and any features not excluded
+  gr <- GenomeInfoDb::keepStandardChromosomes(gr, pruning.mode = "coarse")
+  gr <- gr[!(gr$repClass %in% exclude) & width(gr) >= min_len]
+  gr$name <- paste(gr$repName, gr$repFamily, gr$repClass, sep = ":")
 
-  return(invisible(NULL))
+  outfile <- file.path(resource_dir, "rmsk.bed")
+  rtracklayer::export.bed(gr, outfile)
 }
