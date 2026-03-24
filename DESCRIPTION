@@ -17,9 +17,11 @@ Suggests:
 Config/testthat/edition: 3
 Imports: 
     AnnotationDbi,
+    AnnotationHub,
     Biostrings,
     curl,
     data.table,
+    GenomeInfoDb,
     GenomicFeatures,
     GenomicRanges,
     jsonlite,
