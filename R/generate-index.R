@@ -68,7 +68,12 @@ generateIndex <- function(
     check_integrity = check_integrity
   )
   message("Converting rmsk out to BED ----------")
-  rmskToBed(resource_dir = out_dir, exclude = exclude, min_len = min_len)
+  rmskToBed(
+    resource_dir = out_dir,
+    species = species,
+    exclude = exclude,
+    min_len = min_len
+  )
   message("Extracting unique rmsk sequences from genome ----------")
   extractUniqueSeqs(resource_dir = out_dir)
   message("Annotating unique sequences with genomic features ----------")
