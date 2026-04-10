@@ -182,7 +182,11 @@ createAnnotation <- function(resource_dir) {
   dt <- .dupInfoToDT(info_json)
 
   message("Creating a GRangesList for all TE ranges...")
-  gr <- GenomicRanges::makeGRangesFromDataFrame(dt, keep.extra.columns = TRUE)
+  gr <- GenomicRanges::makeGRangesFromDataFrame(
+    dt,
+    starts.in.df.are.0based = TRUE,
+    keep.extra.columns = TRUE
+  )
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
   message("Computing overlaps of TE-loci with transcript annotations...")
