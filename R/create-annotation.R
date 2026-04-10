@@ -37,7 +37,7 @@
   ]
   dt[,
     strand := data.table::fifelse(
-      stringi::stri_detect(position, regex = "\\(+\\)"),
+      stringi::stri_detect(position, regex = "\\(\\+\\)$"),
       "+",
       "-"
     )
