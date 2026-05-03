@@ -2,37 +2,41 @@
 % Please edit documentation in R/aggregate-counts.R
 \name{aggregateCounts}
 \alias{aggregateCounts}
-\title{Aggregate counts to gene/subfamily level}
+\title{Aggregate counts to gene and TE level}
 \usage{
-aggregateCounts(x, resource_dir, level = "subfamily")
+aggregateCounts(
+  x,
+  resource_dir,
+  te_level = c("subfamily", "family", "class", "locus")
+)
 }
 \arguments{
 \item{x}{SummarizedExperiment object produced by \code{importQuants()}}
 
 \item{resource_dir}{Path to the rmskProfiler resources directory}
 
-\item{level}{One of "subfamily" (default), "family", or "class" indicating
-the level of classification to sum TE-loci to.}
+\item{te_level}{One of "subfamily" (default), "locus", "family", or "class".
+"locus" keeps TE-loci independent, while others aggregate based on classification.}
 }
 \value{
 SummarizedExperiment
 }
 \description{
-This function will sum counts to the gene and the subfamily (default)
-level for all transcripts and TE-loci. A new SummarizedExperiment object is
-returned with three assays, 'counts', 'orig', and 'tpms' representing the aggregated
-counts from the \code{catchSalmon()} down-scaled ('counts'), the original Salmon
-counts ('orig'), and the aggregated TPM values ('tpms'), respectively. rowData is added to
-the object indicating the number of TE-loci or transcripts that were summed for each resulting
-feature ('Freq'). rowData of the aggregated object also contains a column called 'feature_length'.
-For genes, 'feature_length' is the sum of the reduced exon widths. For TEs, 'feature_length'
-is the sum of the length of all TE-loci that are members of the subfamily, family, or class.
+This function will sum counts to the gene level for all transcripts, and to the
+specified level for TE-loci. A new SummarizedExperiment object is returned with
+aggregated assays. rowData is added indicating the number of features summed ('Freq')
+and a 'feature_length' column. For genes, 'feature_length' is the sum of reduced
+exon widths. For TEs, it is the sum of the length of all TE-loci that are members
+of the aggregated group, or the locus length if te_level is "locus".
 }
 \examples{
 \dontrun{
-
 se <- importQuants("quants", resource_dir = "hg38-resources")
-aggregated <- aggregateCounts(se, resource_dir = "hg38-resources", level = "subfamily")
 
+# Aggregate transcripts to genes, keep TE loci intact
+aggregated_locus <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "locus")
+
+# Aggregate transcripts to genes, TEs to subfamily
+aggregated_sub <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "subfamily")
 }
 }
