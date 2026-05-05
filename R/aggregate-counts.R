@@ -54,17 +54,15 @@ aggregateCounts <- function(
   # Compute feature lengths
   resources <- list.files(resource_dir, full.names = TRUE)
   dbfile <- grep("annotation.txdb", resources, value = TRUE)
-  txdb <- AnnotationDbi::loadDb(dbfile)
+  txdb <- suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile))
 
   # Gene lengths are reduced exon widths
   exons_by_gene <- suppressWarnings(GenomicFeatures::exonsBy(txdb, by = "gene"))
-  reduced_exon_lengths <- sum(BiocGenerics::width(BiocGenerics::reduce(
-    exons_by_gene
-  )))
+  reduced_exon_lengths <- sum(width(reduce(exons_by_gene)))
   names(reduced_exon_lengths) <- names(exons_by_gene)
 
   # TE lengths are sum of widths of ranges
-  te_widths <- BiocGenerics::width(rd_orig$Ranges)
+  te_widths <- sum(width(rd_orig$Ranges))
   sum_te_widths <- tapply(te_widths, feature_id, sum, na.rm = TRUE)
   sum_te_widths <- sum_te_widths[
     !names(sum_te_widths) %in% names(reduced_exon_lengths)
@@ -89,8 +87,7 @@ aggregateCounts <- function(
     all.x = TRUE
   )
 
-  data.table::setDF(rd_new)
-  rownames(rd_new) <- rd_new$feature_id
+  data.table::setDF(rd_new, rownames = rd_new$feature_id)
   rd_new$feature_length <- final_widths[rownames(rd_new)]
 
   assay_names <- names(SummarizedExperiment::assays(x))
