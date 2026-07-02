@@ -95,20 +95,60 @@
   }
 
   message("Preparing reduced genomic features...")
-  gr_exons <- GenomicFeatures::exons(txdb)
+
+  gr_exons <- unlist(GenomicFeatures::exonsBy(txdb, by = "gene"))
+  GenomicRanges::mcols(gr_exons)$feature_id <- names(gr_exons)
   GenomicRanges::mcols(gr_exons)$type <- "exon"
 
   gr_promoters <- GenomicRanges::promoters(GenomicFeatures::genes(txdb))
+  GenomicRanges::mcols(gr_promoters)$feature_id <- names(gr_promoters)
   GenomicRanges::mcols(gr_promoters)$type <- "promoter"
 
-  gr_introns <- reduce(unlist(GenomicFeatures::intronsByTranscript(txdb)))
+  # Create a Transcript-to-Gene map to standardize Introns/UTRs
+  message("Mapping transcripts to genes...")
+  tx2gene <- suppressMessages(
+    AnnotationDbi::select(
+      txdb,
+      keys = AnnotationDbi::keys(txdb, "TXNAME"),
+      columns = "GENEID",
+      keytype = "TXNAME"
+    )
+  )
+  tx2gene_map <- setNames(tx2gene$GENEID, tx2gene$TXNAME)
+
+  gr_introns <- unlist(GenomicFeatures::intronsByTranscript(
+    txdb,
+    use.names = TRUE
+  ))
+  GenomicRanges::mcols(gr_introns)$feature_id <- tx2gene_map[names(gr_introns)]
   GenomicRanges::mcols(gr_introns)$type <- "intron"
 
-  gr_3utr <- reduce(unlist(GenomicFeatures::threeUTRsByTranscript(txdb)))
+  gr_3utr <- unlist(GenomicFeatures::threeUTRsByTranscript(
+    txdb,
+    use.names = TRUE
+  ))
+  GenomicRanges::mcols(gr_3utr)$feature_id <- tx2gene_map[names(gr_3utr)]
   GenomicRanges::mcols(gr_3utr)$type <- "3utr"
 
-  gr_5utr <- reduce(unlist(GenomicFeatures::fiveUTRsByTranscript(txdb)))
+  gr_5utr <- unlist(GenomicFeatures::fiveUTRsByTranscript(
+    txdb,
+    use.names = TRUE
+  ))
+  GenomicRanges::mcols(gr_5utr)$feature_id <- tx2gene_map[names(gr_5utr)]
   GenomicRanges::mcols(gr_5utr)$type <- "5utr"
+
+  cols_to_keep <- c("feature_id", "type")
+  GenomicRanges::mcols(gr_exons) <- GenomicRanges::mcols(gr_exons)[,
+    cols_to_keep
+  ]
+  GenomicRanges::mcols(gr_promoters) <- GenomicRanges::mcols(gr_promoters)[,
+    cols_to_keep
+  ]
+  GenomicRanges::mcols(gr_introns) <- GenomicRanges::mcols(gr_introns)[,
+    cols_to_keep
+  ]
+  GenomicRanges::mcols(gr_3utr) <- GenomicRanges::mcols(gr_3utr)[, cols_to_keep]
+  GenomicRanges::mcols(gr_5utr) <- GenomicRanges::mcols(gr_5utr)[, cols_to_keep]
 
   gr_features <- c(gr_exons, gr_introns, gr_promoters, gr_3utr, gr_5utr)
 
@@ -121,12 +161,35 @@
   )
 
   dt_hits[, Hash := GenomicRanges::mcols(x)$Hash[query_idx]]
-  dt_hits[, q_strand := as.character(strand(x)[query_idx])]
-
+  dt_hits[, q_strand := as.character(GenomicRanges::strand(x)[query_idx])]
   dt_hits[, feature := GenomicRanges::mcols(gr_features)$type[subject_idx]]
-  dt_hits[, s_strand := as.character(strand(gr_features)[subject_idx])]
+  dt_hits[,
+    feature_id := GenomicRanges::mcols(gr_features)$feature_id[subject_idx]
+  ]
+  dt_hits[,
+    s_strand := as.character(GenomicRanges::strand(gr_features)[subject_idx])
+  ]
 
   dt_hits[, strand_match := (q_strand == s_strand)]
+
+  dt_hits[,
+    feature_label := data.table::fifelse(
+      is.na(feature_id),
+      NA_character_,
+      paste0(feature, ":", feature_id)
+    )
+  ]
+
+  # Aggregate features by Hash
+  mapping_dt <- dt_hits[,
+    .(
+      overlapping_features = stringi::stri_flatten(
+        unique(feature_label[!is.na(feature_label)]),
+        collapse = ";"
+      )
+    ),
+    by = Hash
+  ]
 
   getHashes <- function(dt, feat, stranded = FALSE) {
     if (isTRUE(stranded)) {
@@ -147,7 +210,9 @@
     u_hash_in_intron = getHashes(dt_hits, "intron", FALSE),
     u_hash_in_promoter = getHashes(dt_hits, "promoter", FALSE),
     u_hash_in_3utr = getHashes(dt_hits, "3utr", FALSE),
-    u_hash_in_5utr = getHashes(dt_hits, "5utr", FALSE)
+    u_hash_in_5utr = getHashes(dt_hits, "5utr", FALSE),
+
+    mapping_dt = mapping_dt
   )
 
   return(result)
@@ -165,6 +230,8 @@
 #'
 #' @param resource_dir Path to the directory containing index generation resources.
 #' Output is saved to this location.
+#' @param keep_ranges Should a GRangesList of each transcript/TE locus be saved in the annotation
+#' object? default FALSE
 #'
 #' @return NULL
 #' @import data.table
@@ -174,7 +241,7 @@
 #' \dontrun{
 #' createAnnotation(resource_dir = "/path/to/rmsk-resources")
 #' }
-createAnnotation <- function(resource_dir) {
+createAnnotation <- function(resource_dir, keep_ranges = FALSE) {
   resources <- list.files(resource_dir, full.names = TRUE)
   info_json <- grep("rmsk-duplicateInfo.json", resources, value = TRUE)
   gtf_file <- grep("annotation.gtf.gz", resources, value = TRUE)
@@ -235,7 +302,11 @@ createAnnotation <- function(resource_dir) {
       !hasUnstranded5UTR)
   )]
 
-  message("Reading in range information for transcripts...")
+  message("Merging exact feature overlaps...")
+  by_hash <- merge(by_hash, ov$mapping_dt, by = "Hash", all.x = TRUE)
+  by_hash[is.na(overlapping_features), overlapping_features := ""]
+
+  message("Reading in transcript annotations...")
   gtf <- rtracklayer::import(gtf_file)
   tx <- gtf[gtf$type == "transcript", ]
   tx_dt <- data.table::as.data.table(data.frame(tx))[, .(
@@ -252,7 +323,10 @@ createAnnotation <- function(resource_dir) {
   rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
   rd <- S4Vectors::DataFrame(rd)
   rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
-  rd$Ranges <- rmsk_grl[rownames(rd)]
+
+  if (isTRUE(keep_ranges)) {
+    rd$Ranges <- rmsk_grl[rownames(rd)]
+  }
 
   message(
     "Writing out rowData to: ",

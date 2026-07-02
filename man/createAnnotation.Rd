@@ -4,11 +4,14 @@
 \alias{createAnnotation}
 \title{Generate annotation resources for annotating TE loci and genes}
 \usage{
-createAnnotation(resource_dir)
+createAnnotation(resource_dir, keep_ranges = FALSE)
 }
 \arguments{
 \item{resource_dir}{Path to the directory containing index generation resources.
 Output is saved to this location.}
+
+\item{keep_ranges}{Should a GRangesList of each transcript/TE locus be saved in the annotation
+object? default FALSE}
 }
 \description{
 This function produces multiple annotation files used to annotate downstream
