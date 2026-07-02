@@ -11,7 +11,6 @@ generateIndex(
   exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
     "scRNA", "srpRNA", "tRNA", "Unknown"),
   min_len = 32,
-  keep_ranges = TRUE,
   create_index = TRUE,
   threads = 1
 )
@@ -30,9 +29,6 @@ resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file and index.}
-
-\item{keep_ranges}{Should a GRangesList of each transcript/TE locus be saved in the annotation
-object? default TRUE}
 
 \item{create_index}{TRUE/FALSE Create salmon index after generating resources? Default TRUE.
 This assumes that "salmon" is available on your PATH}
