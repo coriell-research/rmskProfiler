@@ -231,7 +231,7 @@
 #' @param resource_dir Path to the directory containing index generation resources.
 #' Output is saved to this location.
 #' @param keep_ranges Should a GRangesList of each transcript/TE locus be saved in the annotation
-#' object? default FALSE
+#' object? default TRUE
 #'
 #' @return NULL
 #' @import data.table
@@ -241,7 +241,7 @@
 #' \dontrun{
 #' createAnnotation(resource_dir = "/path/to/rmsk-resources")
 #' }
-createAnnotation <- function(resource_dir, keep_ranges = FALSE) {
+createAnnotation <- function(resource_dir, keep_ranges = TRUE) {
   resources <- list.files(resource_dir, full.names = TRUE)
   info_json <- grep("rmsk-duplicateInfo.json", resources, value = TRUE)
   gtf_file <- grep("annotation.gtf.gz", resources, value = TRUE)

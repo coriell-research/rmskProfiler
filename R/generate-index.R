@@ -29,7 +29,7 @@
 #' @param create_index TRUE/FALSE Create salmon index after generating resources? Default TRUE.
 #' This assumes that "salmon" is available on your PATH
 #' @param keep_ranges Should a GRangesList of each transcript/TE locus be saved in the annotation
-#' object? default FALSE
+#' object? default TRUE
 #' @param threads Number of threads to use for salmon index generation. Default 1
 #'
 #' @return NULL
@@ -57,7 +57,7 @@ generateIndex <- function(
     "Unknown"
   ),
   min_len = 32,
-  keep_ranges = FALSE,
+  keep_ranges = TRUE,
   create_index = TRUE,
   threads = 1
 ) {
