@@ -317,14 +317,16 @@ createAnnotation <- function(resource_dir) {
   tx <- as(tx, "GRangesList")
   rmsk_grl <- c(tx, grl)
 
+  # Strip redundant metadata
+  unlisted_rmsk <- unlist(rmsk_grl)
+  GenomicRanges::mcols(unlisted_rmsk) <- NULL
+  rmsk_grl <- relist(unlisted_rmsk, rmsk_grl)
+
   # Combine annotation DataFrames
   rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
   rd <- S4Vectors::DataFrame(rd)
   rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
-
-  if (isTRUE(keep_ranges)) {
-    rd$Ranges <- rmsk_grl[rownames(rd)]
-  }
+  rd$Ranges <- rmsk_grl[rownames(rd)]
 
   message(
     "Writing out rowData to: ",
