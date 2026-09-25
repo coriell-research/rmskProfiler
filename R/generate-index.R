@@ -36,7 +36,7 @@
 #' @examples
 #' \dontrun{
 #' # Run pipeline for downloading and creating Salmon index and annotations
-#' generateIndex(out_dir = "rmsk-resources", species = "hs")
+#' generateIndex(out_dir = "rmsk-resources", species = "Hs")
 #' }
 generateIndex <- function(
   out_dir,
