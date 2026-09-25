@@ -4,20 +4,27 @@
 \alias{.newResource}
 \title{Get a path in the cache to write a generated resource to}
 \usage{
-.newResource(bfc, rname, ext)
+.newResource(bfc, species, resource, ext, exclude = NULL, min_len = NULL)
 }
 \arguments{
 \item{bfc}{BiocFileCache}
 
-\item{rname}{Name of the resource}
+\item{species}{Either "Hs" or "Mm"}
+
+\item{resource}{One of "gtf", "transcripts", or "genome" for GENCODE
+downloads, "annotation.txdb", or one of the files in \code{.BUILD_FILES}}
 
 \item{ext}{File extension of the resource, e.g. ".bed"}
+
+\item{exclude, min_len}{Settings used to build the resource. Required for
+files in \code{.BUILD_FILES}, ignored otherwise.}
 }
 \value{
 Path to the cached file
 }
 \description{
 If the resource already exists in the cache its path is returned so that it
-is overwritten. Otherwise a new cache entry is created.
+is overwritten. Otherwise a new cache entry is created. In both cases the
+build information for the resource is recorded in the cache metadata.
 }
 \keyword{internal}

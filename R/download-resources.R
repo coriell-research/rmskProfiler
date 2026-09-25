@@ -28,32 +28,40 @@ downloadResources <- function(
   species <- match.arg(species)
   bfc <- .getCache(cache)
   res <- .gencodeResources(species)
-  rnames <- .rname(species, res$file)
+  rnames <- vapply(
+    res$type,
+    .resourceRname,
+    character(1),
+    species = species,
+    USE.NAMES = FALSE
+  )
 
   paths <- character(nrow(res))
   for (i in seq_len(nrow(res))) {
-    hit <- BiocFileCache::bfcquery(
-      bfc,
-      rnames[i],
-      field = "rname",
-      exact = TRUE
-    )
-    if (nrow(hit) > 0L) {
-      path <- unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L]))
-      if (file.exists(path)) {
-        message(res$file[i], " already exists in the cache. Skipping.")
-        paths[i] <- path
-        next
+    path <- .findResource(bfc, rnames[i])
+    if (!is.null(path)) {
+      message(res$file[i], " already exists in the cache. Skipping.")
+    } else {
+      # Remove any entry whose file has gone missing before downloading again
+      hit <- BiocFileCache::bfcquery(
+        bfc,
+        rnames[i],
+        field = "rname",
+        exact = TRUE
+      )
+      if (nrow(hit) > 0L) {
+        BiocFileCache::bfcremove(bfc, hit$rid)
       }
-      BiocFileCache::bfcremove(bfc, hit$rid)
+      message("Attempting to download ", res$file[i], "...")
+      path <- BiocFileCache::bfcadd(
+        bfc,
+        rnames[i],
+        fpath = res$url[i],
+        rtype = "web"
+      )
     }
-    message("Attempting to download ", res$file[i], "...")
-    paths[i] <- unname(BiocFileCache::bfcadd(
-      bfc,
-      rnames[i],
-      fpath = res$url[i],
-      rtype = "web"
-    ))
+    .recordResource(bfc, names(path), species)
+    paths[i] <- unname(path)
   }
 
   if (isTRUE(check_integrity)) {

@@ -41,26 +41,35 @@ extractUniqueSeqs <- function(
   ))
 
   bfc <- .getCache(cache)
-  key <- .settingsKey(exclude, min_len)
   genome_fa <- .getResource(
     bfc,
-    .gencodeRname(species, "genome"),
+    species,
+    "genome",
     hint = "Run downloadResources() first."
   )
   rmsk_bed <- .getResource(
     bfc,
-    .rname(species, "rmsk.bed", key),
+    species,
+    "rmsk.bed",
+    exclude,
+    min_len,
     hint = "Run rmskToBed() with the same species, exclude, and min_len first."
   )
   out_json <- .newResource(
     bfc,
-    .rname(species, "rmsk-duplicateInfo.json", key),
-    ext = ".json"
+    species,
+    "rmsk-duplicateInfo.json",
+    ".json",
+    exclude,
+    min_len
   )
   out_fa <- .newResource(
     bfc,
-    .rname(species, "rmsk-unique.fa.gz", key),
-    ext = ".fa.gz"
+    species,
+    "rmsk-unique.fa.gz",
+    ".fa.gz",
+    exclude,
+    min_len
   )
 
   # Genome fasta needs to be unzipped to work with pybedtools. Unzip into the

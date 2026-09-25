@@ -108,61 +108,200 @@
 }
 
 
-#' Name of a cached GENCODE resource
+#' Files generated for each combination of species and exclude/min_len settings
+#' @keywords internal
+.BUILD_FILES <- c(
+  "rmsk.bed",
+  "rmsk-duplicateInfo.json",
+  "rmsk-unique.fa.gz",
+  "rmsk-rowData.rds",
+  "rmsk-gentrome.fa.gz",
+  "decoys.txt"
+)
+
+
+#' Name of the BiocFileCache metadata table holding build information
+#' @keywords internal
+.META_TABLE <- "rmskProfiler"
+
+
+#' Name of a cached resource
 #'
 #' @param species Either "Hs" or "Mm"
-#' @param type One of "gtf", "transcripts", or "genome"
+#' @param resource One of "gtf", "transcripts", or "genome" for GENCODE
+#' downloads, "annotation.txdb", or one of the files in \code{.BUILD_FILES}
+#' @param exclude,min_len Settings used to build the resource. Required for
+#' files in \code{.BUILD_FILES}, ignored otherwise.
 #'
 #' @return character(1)
 #' @keywords internal
-.gencodeRname <- function(species, type) {
-  .rname(species, .gencodeResources(species)[type, "file"])
+.resourceRname <- function(species, resource, exclude = NULL, min_len = NULL) {
+  gencode <- .gencodeResources(species)
+  if (resource %in% gencode$type) {
+    return(.rname(species, gencode[resource, "file"]))
+  }
+  if (resource %in% .BUILD_FILES) {
+    stopifnot(!is.null(exclude), !is.null(min_len))
+    return(.rname(species, resource, .settingsKey(exclude, min_len)))
+  }
+  .rname(species, resource)
+}
+
+
+#' Look up the path of a resource in the cache
+#'
+#' @param bfc BiocFileCache
+#' @param rname Name of the resource
+#'
+#' @return Named path to the cached file (named by rid), or NULL if the
+#' resource is not in the cache or its file does not exist
+#' @keywords internal
+.findResource <- function(bfc, rname) {
+  hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+  if (nrow(hit) == 0L) {
+    return(NULL)
+  }
+  path <- BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L])
+  if (!file.exists(path)) {
+    return(NULL)
+  }
+  path
 }
 
 
 #' Get the path of an existing resource in the cache
 #'
+#' @inheritParams .resourceRname
 #' @param bfc BiocFileCache
-#' @param rname Name of the resource
 #' @param hint Message appended to the error if the resource is missing
 #'
 #' @return Path to the cached file
 #' @keywords internal
-.getResource <- function(bfc, rname, hint = "") {
-  hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
-  if (nrow(hit) > 0L) {
-    path <- unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L]))
-    if (file.exists(path)) {
-      return(path)
-    }
+.getResource <- function(
+  bfc,
+  species,
+  resource,
+  exclude = NULL,
+  min_len = NULL,
+  hint = ""
+) {
+  rname <- .resourceRname(species, resource, exclude, min_len)
+  path <- .findResource(bfc, rname)
+  if (is.null(path)) {
+    stop(
+      "Resource '",
+      rname,
+      "' not found in cache ",
+      BiocFileCache::bfccache(bfc),
+      ". ",
+      hint,
+      call. = FALSE
+    )
   }
-  stop(
-    "Resource '",
-    rname,
-    "' not found in cache ",
-    BiocFileCache::bfccache(bfc),
-    ". ",
-    hint,
-    call. = FALSE
-  )
+  unname(path)
 }
 
 
 #' Get a path in the cache to write a generated resource to
 #'
 #' If the resource already exists in the cache its path is returned so that it
-#' is overwritten. Otherwise a new cache entry is created.
+#' is overwritten. Otherwise a new cache entry is created. In both cases the
+#' build information for the resource is recorded in the cache metadata.
 #'
+#' @inheritParams .resourceRname
 #' @param bfc BiocFileCache
-#' @param rname Name of the resource
 #' @param ext File extension of the resource, e.g. ".bed"
 #'
 #' @return Path to the cached file
 #' @keywords internal
-.newResource <- function(bfc, rname, ext) {
+.newResource <- function(
+  bfc,
+  species,
+  resource,
+  ext,
+  exclude = NULL,
+  min_len = NULL
+) {
+  rname <- .resourceRname(species, resource, exclude, min_len)
   hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
   if (nrow(hit) > 0L) {
-    return(unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L])))
+    path <- BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L])
+  } else {
+    path <- BiocFileCache::bfcnew(bfc, rname, ext = ext)
   }
-  unname(BiocFileCache::bfcnew(bfc, rname, ext = ext))
+  .recordResource(bfc, names(path), species, exclude, min_len)
+
+  unname(path)
+}
+
+
+#' Read the rmskProfiler metadata table from the cache
+#'
+#' Rows for resources that are no longer in the cache are dropped.
+#'
+#' @param bfc BiocFileCache
+#'
+#' @return data.frame with columns rid, species, build, exclude, and min_len
+#' @keywords internal
+.readMeta <- function(bfc) {
+  empty <- data.frame(
+    rid = character(),
+    species = character(),
+    build = character(),
+    exclude = character(),
+    min_len = integer()
+  )
+  if (!.META_TABLE %in% BiocFileCache::bfcmetalist(bfc)) {
+    return(empty)
+  }
+  meta <- BiocFileCache::bfcmeta(bfc, .META_TABLE)
+  meta[meta$rid %in% BiocFileCache::bfcrid(bfc), names(empty)]
+}
+
+
+#' Record build information for a resource in the cache metadata
+#'
+#' Any existing record for the resource is replaced.
+#'
+#' @param bfc BiocFileCache
+#' @param rid Resource id
+#' @param species Either "Hs" or "Mm"
+#' @param exclude,min_len Settings used to build the resource, or NULL for
+#' resources that do not depend on them
+#'
+#' @return NULL
+#' @keywords internal
+.recordResource <- function(bfc, rid, species, exclude = NULL, min_len = NULL) {
+  has_settings <- !is.null(exclude) && !is.null(min_len)
+  record <- data.frame(
+    rid = rid,
+    species = species,
+    build = if (has_settings) .settingsKey(exclude, min_len) else NA_character_,
+    exclude = if (has_settings) {
+      paste(sort(unique(exclude)), collapse = ",")
+    } else {
+      NA_character_
+    },
+    min_len = if (has_settings) as.integer(min_len) else NA_integer_
+  )
+  meta <- .readMeta(bfc)
+  .writeMeta(bfc, rbind(meta[meta$rid != rid, ], record))
+}
+
+
+#' Write the rmskProfiler metadata table to the cache
+#'
+#' @param bfc BiocFileCache
+#' @param meta data.frame returned by \code{.readMeta()}
+#'
+#' @return NULL
+#' @keywords internal
+.writeMeta <- function(bfc, meta) {
+  if (nrow(meta) > 0L) {
+    BiocFileCache::bfcmeta(bfc, .META_TABLE, overwrite = TRUE) <- meta
+  } else if (.META_TABLE %in% BiocFileCache::bfcmetalist(bfc)) {
+    BiocFileCache::bfcmetaremove(bfc, .META_TABLE)
+  }
+
+  return(invisible(NULL))
 }

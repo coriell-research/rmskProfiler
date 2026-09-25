@@ -61,19 +61,16 @@
 #' @return TxDb
 #' @keywords internal
 .getTxDb <- function(species, bfc) {
-  rname <- .rname(species, "annotation.txdb")
-  hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
-  if (nrow(hit) > 0L) {
-    dbfile <- unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L]))
-    if (file.exists(dbfile)) {
-      message("Loading TxDb...")
-      return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
-    }
+  dbfile <- .findResource(bfc, .resourceRname(species, "annotation.txdb"))
+  if (!is.null(dbfile)) {
+    message("Loading TxDb...")
+    return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
   }
 
   gtf_file <- .getResource(
     bfc,
-    .gencodeRname(species, "gtf"),
+    species,
+    "gtf",
     hint = "Run downloadResources() first."
   )
   organism <- "Homo sapiens"
@@ -93,7 +90,10 @@
       dataSource = .gencodeResources(species)["gtf", "url"]
     )
   )
-  AnnotationDbi::saveDb(txdb, .newResource(bfc, rname, ext = ".txdb"))
+  AnnotationDbi::saveDb(
+    txdb,
+    .newResource(bfc, species, "annotation.txdb", ".txdb")
+  )
 
   return(txdb)
 }
@@ -270,15 +270,18 @@ createAnnotation <- function(
 ) {
   species <- match.arg(species)
   bfc <- .getCache(cache)
-  key <- .settingsKey(exclude, min_len)
   info_json <- .getResource(
     bfc,
-    .rname(species, "rmsk-duplicateInfo.json", key),
+    species,
+    "rmsk-duplicateInfo.json",
+    exclude,
+    min_len,
     hint = "Run extractUniqueSeqs() with the same species, exclude, and min_len first."
   )
   gtf_file <- .getResource(
     bfc,
-    .gencodeRname(species, "gtf"),
+    species,
+    "gtf",
     hint = "Run downloadResources() first."
   )
 
@@ -367,7 +370,14 @@ createAnnotation <- function(
   rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
   rd$Ranges <- rmsk_grl[rownames(rd)]
 
-  rd_file <- .newResource(bfc, .rname(species, "rmsk-rowData.rds", key), ".rds")
+  rd_file <- .newResource(
+    bfc,
+    species,
+    "rmsk-rowData.rds",
+    ".rds",
+    exclude,
+    min_len
+  )
   message("Writing out rowData to: ", rd_file)
   saveRDS(rd, rd_file)
   message("Done.")

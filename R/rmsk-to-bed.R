@@ -52,8 +52,7 @@ rmskToBed <- function(
   gr$name <- paste(gr$repName, gr$repFamily, gr$repClass, sep = ":")
 
   bfc <- .getCache(cache)
-  key <- .settingsKey(exclude, min_len)
-  outfile <- .newResource(bfc, .rname(species, "rmsk.bed", key), ext = ".bed")
+  outfile <- .newResource(bfc, species, "rmsk.bed", ".bed", exclude, min_len)
   rtracklayer::export.bed(gr, outfile)
 
   return(invisible(NULL))

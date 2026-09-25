@@ -63,7 +63,10 @@ importQuants <- function(
   bfc <- .getCache(cache)
   rdfile <- .getResource(
     bfc,
-    .rname(species, "rmsk-rowData.rds", .settingsKey(exclude, min_len)),
+    species,
+    "rmsk-rowData.rds",
+    exclude,
+    min_len,
     hint = paste(
       "Check that species, exclude, and min_len match the values used to",
       "generate the index, or run createAnnotation() first."

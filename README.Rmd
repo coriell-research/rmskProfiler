@@ -145,3 +145,23 @@ filtered <- se[keep, ]
 # Sum assays to the gene/subfamily level
 aggregated <- aggregateCounts(filtered, species = "Hs", te_level = "subfamily")
 ```
+
+### Managing cached resources
+
+Downloaded and generated files are stored in the rmskProfiler cache. The 
+following helpers can be used to inspect, access, and remove them:
+
+```{r, eval=FALSE}
+# List all cached resources along with the settings used to build them
+listResources()
+
+# Get the path to a cached file, e.g. to use it outside of rmskProfiler
+gtf <- getResource("gtf", species = "Hs")
+rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs"))
+
+# Remove files generated for a build with non-default settings
+removeResources(species = "Hs", min_len = 50)
+
+# Remove everything for the default human build, including the GENCODE downloads
+removeResources(species = "Hs", downloads = TRUE)
+```

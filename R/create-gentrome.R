@@ -44,20 +44,24 @@ createGentrome <- function(
   }
 
   bfc <- .getCache(cache)
-  key <- .settingsKey(exclude, min_len)
   genome_fa <- .getResource(
     bfc,
-    .gencodeRname(species, "genome"),
+    species,
+    "genome",
     hint = "Run downloadResources() first."
   )
   tx_fa <- .getResource(
     bfc,
-    .gencodeRname(species, "transcripts"),
+    species,
+    "transcripts",
     hint = "Run downloadResources() first."
   )
   rmsk_fa <- .getResource(
     bfc,
-    .rname(species, "rmsk-unique.fa.gz", key),
+    species,
+    "rmsk-unique.fa.gz",
+    exclude,
+    min_len,
     hint = "Run extractUniqueSeqs() with the same species, exclude, and min_len first."
   )
 
@@ -84,8 +88,11 @@ createGentrome <- function(
   gentrome <- c(tx_seqs, rmsk_seqs, genome_seqs)
   gentrome_fa <- .newResource(
     bfc,
-    .rname(species, "rmsk-gentrome.fa.gz", key),
-    ext = ".fa.gz"
+    species,
+    "rmsk-gentrome.fa.gz",
+    ".fa.gz",
+    exclude,
+    min_len
   )
 
   message(
@@ -100,8 +107,11 @@ createGentrome <- function(
   decoys <- names(genome_seqs)
   decoy_file <- .newResource(
     bfc,
-    .rname(species, "decoys.txt", key),
-    ext = ".txt"
+    species,
+    "decoys.txt",
+    ".txt",
+    exclude,
+    min_len
   )
   message("Writing out decoys to ", decoy_file)
   utils::write.table(
