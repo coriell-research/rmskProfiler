@@ -16,12 +16,10 @@ species to download resources for}
 }
 \description{
 This function will attempt to download all of the necessary resources for
-generating the rmsk-gentrome index. For humans, it will download the RepeatMasker
-hg38.fa.out file from RepeatMasker.org, GENCODE v48 transcript sequences,
-primary assembly, and annotation GTF. For mouse, it will download the
-RepeatMasker mm10.fa.out file, GENCODE M25 transcript sequences, primary
-assembly, and annotation GTF. If any of these file names already exist in the
-out_dir they will be skipped.
+generating the rmsk-gentrome index. For humans, it will download the GENCODE v48 transcript
+sequences, primary assembly, and annotation GTF. For mouse, it will download the GENCODE M25
+transcript sequences, primary assembly, and annotation GTF. If any of these file names already
+exist in the out_dir they will be skipped.
 }
 \examples{
 \dontrun{

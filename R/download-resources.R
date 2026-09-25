@@ -35,12 +35,10 @@
 #' Download files needed for index generation
 #'
 #' This function will attempt to download all of the necessary resources for
-#' generating the rmsk-gentrome index. For humans, it will download the RepeatMasker
-#' hg38.fa.out file from RepeatMasker.org, GENCODE v48 transcript sequences,
-#' primary assembly, and annotation GTF. For mouse, it will download the
-#' RepeatMasker mm10.fa.out file, GENCODE M25 transcript sequences, primary
-#' assembly, and annotation GTF. If any of these file names already exist in the
-#' out_dir they will be skipped.
+#' generating the rmsk-gentrome index. For humans, it will download the GENCODE v48 transcript
+#' sequences, primary assembly, and annotation GTF. For mouse, it will download the GENCODE M25
+#' transcript sequences, primary assembly, and annotation GTF. If any of these file names already
+#' exist in the out_dir they will be skipped.
 #'
 #' @param out_dir Directory to save files to. If it does not exist it will be created.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
