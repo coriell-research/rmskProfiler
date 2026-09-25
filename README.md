@@ -145,5 +145,5 @@ keep <- rownames(se) %in% c(tx, loci)
 filtered <- se[keep, ]
 
 # Sum assays to the gene/subfamily level
-aggregated <- aggregateCounts(filtered, resource_dir = "hg38-resources", level = "subfamily")
+aggregated <- aggregateCounts(filtered, resource_dir = "hg38-resources", te_level = "subfamily")
 ```
