@@ -7,10 +7,10 @@
 .catchSalmon2(paths, verbose = TRUE)
 }
 \arguments{
-\item{character}{vector giving paths to the sample-specific directories created by a kallisto or
+\item{paths}{character vector giving paths to the sample-specific directories created by a kallisto or
 Salmon. Each entry corresponds to one RNA-seq sample.}
 
-\item{logical}{If TRUE, progress information will be sent to standard output as each sample is processed.}
+\item{verbose}{logical If TRUE, progress information will be sent to standard output as each sample is processed.}
 }
 \description{
 Import transcript-level counts with offset

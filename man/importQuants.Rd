@@ -62,6 +62,11 @@ that the loci has an overlap with an exon on either strand. The rowData also
 contains an additional column 'Ranges' that contains a GRangesList for every
 transcript and TE hash location.
 
+Quants must be generated with Gibbs sampling (at least 2 Gibbs samples per
+sample) since the Gibbs samples are used to estimate overdispersion.
+\code{importQuants()} will throw an error listing any samples quantified
+without them.
+
 The rmskProfiler index contains transcripts from the "patch_hapl_scaff"
 annotations. By default, \code{importQuants()} will exclude these transcripts
 from the resulting object. The exclusion criteria a transcript where any of

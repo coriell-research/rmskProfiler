@@ -9,12 +9,12 @@
 \arguments{
 \item{species}{Either "Hs" or "Mm"}
 
-\item{file}{Name of the resource file}
+\item{file}{Name(s) of the resource file(s)}
 
 \item{key}{Optional settings key created by \code{.settingsKey()}}
 }
 \value{
-character(1)
+character vector the same length as file
 }
 \description{
 Resources that depend only on the species are named like

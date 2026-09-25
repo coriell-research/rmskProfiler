@@ -21,6 +21,11 @@
 #' contains an additional column 'Ranges' that contains a GRangesList for every
 #' transcript and TE hash location.
 #'
+#' Quants must be generated with Gibbs sampling (at least 2 Gibbs samples per
+#' sample) since the Gibbs samples are used to estimate overdispersion.
+#' \code{importQuants()} will throw an error listing any samples quantified
+#' without them.
+#'
 #' The rmskProfiler index contains transcripts from the "patch_hapl_scaff"
 #' annotations. By default, \code{importQuants()} will exclude these transcripts
 #' from the resulting object. The exclusion criteria a transcript where any of
@@ -67,6 +72,29 @@ importQuants <- function(
 
   message("Importing quants...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
+
+  # Overdispersion can only be estimated from Gibbs samples, so check for them
+  # before reading in any quants
+  meta_files <- file.path(paths, "aux_info", "meta_info.json")
+  n_gibbs <- vapply(
+    meta_files[file.exists(meta_files)],
+    function(f) {
+      n <- jsonlite::fromJSON(f)$num_bootstraps
+      if (is.null(n)) 0L else as.integer(n)
+    },
+    integer(1)
+  )
+  no_gibbs <- n_gibbs < 2L
+  if (any(no_gibbs)) {
+    stop(
+      "The following samples were quantified with fewer than 2 Gibbs samples: ",
+      paste(basename(dirname(dirname(names(n_gibbs)[no_gibbs]))), collapse = ", "),
+      ". Gibbs samples are required to estimate overdispersion. Re-run Salmon ",
+      "with --numGibbsSamples (e.g. salmonQuant(n_gibbs = 30)).",
+      call. = FALSE
+    )
+  }
+
   catch <- .catchSalmon2(paths, verbose = FALSE)
 
   se <- SummarizedExperiment::SummarizedExperiment(
