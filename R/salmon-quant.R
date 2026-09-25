@@ -58,9 +58,9 @@ salmonQuant <- function(
   ...
 ) {
   stopifnot(
-    "fq1, fq2, and sample_names differ in length" = (length(fq1) ==
-      length(fq2)) ==
-      (length(fq1) == length(sample_names))
+    "fq1, fq2, and sample_names differ in length" = length(fq1) ==
+      length(fq2) &&
+      length(fq1) == length(sample_names)
   )
 
   idx <- file.path(resource_dir, "rmsk-salmon_index")
