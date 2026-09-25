@@ -254,7 +254,7 @@ createAnnotation <- function(resource_dir) {
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
   message("Computing overlaps of TE-loci with transcript annotations...")
-  ov <- .getHashOverlaps(gr, gtf_file, resource_dir)
+  ov <- .getHashOverlaps(gr, gtf_file)
 
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
