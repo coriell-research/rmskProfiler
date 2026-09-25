@@ -11,24 +11,30 @@ License: MIT + file LICENSE
 BugReports: https://github.com/coriell-research/rmskProfiler/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
+Depends: 
+    R (>= 4.5.0)
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
     AnnotationDbi,
     AnnotationHub,
+    BiocFileCache,
+    BiocGenerics,
     Biostrings,
-    curl,
     data.table,
     GenomeInfoDb,
     GenomicFeatures,
     GenomicRanges,
     jsonlite,
+    methods,
     R.utils,
     reticulate (>= 1.41),
     rtracklayer,
     S4Vectors,
+    stats,
     stringi,
     SummarizedExperiment,
-    txdbmaker
+    txdbmaker,
+    utils
 Config/roxygen2/version: 8.1.0

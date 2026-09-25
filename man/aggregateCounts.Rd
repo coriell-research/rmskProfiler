@@ -6,17 +6,23 @@
 \usage{
 aggregateCounts(
   x,
-  resource_dir,
-  te_level = c("subfamily", "family", "class", "locus")
+  species = c("Hs", "Mm"),
+  te_level = c("subfamily", "family", "class", "locus"),
+  cache = NULL
 )
 }
 \arguments{
 \item{x}{SummarizedExperiment object produced by \code{importQuants()}}
 
-\item{resource_dir}{Path to the rmskProfiler resources directory}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+the species used to generate the index.}
 
 \item{te_level}{One of "subfamily" (default), "locus", "family", or "class".
 "locus" keeps TE-loci independent, while others aggregate based on classification.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \value{
 SummarizedExperiment
@@ -31,12 +37,12 @@ of the aggregated group, or the locus length if te_level is "locus".
 }
 \examples{
 \dontrun{
-se <- importQuants("quants", resource_dir = "hg38-resources")
+se <- importQuants("quants", species = "Hs")
 
 # Aggregate transcripts to genes, keep TE loci intact
-aggregated_locus <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "locus")
+aggregated_locus <- aggregateCounts(se, species = "Hs", te_level = "locus")
 
 # Aggregate transcripts to genes, TEs to subfamily
-aggregated_sub <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "subfamily")
+aggregated_sub <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
 }
 }

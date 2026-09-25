@@ -4,12 +4,12 @@
 \alias{.getHashOverlaps}
 \title{Find overlaps of TE loci regions with genomic features}
 \usage{
-.getHashOverlaps(x, gtffile)
+.getHashOverlaps(x, txdb)
 }
 \arguments{
 \item{x}{A GRanges object of TE loci}
 
-\item{gtffile}{Path to GTF file to create annotation from}
+\item{txdb}{TxDb to create annotation from}
 }
 \value{
 List of hash vectors overlapping genomic features

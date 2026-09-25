@@ -4,7 +4,7 @@
 #' shorter than 31 bp, records derived from the following elements
 #' "Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
 #' "tRNA", "Unknown" and records not located in standard chromosomes. The extracted ranges are
-#' then saved to a BED file ("rmsk.bed") for downstream processing.
+#' then saved to a BED file ("rmsk.bed") in the rmskProfiler cache for downstream processing.
 #'
 #' @details
 #' The RepeatMasker annotations used are:
@@ -12,37 +12,28 @@
 #' AH111333 : UCSC RepeatMasker annotations (Oct2022) for Human (hg38)
 #' AH99012 : UCSC RepeatMasker annotations (Apr2021) for Mouse (mm10)
 #'
-#' @param resource_dir Path to the directory where gentrome resources were
-#' downloaded. this should be the same path specified by downloadResources().
+#' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements to exclude from the
 #' resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 #' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
 #' @param min_len Minimum sequence length of a record. Default 32. Records
 #' shorter than this length are excluded from the resulting BED file.
+#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
+#' Default NULL uses the rmskProfiler cache at
+#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #' @return NULL
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' rmskToBed(resource_dir = "/path/to/rmsk-resources")
+#' rmskToBed(species = "Hs")
 #' }
 #'
 rmskToBed <- function(
-  resource_dir,
   species = c("Hs", "Mm"),
-  exclude = c(
-    "Simple_repeat",
-    "Low_complexity",
-    "Satellite",
-    "RNA",
-    "rRNA",
-    "snRNA",
-    "scRNA",
-    "srpRNA",
-    "tRNA",
-    "Unknown"
-  ),
-  min_len = 32
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
+  cache = NULL
 ) {
   species <- match.arg(species)
 
@@ -57,9 +48,13 @@ rmskToBed <- function(
 
   # Standard chromosomes and any features not excluded
   gr <- GenomeInfoDb::keepStandardChromosomes(gr, pruning.mode = "coarse")
-  gr <- gr[!(gr$repClass %in% exclude) & width(gr) >= min_len]
+  gr <- gr[!(gr$repClass %in% exclude) & GenomicRanges::width(gr) >= min_len]
   gr$name <- paste(gr$repName, gr$repFamily, gr$repClass, sep = ":")
 
-  outfile <- file.path(resource_dir, "rmsk.bed")
+  bfc <- .getCache(cache)
+  key <- .settingsKey(exclude, min_len)
+  outfile <- .newResource(bfc, .rname(species, "rmsk.bed", key), ext = ".bed")
   rtracklayer::export.bed(gr, outfile)
+
+  return(invisible(NULL))
 }

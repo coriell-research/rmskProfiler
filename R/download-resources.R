@@ -1,116 +1,74 @@
-#' Attempt to download a file from the internet
-#'
-#' @param url URL
-#' @param dest filepath of the destination file
-#' @param ... additional args not used
-#'
-#' @return NULL
-.tryDownload <- function(url, dest, ...) {
-  tryCatch(
-    {
-      curl::curl_download(url, dest, mode = "wb", ...)
-    },
-    warning = function(w) {
-      print(w)
-      message("A warning occurred downloading ", dest)
-      message("Removing ", dest, " just to be safe. Please try again.")
-
-      if (file.exists(dest)) {
-        file.remove(dest)
-      }
-    },
-    error = function(e) {
-      print(e)
-      message("An error occurred downloading ", dest)
-      message("Removing ", dest, ". Please try again.")
-
-      if (file.exists(dest)) {
-        file.remove(dest)
-      }
-    }
-  )
-}
-
-
 #' Download files needed for index generation
 #'
 #' This function will attempt to download all of the necessary resources for
-#' generating the rmsk-gentrome index. For humans, it will download the GENCODE v48 transcript
-#' sequences, primary assembly, and annotation GTF. For mouse, it will download the GENCODE M25
-#' transcript sequences, primary assembly, and annotation GTF. If any of these file names already
-#' exist in the out_dir they will be skipped.
+#' generating the rmsk-gentrome index into the rmskProfiler cache. For humans,
+#' it will download the GENCODE v48 transcript sequences, primary assembly, and
+#' annotation GTF. For mouse, it will download the GENCODE M25 transcript
+#' sequences, primary assembly, and annotation GTF. Files that already exist in
+#' the cache are not downloaded again.
 #'
-#' @param out_dir Directory to save files to. If it does not exist it will be created.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
 #' species to download resources for
 #' @param check_integrity TRUE/FALSE, if TRUE check the md5sums of the GENCODE files
+#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
+#' Default NULL uses the rmskProfiler cache at
+#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
 #' @return NULL
 #' @export
 #' @examples
 #' \dontrun{
-#' downloadResources(out_dir = "/path/to/rmsk-resources")
+#' downloadResources(species = "Hs")
 #' }
 downloadResources <- function(
-  out_dir,
   species = c("Hs", "Mm"),
-  check_integrity = TRUE
+  check_integrity = TRUE,
+  cache = NULL
 ) {
   species <- match.arg(species)
+  bfc <- .getCache(cache)
+  res <- .gencodeResources(species)
+  rnames <- .rname(species, res$file)
 
-  urls <- c(
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.transcripts.fa.gz",
-    "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/GRCh38.primary_assembly.genome.fa.gz"
-  )
-  fnames <- basename(urls)
-
-  # Hashsums only for GENCODE files - annotation, transcripts, assembly
-  # https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/MD5SUMS
-  md5sums <- c(
-    "f7ffc813464f52e428c116bc3b83dce1",
-    "e4a4d396cca5dd6d0889248b9e93b42a",
-    "42e38e8dd5027dd2ae8aeb8f3a990d07"
-  )
-
-  if (species == "Mm") {
-    urls <- c(
-      "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz",
-      "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.transcripts.fa.gz",
-      "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/GRCm38.primary_assembly.genome.fa.gz"
+  paths <- character(nrow(res))
+  for (i in seq_len(nrow(res))) {
+    hit <- BiocFileCache::bfcquery(
+      bfc,
+      rnames[i],
+      field = "rname",
+      exact = TRUE
     )
-    fnames <- basename(urls)
-    md5sums <- c(
-      "0c38fc4ccbc731a2708fc91e7f1c2efd",
-      "a821c0dde39c48b9d2c4b48d36b0180c",
-      "3bc591be24b77f710b6ba5d41022fc5a"
-    )
-  }
-
-  if (!dir.exists(out_dir)) {
-    message(out_dir, " does not exist. Creating.")
-    dir.create(out_dir, recursive = TRUE)
-  }
-  outfiles <- file.path(out_dir, fnames)
-
-  for (i in seq_along(urls)) {
-    if (file.exists(outfiles[i])) {
-      message(outfiles[i], " already exists in ", out_dir, ". Skipping.")
-      next
+    if (nrow(hit) > 0L) {
+      path <- unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L]))
+      if (file.exists(path)) {
+        message(res$file[i], " already exists in the cache. Skipping.")
+        paths[i] <- path
+        next
+      }
+      BiocFileCache::bfcremove(bfc, hit$rid)
     }
-    message("Attempting to download ", fnames[i], "...")
-    .tryDownload(urls[i], outfiles[i])
+    message("Attempting to download ", res$file[i], "...")
+    paths[i] <- unname(BiocFileCache::bfcadd(
+      bfc,
+      rnames[i],
+      fpath = res$url[i],
+      rtype = "web"
+    ))
   }
 
   if (isTRUE(check_integrity)) {
     message("Checking file integrity of downloaded files...")
-    badfile <- md5sums != as.vector(tools::md5sum(outfiles))
+    badfile <- res$md5 != unname(tools::md5sum(paths))
     if (any(badfile)) {
-      msg <- paste(
-        outfiles[which(badfile)],
-        "Did not download properly. Remove this file and retry."
+      for (rname in rnames[badfile]) {
+        hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+        BiocFileCache::bfcremove(bfc, hit$rid)
+      }
+      stop(
+        paste(res$file[badfile], collapse = ", "),
+        " did not download properly and were removed from the cache. ",
+        "Please retry."
       )
-      stop(msg)
     }
     message("Success!")
   }

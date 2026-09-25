@@ -4,26 +4,48 @@
 \alias{createGentrome}
 \title{Create the gentrome fasta and Salmon index}
 \usage{
-createGentrome(resource_dir, create_index = TRUE, threads = 1)
+createGentrome(
+  species = c("Hs", "Mm"),
+  index_dir,
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
+  create_index = TRUE,
+  threads = 1,
+  cache = NULL
+)
 }
 \arguments{
-\item{resource_dir}{Path to the directory containing index generation resources.
-Output is saved to this location.}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
+
+\item{index_dir}{Path to the directory where the Salmon index will be created.
+Only used if \code{create_index = TRUE}.}
+
+\item{exclude}{A character vector specifying which elements (repClass) were
+excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+
+\item{min_len}{Minimum sequence length of a record used by \code{rmskToBed()}.
+Default 32.}
 
 \item{create_index}{Create salmon index after generating resources? Default TRUE.
 This assumes that "salmon" is available on your PATH}
 
 \item{threads}{Number of threads to use for salmon index generation. Default 1}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
 This function creates the gentrome (transcripts + unique rmsk sequences +
 decoy) fasta and (optionally) the Salmon index. If index generation is
 desired then the function assumes that Salmon is on your PATH. This function
-will create a gentrome.fa file, decoys.txt file, and (optionally) a Salmon
-index from these files in the resource directory.
+will save a gentrome fasta file and decoys.txt file to the rmskProfiler
+cache and (optionally) create a Salmon index from these files in
+\code{index_dir}.
 }
 \examples{
 \dontrun{
-createGentrome(resource_dir = "/path/to/rmsk-resources")
+createGentrome(species = "Hs", index_dir = "/path/to/rmsk-salmon_index")
 }
 }

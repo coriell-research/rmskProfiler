@@ -5,18 +5,19 @@
 \title{Generate a Salmon index and annotations for TE quantification}
 \usage{
 generateIndex(
-  out_dir,
+  index_dir,
   species = c("Hs", "Mm"),
   check_integrity = TRUE,
-  exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
-    "scRNA", "srpRNA", "tRNA", "Unknown"),
+  exclude = .DEFAULT_EXCLUDE,
   min_len = 32,
   create_index = TRUE,
-  threads = 1
+  threads = 1,
+  cache = NULL
 )
 }
 \arguments{
-\item{out_dir}{Directory in which to save all resources including final generated Salmon index}
+\item{index_dir}{Directory in which to create the Salmon index. All other
+resources are saved to the rmskProfiler cache.}
 
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
 species to download resources for}
@@ -24,7 +25,7 @@ species to download resources for}
 \item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files after downloading}
 
 \item{exclude}{A character vector specifying which elements (repClass) to exclude from the
-resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
+resulting BED file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
@@ -34,6 +35,10 @@ shorter than this length are excluded from the resulting BED file and index.}
 This assumes that "salmon" is available on your PATH}
 
 \item{threads}{Number of threads to use for salmon index generation. Default 1}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
 This function is a wrapper around several other functions for downloading and
@@ -56,6 +61,6 @@ functions:
 \examples{
 \dontrun{
 # Run pipeline for downloading and creating Salmon index and annotations
-generateIndex(out_dir = "rmsk-resources", species = "Hs")
+generateIndex(index_dir = "hg38-salmon_index", species = "Hs")
 }
 }

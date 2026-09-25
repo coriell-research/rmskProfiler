@@ -4,25 +4,32 @@
 \alias{downloadResources}
 \title{Download files needed for index generation}
 \usage{
-downloadResources(out_dir, species = c("Hs", "Mm"), check_integrity = TRUE)
+downloadResources(
+  species = c("Hs", "Mm"),
+  check_integrity = TRUE,
+  cache = NULL
+)
 }
 \arguments{
-\item{out_dir}{Directory to save files to. If it does not exist it will be created.}
-
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
 species to download resources for}
 
 \item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
 This function will attempt to download all of the necessary resources for
-generating the rmsk-gentrome index. For humans, it will download the GENCODE v48 transcript
-sequences, primary assembly, and annotation GTF. For mouse, it will download the GENCODE M25
-transcript sequences, primary assembly, and annotation GTF. If any of these file names already
-exist in the out_dir they will be skipped.
+generating the rmsk-gentrome index into the rmskProfiler cache. For humans,
+it will download the GENCODE v48 transcript sequences, primary assembly, and
+annotation GTF. For mouse, it will download the GENCODE M25 transcript
+sequences, primary assembly, and annotation GTF. Files that already exist in
+the cache are not downloaded again.
 }
 \examples{
 \dontrun{
-downloadResources(out_dir = "/path/to/rmsk-resources")
+downloadResources(species = "Hs")
 }
 }

@@ -33,16 +33,16 @@ def read_fasta(fa):
         yield FastaRecord(header, sequence)
 
 
-def extract_unique_records(bed, fasta):
+def extract_unique_records(bed, fasta, out_json, out_fa):
     """Extracts unique RepeatMasker sequences by first extracting all sequences from
     the RepeatMasker BED file into a fasta and then collecting the unique sequences
-    by SHA1 hash. These unique sequences are then dumped to a json file and a fasta
-    file.
+    by SHA1 hash. The duplicate information is dumped to out_json and the unique
+    sequences are written to out_fa.
     """    
     bedfile = Path(bed)
     fasta = Path(fasta)
-    out_json = Path(bedfile.parent, "rmsk-duplicateInfo.json")
-    out_fa = Path(bedfile.parent, "rmsk-unique.fa")
+    out_json = Path(out_json)
+    out_fa = Path(out_fa)
     
     print("Reading in the BED file...")
     a = pybedtools.BedTool(bedfile)

@@ -11,7 +11,7 @@
 #' @param fq1 vector of file paths to fastq read 1 files
 #' @param fq2 vector of file paths to fastq read 2 files
 #' @param sample_names character vector of samples names matching each pair of fastq files
-#' @param resource_dir path to the rmskProfiler resource directory containing an rmsk-salmon_index directory
+#' @param index_dir path to the Salmon index created by \code{generateIndex()} or \code{createGentrome()}
 #' @param out_dir path to save the quant directories for each sample. This will
 #' be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants
 #' @param n_gibbs integer number of Gibbs samples to perform. Default 30. Published
@@ -32,7 +32,7 @@
 #' sample_names <- c("sample1", "sample2", "sample3")
 #'
 #' # Perform with all default settings -- probably not recommended
-#' salmonQuant(fq1, fq2, sample_names, resource_dir = "hg38-resources", out_dir = "quants")
+#' salmonQuant(fq1, fq2, sample_names, index_dir = "hg38-salmon_index", out_dir = "quants")
 #'
 #' # More often though we will want to pass additional arguments to Salmon
 #' # We can do so by providing additoinal flags as a character strings
@@ -40,7 +40,7 @@
 #'   fq1 = fq1,
 #'   fq2 = fq2,
 #'   sample_names = sample_names,
-#'   resource_dir = "hg38-resources",
+#'   index_dir = "hg38-salmon_index",
 #'   out_dir = "quants",
 #'   "--gcBias",
 #'   "--seqBias",
@@ -52,7 +52,7 @@ salmonQuant <- function(
   fq1,
   fq2,
   sample_names,
-  resource_dir,
+  index_dir,
   out_dir,
   n_gibbs = 30,
   ...
@@ -63,10 +63,7 @@ salmonQuant <- function(
       length(fq1) == length(sample_names)
   )
 
-  idx <- file.path(resource_dir, "rmsk-salmon_index")
-  stopifnot(
-    "rmsk-salmon_index does not exist in resource directory!" = dir.exists(idx)
-  )
+  stopifnot("index_dir does not exist!" = dir.exists(index_dir))
 
   out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
 
@@ -87,7 +84,7 @@ salmonQuant <- function(
         "--output",
         out_dirs[i],
         "--index",
-        idx,
+        index_dir,
         "--numGibbsSamples",
         n_gibbs,
         more_args

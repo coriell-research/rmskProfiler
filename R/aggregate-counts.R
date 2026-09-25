@@ -8,28 +8,34 @@
 #' of the aggregated group, or the locus length if te_level is "locus".
 #'
 #' @param x SummarizedExperiment object produced by \code{importQuants()}
-#' @param resource_dir Path to the rmskProfiler resources directory
+#' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+#' the species used to generate the index.
 #' @param te_level One of "subfamily" (default), "locus", "family", or "class".
 #' "locus" keeps TE-loci independent, while others aggregate based on classification.
+#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
+#' Default NULL uses the rmskProfiler cache at
+#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
 #' @return SummarizedExperiment
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' se <- importQuants("quants", resource_dir = "hg38-resources")
+#' se <- importQuants("quants", species = "Hs")
 #'
 #' # Aggregate transcripts to genes, keep TE loci intact
-#' aggregated_locus <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "locus")
+#' aggregated_locus <- aggregateCounts(se, species = "Hs", te_level = "locus")
 #'
 #' # Aggregate transcripts to genes, TEs to subfamily
-#' aggregated_sub <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "subfamily")
+#' aggregated_sub <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
 #' }
 aggregateCounts <- function(
   x,
-  resource_dir,
-  te_level = c("subfamily", "family", "class", "locus")
+  species = c("Hs", "Mm"),
+  te_level = c("subfamily", "family", "class", "locus"),
+  cache = NULL
 ) {
+  species <- match.arg(species)
   te_level <- match.arg(te_level)
   rd_orig <- SummarizedExperiment::rowData(x)
 
@@ -52,17 +58,17 @@ aggregateCounts <- function(
   )
 
   # Compute feature lengths
-  resources <- list.files(resource_dir, full.names = TRUE)
-  dbfile <- grep("annotation.txdb", resources, value = TRUE)
-  txdb <- suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile))
+  txdb <- .getTxDb(species, .getCache(cache))
 
   # Gene lengths are reduced exon widths
   exons_by_gene <- suppressWarnings(GenomicFeatures::exonsBy(txdb, by = "gene"))
-  reduced_exon_lengths <- sum(width(reduce(exons_by_gene)))
+  reduced_exon_lengths <- sum(GenomicRanges::width(GenomicRanges::reduce(
+    exons_by_gene
+  )))
   names(reduced_exon_lengths) <- names(exons_by_gene)
 
   # TE lengths are sum of widths of ranges
-  te_widths <- sum(width(rd_orig$Ranges))
+  te_widths <- sum(GenomicRanges::width(rd_orig$Ranges))
   sum_te_widths <- tapply(te_widths, feature_id, sum, na.rm = TRUE)
   sum_te_widths <- sum_te_widths[
     !names(sum_te_widths) %in% names(reduced_exon_lengths)

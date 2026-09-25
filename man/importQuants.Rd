@@ -6,20 +6,36 @@
 \usage{
 importQuants(
   quant_dir,
-  resource_dir,
+  species = c("Hs", "Mm"),
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
   remove_zeros = TRUE,
-  std_chromosomes = TRUE
+  std_chromosomes = TRUE,
+  cache = NULL
 )
 }
 \arguments{
 \item{quant_dir}{Path to the directories created by \code{salmonQuant()} or Salmon}
 
-\item{resource_dir}{Path to the directory containing index generation resources}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+the species used to generate the index.}
+
+\item{exclude}{A character vector specifying which elements (repClass) were
+excluded when generating the index. Must match the value passed to
+\code{generateIndex()}. Default "Simple_repeat", "Low_complexity",
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+
+\item{min_len}{Minimum sequence length of a record used when generating the
+index. Must match the value passed to \code{generateIndex()}. Default 32.}
 
 \item{remove_zeros}{Should all zero rows be removed before returning object. Default TRUE}
 
 \item{std_chromosomes}{Should only transcripts from standard chromosomes be
 kept in the resulting object. Default TRUE.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \value{
 SummarizedExperiment

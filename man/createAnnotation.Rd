@@ -4,11 +4,26 @@
 \alias{createAnnotation}
 \title{Generate annotation resources for annotating TE loci and genes}
 \usage{
-createAnnotation(resource_dir)
+createAnnotation(
+  species = c("Hs", "Mm"),
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
+  cache = NULL
+)
 }
 \arguments{
-\item{resource_dir}{Path to the directory containing index generation resources.
-Output is saved to this location.}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
+
+\item{exclude}{A character vector specifying which elements (repClass) were
+excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+
+\item{min_len}{Minimum sequence length of a record used by \code{rmskToBed()}.
+Default 32.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
 This function produces multiple annotation files used to annotate downstream
@@ -20,6 +35,6 @@ downloaded gencode GTF file.
 }
 \examples{
 \dontrun{
-createAnnotation(resource_dir = "/path/to/rmsk-resources")
+createAnnotation(species = "Hs")
 }
 }

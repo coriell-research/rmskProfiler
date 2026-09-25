@@ -5,16 +5,14 @@
 \title{Extract the contents of the RepeatMasker out file into BED format}
 \usage{
 rmskToBed(
-  resource_dir,
   species = c("Hs", "Mm"),
-  exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
-    "scRNA", "srpRNA", "tRNA", "Unknown"),
-  min_len = 32
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
+  cache = NULL
 )
 }
 \arguments{
-\item{resource_dir}{Path to the directory where gentrome resources were
-downloaded. this should be the same path specified by downloadResources().}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
 \item{exclude}{A character vector specifying which elements to exclude from the
 resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
@@ -22,13 +20,17 @@ resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
 This function queries AnnotationHub for UCSC RepeatMasker annotations and removes all records
 shorter than 31 bp, records derived from the following elements
 "Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
 "tRNA", "Unknown" and records not located in standard chromosomes. The extracted ranges are
-then saved to a BED file ("rmsk.bed") for downstream processing.
+then saved to a BED file ("rmsk.bed") in the rmskProfiler cache for downstream processing.
 }
 \details{
 The RepeatMasker annotations used are:
@@ -38,7 +40,7 @@ AH99012 : UCSC RepeatMasker annotations (Apr2021) for Mouse (mm10)
 }
 \examples{
 \dontrun{
-rmskToBed(resource_dir = "/path/to/rmsk-resources")
+rmskToBed(species = "Hs")
 }
 
 }

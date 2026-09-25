@@ -53,6 +53,52 @@
 }
 
 
+#' Load the TxDb for a species from the cache, creating it if needed
+#'
+#' @param species Either "Hs" or "Mm"
+#' @param bfc BiocFileCache
+#'
+#' @return TxDb
+#' @keywords internal
+.getTxDb <- function(species, bfc) {
+  rname <- .rname(species, "annotation.txdb")
+  hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+  if (nrow(hit) > 0L) {
+    dbfile <- unname(BiocFileCache::bfcrpath(bfc, rids = hit$rid[1L]))
+    if (file.exists(dbfile)) {
+      message("Loading TxDb...")
+      return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
+    }
+  }
+
+  gtf_file <- .getResource(
+    bfc,
+    .gencodeRname(species, "gtf"),
+    hint = "Run downloadResources() first."
+  )
+  organism <- "Homo sapiens"
+  taxid <- 9606
+  if (species == "Mm") {
+    organism <- "Mus musculus"
+    taxid <- 10090
+  }
+
+  message("Creating TxDb from GTF...")
+  txdb <- suppressWarnings(
+    txdbmaker::makeTxDbFromGFF(
+      file = gtf_file,
+      format = "gtf",
+      organism = organism,
+      taxonomyId = taxid,
+      dataSource = .gencodeResources(species)["gtf", "url"]
+    )
+  )
+  AnnotationDbi::saveDb(txdb, .newResource(bfc, rname, ext = ".txdb"))
+
+  return(txdb)
+}
+
+
 #' Find overlaps of TE loci regions with genomic features
 #'
 #' Finds any TE that overlaps with an exon by transcript, and intron by
@@ -60,39 +106,10 @@
 #' a promoter by gene.
 #'
 #' @param x A GRanges object of TE loci
-#' @param gtffile Path to GTF file to create annotation from
+#' @param txdb TxDb to create annotation from
 #'
 #' @return List of hash vectors overlapping genomic features
-.getHashOverlaps <- function(x, gtffile) {
-  organism <- "Homo sapiens"
-  taxid <- 9606
-  data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
-
-  if (grepl("M25", gtffile)) {
-    organism <- "Mus musculus"
-    taxid <- 10090
-    data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
-  }
-
-  dbfile <- gsub(".gtf.gz", ".txdb", gtffile, fixed = TRUE)
-
-  if (!file.exists(dbfile)) {
-    message("Creating TxDb from GTF...")
-    txdb <- suppressWarnings(
-      txdbmaker::makeTxDbFromGFF(
-        file = gtffile,
-        format = "gtf",
-        organism = organism,
-        taxonomyId = taxid,
-        dataSource = data_source
-      )
-    )
-    AnnotationDbi::saveDb(txdb, dbfile)
-  } else {
-    message("Loading TxDb...")
-    txdb <- AnnotationDbi::loadDb(dbfile)
-  }
-
+.getHashOverlaps <- function(x, txdb) {
   message("Preparing reduced genomic features...")
 
   gr_exons <- unlist(GenomicFeatures::exonsBy(txdb, by = "gene"))
@@ -113,7 +130,7 @@
       keytype = "TXNAME"
     )
   )
-  tx2gene_map <- setNames(tx2gene$GENEID, tx2gene$TXNAME)
+  tx2gene_map <- stats::setNames(tx2gene$GENEID, tx2gene$TXNAME)
 
   gr_introns <- unlist(GenomicFeatures::intronsByTranscript(
     txdb,
@@ -227,8 +244,15 @@
 #' features they overlap. Overlap annotations are generated with respect to the
 #' downloaded gencode GTF file.
 #'
-#' @param resource_dir Path to the directory containing index generation resources.
-#' Output is saved to this location.
+#' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
+#' @param exclude A character vector specifying which elements (repClass) were
+#' excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
+#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
+#' @param min_len Minimum sequence length of a record used by \code{rmskToBed()}.
+#' Default 32.
+#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
+#' Default NULL uses the rmskProfiler cache at
+#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
 #' @return NULL
 #' @import data.table
@@ -236,12 +260,27 @@
 #'
 #' @examples
 #' \dontrun{
-#' createAnnotation(resource_dir = "/path/to/rmsk-resources")
+#' createAnnotation(species = "Hs")
 #' }
-createAnnotation <- function(resource_dir) {
-  resources <- list.files(resource_dir, full.names = TRUE)
-  info_json <- grep("rmsk-duplicateInfo.json", resources, value = TRUE)
-  gtf_file <- grep("annotation.gtf.gz", resources, value = TRUE)
+createAnnotation <- function(
+  species = c("Hs", "Mm"),
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
+  cache = NULL
+) {
+  species <- match.arg(species)
+  bfc <- .getCache(cache)
+  key <- .settingsKey(exclude, min_len)
+  info_json <- .getResource(
+    bfc,
+    .rname(species, "rmsk-duplicateInfo.json", key),
+    hint = "Run extractUniqueSeqs() with the same species, exclude, and min_len first."
+  )
+  gtf_file <- .getResource(
+    bfc,
+    .gencodeRname(species, "gtf"),
+    hint = "Run downloadResources() first."
+  )
 
   dt <- .dupInfoToDT(info_json)
 
@@ -254,7 +293,8 @@ createAnnotation <- function(resource_dir) {
   grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
   message("Computing overlaps of TE-loci with transcript annotations...")
-  ov <- .getHashOverlaps(gr, gtf_file)
+  txdb <- .getTxDb(species, bfc)
+  ov <- .getHashOverlaps(gr, txdb)
 
   message("Getting all unique hash-element pairs...")
   hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
@@ -313,13 +353,13 @@ createAnnotation <- function(resource_dir) {
     gene_type
   )]
   names(tx) <- tx$transcript_id
-  tx <- as(tx, "GRangesList")
+  tx <- methods::as(tx, "GRangesList")
   rmsk_grl <- c(tx, grl)
 
   # Strip redundant metadata
   unlisted_rmsk <- unlist(rmsk_grl)
   GenomicRanges::mcols(unlisted_rmsk) <- NULL
-  rmsk_grl <- relist(unlisted_rmsk, rmsk_grl)
+  rmsk_grl <- BiocGenerics::relist(unlisted_rmsk, rmsk_grl)
 
   # Combine annotation DataFrames
   rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
@@ -327,11 +367,9 @@ createAnnotation <- function(resource_dir) {
   rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
   rd$Ranges <- rmsk_grl[rownames(rd)]
 
-  message(
-    "Writing out rowData to: ",
-    file.path(resource_dir, "rmsk-rowData.rds")
-  )
-  saveRDS(rd, file.path(resource_dir, "rmsk-rowData.rds"))
+  rd_file <- .newResource(bfc, .rname(species, "rmsk-rowData.rds", key), ".rds")
+  message("Writing out rowData to: ", rd_file)
+  saveRDS(rd, rd_file)
   message("Done.")
 
   return(invisible(NULL))

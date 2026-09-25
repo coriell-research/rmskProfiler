@@ -27,20 +27,44 @@
 #' its ranges does not lie within a standard chromosome will be excluded.
 #'
 #' @param quant_dir Path to the directories created by \code{salmonQuant()} or Salmon
-#' @param resource_dir Path to the directory containing index generation resources
+#' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+#' the species used to generate the index.
+#' @param exclude A character vector specifying which elements (repClass) were
+#' excluded when generating the index. Must match the value passed to
+#' \code{generateIndex()}. Default "Simple_repeat", "Low_complexity",
+#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
+#' @param min_len Minimum sequence length of a record used when generating the
+#' index. Must match the value passed to \code{generateIndex()}. Default 32.
 #' @param remove_zeros Should all zero rows be removed before returning object. Default TRUE
 #' @param std_chromosomes Should only transcripts from standard chromosomes be
 #' kept in the resulting object. Default TRUE.
+#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
+#' Default NULL uses the rmskProfiler cache at
+#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
 #' @return SummarizedExperiment
 #' @export
 #'
 importQuants <- function(
   quant_dir,
-  resource_dir,
+  species = c("Hs", "Mm"),
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
   remove_zeros = TRUE,
-  std_chromosomes = TRUE
+  std_chromosomes = TRUE,
+  cache = NULL
 ) {
+  species <- match.arg(species)
+  bfc <- .getCache(cache)
+  rdfile <- .getResource(
+    bfc,
+    .rname(species, "rmsk-rowData.rds", .settingsKey(exclude, min_len)),
+    hint = paste(
+      "Check that species, exclude, and min_len match the values used to",
+      "generate the index, or run createAnnotation() first."
+    )
+  )
+
   message("Importing quants...")
   paths <- list.dirs(path = quant_dir, full.names = TRUE, recursive = FALSE)
   catch <- .catchSalmon2(paths, verbose = FALSE)
@@ -56,8 +80,6 @@ importQuants <- function(
   colnames(se) <- basename(colnames(se))
 
   message("Reading in annotation information for transcripts and TE loci...")
-  resources <- list.files(resource_dir, full.names = TRUE)
-  rdfile <- grep("rmsk-rowData.rds", resources, value = TRUE)
   rd <- readRDS(rdfile)
   SummarizedExperiment::rowData(se) <- rd[SummarizedExperiment::rownames(se), ]
 

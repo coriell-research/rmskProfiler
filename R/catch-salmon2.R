@@ -8,9 +8,9 @@
 #' and combined with existing catchSalmon code. I only used data.table::fread in place of readr so
 #' as to not add more dependencies.
 #'
-#' @param character vector giving paths to the sample-specific directories created by a kallisto or
+#' @param paths character vector giving paths to the sample-specific directories created by a kallisto or
 #' Salmon. Each entry corresponds to one RNA-seq sample.
-#' @param logical If TRUE, progress information will be sent to standard output as each sample is processed.
+#' @param verbose logical If TRUE, progress information will be sent to standard output as each sample is processed.
 #' @keywords internal
 .catchSalmon2 <- function(paths, verbose = TRUE) {
   NSamples <- length(paths)
@@ -112,10 +112,10 @@
   i <- (DF > 0L)
   if (sum(i) > 0L) {
     OverDisp[i] <- OverDisp[i] / DF[i]
-    DFMedian <- median(DF[i])
+    DFMedian <- stats::median(DF[i])
     DFPrior <- 3
-    OverDispPrior <- median(OverDisp[i]) /
-      qf(0.5, df1 = DFMedian, df2 = DFPrior)
+    OverDispPrior <- stats::median(OverDisp[i]) /
+      stats::qf(0.5, df1 = DFMedian, df2 = DFPrior)
     if (OverDispPrior < 1) {
       OverDispPrior <- 1
     }
