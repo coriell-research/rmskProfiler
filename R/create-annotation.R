@@ -61,16 +61,15 @@
 #'
 #' @param x A GRanges object of TE loci
 #' @param gtffile Path to GTF file to create annotation from
-#' @param resource_dir Path to the rmsk resource directory. TxDb will be saved here.
 #'
 #' @return List of hash vectors overlapping genomic features
-.getHashOverlaps <- function(x, gtffile, resource_dir) {
+.getHashOverlaps <- function(x, gtffile) {
   organism <- "Homo sapiens"
   taxid <- 9606
   data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_48/gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
 
   if (grepl("M25", gtffile)) {
-    organism <- "Mus Musculus"
+    organism <- "Mus musculus"
     taxid <- 10090
     data_source <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M25/gencode.vM25.annotation.gtf.gz"
   }
