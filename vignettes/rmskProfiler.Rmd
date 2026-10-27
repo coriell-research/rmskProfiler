@@ -302,7 +302,30 @@ aggregated <- aggregateCounts(
 )
 
 aggregated
+head(rowData(aggregated))
 ```
+
+Each assay of the aggregated object (`counts`, `orig`, and `tpms`) is the sum
+of the rows in each group, and the `colData` and `metadata` are kept. The rows
+are genes, named by their GENCODE gene ID, and TE groups, named by their
+classification at the chosen `te_level` ("Subfamily:Family:Class" for
+`"subfamily"`, "Family:Class" for `"family"`, the class for `"class"`, or the
+hash for `"locus"`). TE sequences whose loci have more than one classification
+form their own group, e.g. "AluSx,AluSx1:Alu:SINE". The `rowData` contains:
+
+- `feature_id`: the gene ID or TE group, the same as the row names.
+- `Freq`: the number of rows of the original object summed into the feature,
+  i.e. the number of transcripts of a gene, or the number of unique TE
+  sequences (hashes) in a TE group. Rows removed before aggregating are not
+  counted.
+- `gene_name`, `gene_type`: the GENCODE gene name and type. `NA` for TEs.
+- `feature_length`: for genes, the total width of the gene's exons from the
+  GTF after merging overlapping exons, using all of its transcripts, not only
+  those kept after filtering. For TEs, the total width of all loci of every
+  sequence in the group, so a sequence with several loci contributes the width
+  of each of them.
+
+The `Ranges` column is not carried over to the aggregated object.
 
 # Managing cached resources
 
