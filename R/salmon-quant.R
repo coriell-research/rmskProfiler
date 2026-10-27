@@ -10,90 +10,112 @@
 #'
 #' @param fq1 vector of file paths to fastq read 1 files
 #' @param fq2 vector of file paths to fastq read 2 files
-#' @param sample_names character vector of samples names matching each pair of fastq files
-#' @param resource_dir path to the rmskProfiler resource directory containing an rmsk-salmon_index directory
+#' @param sample_names character vector of samples names matching each pair of
+#' fastq files
+#' @param index_dir path to the Salmon index created by \code{generateIndex()}
+#' or \code{createGentrome()}
 #' @param out_dir path to save the quant directories for each sample. This will
-#' be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants
-#' @param n_gibbs integer number of Gibbs samples to perform. Default 30. Published
+#' be the parent directory, samples are saved in subdirectories like
+#' out_dir/<sample_name>_quants
+#' @param n_gibbs integer number of Gibbs samples to perform. Default 30.
+#' Published
 #' work suggests this number can be set to around 180 / length(samples) but 30
 #' ensures a good coverage with minimal cost in terms of speed.
 #' @param ... Additional arguments passed to Salmon as character strings, e.g.
 #' "--gcBias", "--seqBias" "--threads 12", see examples below
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' Salmon quant directories for each sample to \code{out_dir}.
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' # Quantify example reads against the index built from the example data.
+#' # Salmon must be available on your PATH.
+#' if (nzchar(Sys.which("salmon"))) {
+#'     bfc <- exampleCache(build = TRUE)
+#'     index_dir <- tempfile("index")
+#'     createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
 #'
-#' # Specify paths to fastq files and names of the samples
-#' fq1 <- c("sample1.R1.fq.gz", "sample2.R1.fq.gz", "sample3.R1.fq.gz")
-#' fq2 <- c("sample1.R2.fq.gz", "sample2.R2.fq.gz", "sample3.R2.fq.gz")
-#' sample_names <- c("sample1", "sample2", "sample3")
+#'     fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
+#'     out_dir <- tempfile("quants")
 #'
-#' # Perform with all default settings -- probably not recommended
-#' salmonQuant(fq1, fq2, sample_names, resource_dir = "hg38-resources", out_dir = "quants")
-#'
-#' # More often though we will want to pass additional arguments to Salmon
-#' # We can do so by providing additoinal flags as a character strings
-#' salmonQuant(
-#'   fq1 = fq1,
-#'   fq2 = fq2,
-#'   sample_names = sample_names,
-#'   resource_dir = "hg38-resources",
-#'   out_dir = "quants",
-#'   "--gcBias",
-#'   "--seqBias",
-#'   "--posBias",
-#'   "--threads 12"
-#'   )
+#'     # Additional arguments are passed to Salmon as character strings
+#'     salmonQuant(
+#'         fq1 = file.path(fq_dir, "ctrl_1_R1.fq.gz"),
+#'         fq2 = file.path(fq_dir, "ctrl_1_R2.fq.gz"),
+#'         sample_names = "ctrl_1",
+#'         index_dir = index_dir,
+#'         out_dir = out_dir,
+#'         n_gibbs = 2,
+#'         "--threads 2"
+#'     )
+#'     list.files(out_dir)
 #' }
 salmonQuant <- function(
-  fq1,
-  fq2,
-  sample_names,
-  resource_dir,
-  out_dir,
-  n_gibbs = 30,
-  ...
+    fq1,
+    fq2,
+    sample_names,
+    index_dir,
+    out_dir,
+    n_gibbs = 30,
+    ...
 ) {
-  stopifnot(
-    "fq1, fq2, and sample_names differ in length" = (length(fq1) ==
-      length(fq2)) ==
-      (length(fq1) == length(sample_names))
-  )
-
-  idx <- file.path(resource_dir, "rmsk-salmon_index")
-  stopifnot(
-    "rmsk-salmon_index does not exist in resource directory!" = dir.exists(idx)
-  )
-
-  out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
-
-  dots <- list(...)
-  more_args <- unlist(dots)
-
-  for (i in seq_along(fq1)) {
-    system2(
-      "salmon",
-      args = c(
-        "quant",
-        "--libType",
-        "A",
-        "--mates1",
-        fq1[i],
-        "--mates2",
-        fq2[i],
-        "--output",
-        out_dirs[i],
-        "--index",
-        idx,
-        "--numGibbsSamples",
-        n_gibbs,
-        more_args
-      )
+    .checkSalmon()
+    stopifnot(
+        "fq1, fq2, and sample_names differ in length" = length(fq1) ==
+            length(fq2) &&
+            length(fq1) == length(sample_names)
     )
-  }
 
-  return(invisible(NULL))
+    stopifnot("index_dir does not exist!" = dir.exists(index_dir))
+
+    out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
+
+    dots <- list(...)
+    more_args <- unlist(dots)
+
+    for (i in seq_along(fq1)) {
+        system2(
+            "salmon",
+            args = c(
+                "quant",
+                "--libType",
+                "A",
+                "--mates1",
+                fq1[i],
+                "--mates2",
+                fq2[i],
+                "--output",
+                out_dirs[i],
+                "--index",
+                index_dir,
+                "--numGibbsSamples",
+                n_gibbs,
+                more_args
+            )
+        )
+    }
+
+    return(invisible(NULL))
+}
+
+
+#' Stop if Salmon is not available on the PATH
+#'
+#' @param hint Message appended to the error
+#'
+#' @return Invisibly \code{NULL}. Called for its side effect of stopping with
+#' an error if Salmon cannot be found.
+#' @keywords internal
+.checkSalmon <- function(hint = "") {
+    if (!nzchar(Sys.which("salmon"))) {
+        stop(
+            "Salmon was not found on the PATH. Install Salmon ",
+            "(https://salmon.readthedocs.io) and add it to the PATH. ",
+            hint,
+            call. = FALSE
+        )
+    }
+
+    return(invisible(NULL))
 }

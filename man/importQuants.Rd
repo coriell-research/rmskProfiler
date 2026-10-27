@@ -6,20 +6,39 @@
 \usage{
 importQuants(
   quant_dir,
-  resource_dir,
+  species = c("Hs", "Mm"),
+  exclude = .DEFAULT_EXCLUDE,
+  min_len = 32,
   remove_zeros = TRUE,
-  std_chromosomes = TRUE
+  std_chromosomes = TRUE,
+  cache = NULL
 )
 }
 \arguments{
-\item{quant_dir}{Path to the directories created by \code{salmonQuant()} or Salmon}
+\item{quant_dir}{Path to the directories created by \code{salmonQuant()} or
+Salmon}
 
-\item{resource_dir}{Path to the directory containing index generation resources}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+the species used to generate the index.}
 
-\item{remove_zeros}{Should all zero rows be removed before returning object. Default TRUE}
+\item{exclude}{A character vector specifying which elements (repClass) were
+excluded when generating the index. Must match the value passed to
+\code{generateIndex()}. Default "Simple_repeat", "Low_complexity",
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+"Unknown".}
+
+\item{min_len}{Minimum sequence length of a record used when generating the
+index. Must match the value passed to \code{generateIndex()}. Default 32.}
+
+\item{remove_zeros}{Should all zero rows be removed before returning object.
+Default TRUE}
 
 \item{std_chromosomes}{Should only transcripts from standard chromosomes be
 kept in the resulting object. Default TRUE.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \value{
 SummarizedExperiment
@@ -32,12 +51,15 @@ loci annotations and an additional column containing a \code{GRangesList} of
 the locations for each of the TE loci and transcipts.
 }
 \details{
-The SummarizedExperiment object contains three assays, 'counts', 'orig.' and 'tpms'.
-The 'counts' assay contains the counts \emph{after} adjusting for over dispersion.
+The SummarizedExperiment object contains three assays, 'counts', 'orig.' and
+'tpms'.
+The 'counts' assay contains the counts \emph{after} adjusting for over
+dispersion.
 This is the assay to be used for downstream differential expression analyses.
 The 'orig' assay contains the counts before down-scaling. The 'tpms' assay
 contains TPM values from the Salmon quant files. The metadata slot
-contains the annotation data.frame returned from \code{catchSalmon()}. The rowData
+contains the annotation data.frame returned from \code{catchSalmon()}. The
+rowData
 slot of the SummarizedExperiment contains columns with boolean values for
 each TE loci indicating whether or not that loci has an overlap with a given
 feature. For example, hasExonic==TRUE would indicate that loci has an overlap
@@ -46,8 +68,20 @@ that the loci has an overlap with an exon on either strand. The rowData also
 contains an additional column 'Ranges' that contains a GRangesList for every
 transcript and TE hash location.
 
+Quants must be generated with Gibbs sampling (at least 2 Gibbs samples per
+sample) since the Gibbs samples are used to estimate overdispersion.
+\code{importQuants()} will throw an error listing any samples quantified
+without them.
+
 The rmskProfiler index contains transcripts from the "patch_hapl_scaff"
 annotations. By default, \code{importQuants()} will exclude these transcripts
 from the resulting object. The exclusion criteria a transcript where any of
 its ranges does not lie within a standard chromosome will be excluded.
+}
+\examples{
+# Import the example quants using the annotation built from the example data
+bfc <- exampleCache(build = TRUE)
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
+se
+head(SummarizedExperiment::rowData(se)[, c("gene_name", "Hash", "N_Loci")])
 }

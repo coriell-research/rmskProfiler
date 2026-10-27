@@ -5,35 +5,54 @@
 \title{Generate a Salmon index and annotations for TE quantification}
 \usage{
 generateIndex(
-  out_dir,
+  index_dir,
   species = c("Hs", "Mm"),
   check_integrity = TRUE,
-  exclude = c("Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
-    "scRNA", "srpRNA", "tRNA", "Unknown"),
+  exclude = .DEFAULT_EXCLUDE,
   min_len = 32,
   create_index = TRUE,
-  threads = 1
+  threads = 1,
+  cache = NULL,
+  rmsk = NULL
 )
 }
 \arguments{
-\item{out_dir}{Directory in which to save all resources including final generated Salmon index}
+\item{index_dir}{Directory in which to create the Salmon index. All other
+resources are saved to the rmskProfiler cache.}
 
-\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
+which
 species to download resources for}
 
-\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files after downloading}
+\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE
+files after downloading}
 
-\item{exclude}{A character vector specifying which elements (repClass) to exclude from the
-resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
+\item{exclude}{A character vector specifying which elements (repClass) to
+exclude from the
+resulting BED file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file and index.}
 
-\item{create_index}{TRUE/FALSE Create salmon index after generating resources? Default TRUE.
+\item{create_index}{TRUE/FALSE Create salmon index after generating
+resources? Default TRUE.
 This assumes that "salmon" is available on your PATH}
 
-\item{threads}{Number of threads to use for salmon index generation. Default 1}
+\item{threads}{Number of threads to use for salmon index generation. Default
+1}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
+
+\item{rmsk}{NULL (default) or a GRanges of RepeatMasker records passed to
+\code{rmskToBed()}.}
+}
+\value{
+Invisibly \code{NULL}. Called for its side effect of creating all
+resources in the cache and, if \code{create_index = TRUE}, the Salmon index
+in \code{index_dir}.
 }
 \description{
 This function is a wrapper around several other functions for downloading and
@@ -45,17 +64,32 @@ This function creates a Salmon index from all GENCODE transcripts + selected
 RepeatMasker elements + a genomic decoy. It does so by calling the following
 functions:
 
-\itemize{
-\item{"downloadResources()"}{Downloads all neccessary files for downstream processing}
-\item{"rmskToBed()"}{Extracts and filters RepeatMasker to BED file}
-\item{"extractUniqueSeqs()"}{Extracts all unique RepeatMasker sequences from the genome}
-\item{"createAnnotation()"}{Creates annotations of all TE loci with respect to annotations in GTF}
-\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon index and calls 'Salmon index'}
+\describe{
+\item{\code{downloadResources()}}{Downloads all necessary files for
+downstream processing}
+\item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
+\item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
+sequences from the genome}
+\item{\code{createAnnotation()}}{Creates annotations of all TE loci with
+respect to annotations in GTF}
+\item{\code{createGentrome()}}{Creates the files needed for decoy-aware
+Salmon index and calls 'Salmon index'}
 }
 }
 \examples{
-\dontrun{
-# Run pipeline for downloading and creating Salmon index and annotations
-generateIndex(out_dir = "rmsk-resources", species = "hs")
-}
+# Run the whole pipeline on the example data. With the default cache,
+# generateIndex("hg38-salmon_index", species = "Hs") builds the full index.
+bfc <- exampleCache()
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+generateIndex(
+    index_dir = tempfile("index"),
+    species = "Hs",
+    check_integrity = FALSE,
+    create_index = nzchar(Sys.which("salmon")),
+    cache = bfc,
+    rmsk = rmsk
+)
+listResources(cache = bfc)
 }

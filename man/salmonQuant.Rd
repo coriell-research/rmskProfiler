@@ -4,26 +4,34 @@
 \alias{salmonQuant}
 \title{Quantify TEs and transcripts using Salmon with Gibbs sampling}
 \usage{
-salmonQuant(fq1, fq2, sample_names, resource_dir, out_dir, n_gibbs = 30, ...)
+salmonQuant(fq1, fq2, sample_names, index_dir, out_dir, n_gibbs = 30, ...)
 }
 \arguments{
 \item{fq1}{vector of file paths to fastq read 1 files}
 
 \item{fq2}{vector of file paths to fastq read 2 files}
 
-\item{sample_names}{character vector of samples names matching each pair of fastq files}
+\item{sample_names}{character vector of samples names matching each pair of
+fastq files}
 
-\item{resource_dir}{path to the rmskProfiler resource directory containing an rmsk-salmon_index directory}
+\item{index_dir}{path to the Salmon index created by \code{generateIndex()}
+or \code{createGentrome()}}
 
 \item{out_dir}{path to save the quant directories for each sample. This will
-be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants}
+be the parent directory, samples are saved in subdirectories like
+out_dir/<sample_name>_quants}
 
-\item{n_gibbs}{integer number of Gibbs samples to perform. Default 30. Published
+\item{n_gibbs}{integer number of Gibbs samples to perform. Default 30.
+Published
 work suggests this number can be set to around 180 / length(samples) but 30
 ensures a good coverage with minimal cost in terms of speed.}
 
 \item{...}{Additional arguments passed to Salmon as character strings, e.g.
 "--gcBias", "--seqBias" "--threads 12", see examples below}
+}
+\value{
+Invisibly \code{NULL}. Called for its side effect of writing the
+Salmon quant directories for each sample to \code{out_dir}.
 }
 \description{
 This function provides a simple wrapper around a system call to
@@ -35,28 +43,26 @@ pass additional arguments as character strings with the desired Salmon flags.
 See the example below for how to do this.
 }
 \examples{
-\dontrun{
+# Quantify example reads against the index built from the example data.
+# Salmon must be available on your PATH.
+if (nzchar(Sys.which("salmon"))) {
+    bfc <- exampleCache(build = TRUE)
+    index_dir <- tempfile("index")
+    createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
 
-# Specify paths to fastq files and names of the samples
-fq1 <- c("sample1.R1.fq.gz", "sample2.R1.fq.gz", "sample3.R1.fq.gz")
-fq2 <- c("sample1.R2.fq.gz", "sample2.R2.fq.gz", "sample3.R2.fq.gz")
-sample_names <- c("sample1", "sample2", "sample3")
+    fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
+    out_dir <- tempfile("quants")
 
-# Perform with all default settings -- probably not recommended
-salmonQuant(fq1, fq2, sample_names, resource_dir = "hg38-resources", out_dir = "quants")
-
-# More often though we will want to pass additional arguments to Salmon
-# We can do so by providing additoinal flags as a character strings
-salmonQuant(
-  fq1 = fq1,
-  fq2 = fq2,
-  sample_names = sample_names,
-  resource_dir = "hg38-resources",
-  out_dir = "quants",
-  "--gcBias",
-  "--seqBias",
-  "--posBias",
-  "--threads 12"
-  )
+    # Additional arguments are passed to Salmon as character strings
+    salmonQuant(
+        fq1 = file.path(fq_dir, "ctrl_1_R1.fq.gz"),
+        fq2 = file.path(fq_dir, "ctrl_1_R2.fq.gz"),
+        sample_names = "ctrl_1",
+        index_dir = index_dir,
+        out_dir = out_dir,
+        n_gibbs = 2,
+        "--threads 2"
+    )
+    list.files(out_dir)
 }
 }

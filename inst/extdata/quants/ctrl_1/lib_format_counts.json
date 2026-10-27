@@ -1,0 +1,26 @@
+{
+  "read_files": [
+    "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/ctrl_1_R1.fq.gz",
+    "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/ctrl_1_R2.fq.gz"
+  ],
+  "expected_format": "IU",
+  "compatible_fragment_ratio": 1.0,
+  "num_compatible_fragments": 408214,
+  "num_incompatible_fragments": 0,
+  "num_assigned_fragments": 408214,
+  "num_frags_with_concordant_consistent_mappings": 424056,
+  "num_frags_with_inconsistent_or_orphan_mappings": 0,
+  "strand_mapping_bias": 0.5006484992548154,
+  "IU": 0,
+  "ISF": 212303,
+  "ISR": 211753,
+  "OU": 0,
+  "OSF": 0,
+  "OSR": 0,
+  "MU": 0,
+  "MSF": 0,
+  "MSR": 0,
+  "U": 0,
+  "SF": 0,
+  "SR": 0
+}

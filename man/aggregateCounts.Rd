@@ -6,37 +6,49 @@
 \usage{
 aggregateCounts(
   x,
-  resource_dir,
-  te_level = c("subfamily", "family", "class", "locus")
+  species = c("Hs", "Mm"),
+  te_level = c("subfamily", "family", "class", "locus"),
+  cache = NULL
 )
 }
 \arguments{
 \item{x}{SummarizedExperiment object produced by \code{importQuants()}}
 
-\item{resource_dir}{Path to the rmskProfiler resources directory}
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus). Must match
+the species used to generate the index.}
 
 \item{te_level}{One of "subfamily" (default), "locus", "family", or "class".
-"locus" keeps TE-loci independent, while others aggregate based on classification.}
+"locus" keeps TE-loci independent, while others aggregate based on
+classification.}
+
+\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
+Default NULL uses the rmskProfiler cache at
+\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \value{
 SummarizedExperiment
 }
 \description{
-This function will sum counts to the gene level for all transcripts, and to the
-specified level for TE-loci. A new SummarizedExperiment object is returned with
-aggregated assays. rowData is added indicating the number of features summed ('Freq')
-and a 'feature_length' column. For genes, 'feature_length' is the sum of reduced
-exon widths. For TEs, it is the sum of the length of all TE-loci that are members
+This function will sum counts to the gene level for all transcripts, and to
+the
+specified level for TE-loci. A new SummarizedExperiment object is returned
+with
+aggregated assays. rowData is added indicating the number of features summed
+('Freq')
+and a 'feature_length' column. For genes, 'feature_length' is the sum of
+reduced
+exon widths. For TEs, it is the sum of the length of all TE-loci that are
+members
 of the aggregated group, or the locus length if te_level is "locus".
 }
 \examples{
-\dontrun{
-se <- importQuants("quants", resource_dir = "hg38-resources")
+bfc <- exampleCache(build = TRUE)
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
 
 # Aggregate transcripts to genes, keep TE loci intact
-aggregated_locus <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "locus")
+locus <- aggregateCounts(se, "Hs", te_level = "locus", cache = bfc)
 
 # Aggregate transcripts to genes, TEs to subfamily
-aggregated_sub <- aggregateCounts(se, resource_dir = "hg38-resources", te_level = "subfamily")
-}
+subfamily <- aggregateCounts(se, "Hs", te_level = "subfamily", cache = bfc)
+subfamily
 }

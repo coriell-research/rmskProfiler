@@ -1,0 +1,386 @@
+---
+title: "Locus-level TE quantification with rmskProfiler"
+author:
+  - name: Gennaro Calendo
+    affiliation: Coriell Institute for Medical Research
+    email: gcalendo@coriell.org
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+package: rmskProfiler
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Locus-level TE quantification with rmskProfiler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Quick start
+
+The whole workflow for human RNA-seq samples takes three steps, plus an
+optional fourth. Each function is described in more detail in the rest of this
+vignette.
+
+```{r quickstart, eval = FALSE}
+library(rmskProfiler)
+
+# 1. Build the index (once per species). This downloads GENCODE v48, extracts
+#    the unique RepeatMasker TE sequences, annotates them, and builds a Salmon
+#    index of transcripts + TEs with the genome as a decoy. Files are kept in
+#    the rmskProfiler cache, the index is written to "hg38-salmon_index".
+generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
+
+# 2. Quantify reads with Salmon using Gibbs sampling. This can also be done
+#    outside of R (see "Quantifying reads")
+salmonQuant(
+    fq1 = c("sample1.R1.fq.gz", "sample2.R1.fq.gz"),
+    fq2 = c("sample1.R2.fq.gz", "sample2.R2.fq.gz"),
+    sample_names = c("sample1", "sample2"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--threads 12"
+)
+
+# 3. Import transcript and TE locus counts as an annotated
+#    SummarizedExperiment, with counts scaled for multi-mapping uncertainty
+se <- importQuants("quants", species = "Hs")
+
+# 4. (Optional) Sum transcripts to genes and TE loci to subfamilies
+aggregated <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
+
+# Inspect, locate, or remove the cached files
+listResources()
+```
+
+Aggregation is not required for differential expression analysis. Both `se`
+and `aggregated` are standard `SummarizedExperiment` objects that can be used
+directly with Bioconductor packages for differential expression testing, such
+as edgeR and limma.
+
+# Introduction
+
+Transposable elements (TEs) make up nearly half of the human genome, but most
+of their copies are similar enough that short reads cannot be assigned to them
+unambiguously. `r Biocpkg("rmskProfiler")` quantifies TEs at the level of
+individual loci from RNA-seq data by:
+
+1. building a [Salmon](https://salmon.readthedocs.io) index from GENCODE
+   transcripts, the unique sequences of RepeatMasker TE loci, and the genome as
+   a decoy,
+2. quantifying reads against this index with Gibbs sampling, and
+3. importing the quantifications as a `SummarizedExperiment` with the
+   overdispersion caused by multi-mapping reads removed, annotated with the
+   genomic features each TE locus overlaps.
+
+TE loci with identical sequences cannot be told apart by any read, so they are
+collapsed into a single target named by the SHA1 hash of the sequence. The
+annotation records all the loci (and their RepeatMasker classifications) that
+share each hash.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+BiocManager::install("rmskProfiler")
+```
+
+Building the index and quantifying reads requires a recent version of
+[Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
+on your `PATH`. Importing and analysing quantifications does not.
+
+# Index generation
+
+`generateIndex()` runs the following steps, which can also be run on their
+own:
+
+- `downloadResources()` downloads the GENCODE genome, transcripts, and GTF.
+- `rmskToBed()` filters the UCSC RepeatMasker annotations from
+  `r Biocpkg("AnnotationHub")`. By default, records shorter than 32 bp and
+  those with classes "Simple_repeat", "Low_complexity", "Satellite", "RNA",
+  "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown" are removed.
+- `extractUniqueSeqs()` extracts the sequence of each TE locus from the genome
+  and collapses identical sequences.
+- `createAnnotation()` annotates each unique sequence with the exons, introns,
+  UTRs, and promoters its loci overlap.
+- `createGentrome()` writes the gentrome and decoys and builds the Salmon
+  index.
+
+Downloaded and generated files are stored with `r Biocpkg("BiocFileCache")`
+(see [Managing cached resources](#managing-cached-resources)).
+
+# A worked example
+
+The package includes example data for a 1 Mb region of hg38 chr22
+(chr22:37,000,000-37,999,999): the GENCODE v48 annotations and transcripts of
+the genes in the region, the RepeatMasker records in it, and Salmon quants of 6
+simulated samples (3 "ctrl" and 3 "trt"). `exampleCache()` creates a temporary
+cache containing the example data in place of the GENCODE downloads, so every
+function can be run on it by passing the cache to the `cache` argument.
+
+## Building the annotations
+
+```{r load}
+library(rmskProfiler)
+library(SummarizedExperiment)
+```
+
+A [Salmon](https://salmon.readthedocs.io) index and all relevant annotation files can be constructed
+with a call to `generateIndex()`. 
+
+```{r build}
+# Loads the example cache and files
+bfc <- exampleCache()
+
+# This GRanges object is only used in the vignette. keep rmsk = NULL in normal use 
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+
+generateIndex(
+    index_dir = tempfile("index"),
+    species = "Hs",
+    check_integrity = FALSE,
+    create_index = FALSE,
+    cache = bfc,
+    rmsk = rmsk  # Set to NULL for normal use
+)
+```
+
+With `create_index = TRUE` (the default) the Salmon index is also built in
+`index_dir`. All other files (see [Managing cached resources](#managing-cached-resources)) are now 
+in the cache:
+
+```{r list}
+listResources(cache = bfc)
+```
+
+## Quantifying reads
+
+Reads can be quantified against the index with `salmonQuant()`, a thin wrapper
+around `salmon quant` that runs each pair of FASTQ files with automatic library
+type detection and the requested number of Gibbs samples. Any other Salmon
+options are passed as character strings:
+
+```{r salmonquant, eval = FALSE}
+salmonQuant(
+    fq1 = c("ctrl_1.R1.fq.gz", "trt_1.R1.fq.gz"),
+    fq2 = c("ctrl_1.R2.fq.gz", "trt_1.R2.fq.gz"),
+    sample_names = c("ctrl_1", "trt_1"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--gcBias",
+    "--seqBias",
+    "--threads 12"
+)
+```
+
+Quantification does not need to be done in R. Salmon can be run directly, for
+example on a cluster or as part of an existing pipeline, as long as:
+
+- the index built by `generateIndex()` or `createGentrome()` is used,
+- Gibbs samples are drawn (`--numGibbsSamples`, 30 is a good default), since
+  `importQuants()` uses them to estimate the overdispersion from multi-mapping
+  reads, and
+- each sample is written to its own subdirectory of a common directory. The
+  subdirectory names become the column names of the imported object.
+
+```{bash salmon-cli, eval = FALSE}
+salmon quant \
+    -i hg38-salmon_index \
+    -l A \
+    -1 ctrl_1.R1.fq.gz \
+    -2 ctrl_1.R2.fq.gz \
+    --numGibbsSamples 30 \
+    --gcBias \
+    --seqBias \
+    -p 12 \
+    -o quants/ctrl_1
+```
+
+The example quants used below were created this way from simulated reads
+against the index built from the example data (see
+`inst/scripts/make-example-data.R`).
+
+## Importing quants
+
+`importQuants()` imports Salmon quants with Gibbs samples using a version of
+`edgeR::catchSalmon()`. Each count is divided by the overdispersion estimated
+from the Gibbs samples, which reflects the uncertainty from reads mapping to
+more than one target. The `counts` assay contains these scaled counts, which
+are suitable for differential expression analysis with
+`r Biocpkg("edgeR")` or `r Biocpkg("limma")`. The `orig` assay contains the
+original counts and `tpms` the TPMs.
+
+```{r import}
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
+se
+```
+
+The `rowData` contains the annotation of transcripts and TEs. TE rows are named
+by their hash and record their classification, the number of loci with that
+sequence, and indicators for the features they overlap on the same strand
+(e.g. `hasExonic`) or on either strand (e.g. `hasUnstrandedExonic`). The
+`Ranges` column contains a `GRangesList` of the loci of each TE and the exons
+of each transcript.
+
+```{r rowdata}
+rd <- rowData(se)
+te <- rd[!is.na(rd$Hash), ]
+head(te[, c("Subfamily", "Family", "Class", "N_Loci", "hasIntronic")])
+te$Ranges[[1]]
+```
+
+## Working with SummarizedExperiment objects
+
+`importQuants()` and `aggregateCounts()` return standard
+`r Biocpkg("SummarizedExperiment")` objects, so the imported counts can be used
+with any Bioconductor package or function that accepts a
+`SummarizedExperiment`. Transcripts and TEs are rows like any other feature, so
+they can be subset, combined with sample information in `colData`, and passed
+on together:
+
+```{r se}
+colData(se)$group <- factor(sub("_.*", "", colnames(se)))
+colData(se)
+
+# Subset rows and columns as with any SummarizedExperiment
+se[!is.na(rowData(se)$Hash), se$group == "trt"]
+assay(se, "counts")[1:3, ]
+```
+
+For example, `r Biocpkg("edgeR")` creates a `DGEList` directly from the object,
+keeping the annotation for transcripts and TEs, after which the usual edgeR or
+limma-voom workflow applies.
+
+```{r edger, eval = FALSE}
+library(edgeR)
+
+# Ranges is a GRangesList that would become a list column of GRanges in
+# y$genes, so remove it from a copy of the object before converting
+se_dge <- se
+rowData(se_dge)$Ranges <- NULL
+y <- SE2DGEList(se_dge)
+keep <- filterByExpr(y, group = y$samples$group)
+y <- normLibSizes(y[keep, , keep.lib.sizes = FALSE])
+design <- model.matrix(~group, data = y$samples)
+fit <- glmQLFit(y, design)
+res <- glmQLFTest(fit, coef = 2)
+topTags(res)
+```
+
+The `counts` assay is scaled for multi-mapping uncertainty and is not integer
+valued. Methods that model the counts as negative binomial with non-integer
+counts allowed, such as edgeR and limma, are appropriate. See Baldoni et al.
+([2024](https://doi.org/10.1093/nar/gkad1167)) for details of how dividing out
+the quantification uncertainty allows these counts to be analysed with edgeR.
+
+## Filtering and aggregating
+
+For many analyses it is useful to only keep TE loci with a single location in
+the genome that do not overlap exons or UTRs on either strand, and to sum
+counts to the gene and TE subfamily level:
+
+```{r aggregate}
+filtered <- subset(
+    se,
+    (!is.na(Hash) &
+        !hasUnstrandedExonic &
+        !hasUnstranded3UTR &
+        !hasUnstranded5UTR &
+        N_Loci == 1) |
+        (!is.na(transcript_id) & gene_type == "protein_coding")
+)
+
+aggregated <- aggregateCounts(
+    filtered,
+    species = "Hs",
+    te_level = "subfamily",
+    cache = bfc
+)
+
+aggregated
+head(rowData(aggregated))
+```
+
+Each assay of the aggregated object (`counts`, `orig`, and `tpms`) is the sum
+of the rows in each group, and the `colData` and `metadata` are kept. The rows
+are genes, named by their GENCODE gene ID, and TE groups, named by their
+classification at the chosen `te_level` ("Subfamily:Family:Class" for
+`"subfamily"`, "Family:Class" for `"family"`, the class for `"class"`, or the
+hash for `"locus"`). TE sequences whose loci have more than one classification
+form their own group, e.g. "AluSx,AluSx1:Alu:SINE". The `rowData` contains:
+
+- `feature_id`: the gene ID or TE group, the same as the row names.
+- `Freq`: the number of rows of the original object summed into the feature,
+  i.e. the number of transcripts of a gene, or the number of unique TE
+  sequences (hashes) in a TE group. Rows removed before aggregating are not
+  counted.
+- `gene_name`, `gene_type`: the GENCODE gene name and type. `NA` for TEs.
+- `feature_length`: for genes, the total width of the gene's exons from the
+  GTF after merging overlapping exons, using all of its transcripts, not only
+  those kept after filtering. For TEs, the total width of all loci of every
+  sequence in the group, so a sequence with several loci contributes the width
+  of each of them.
+
+The `Ranges` column is not carried over to the aggregated `SummarizedExperiment` object.
+
+# Managing cached resources
+
+By default, files are stored in the rmskProfiler cache at
+`tools::R_user_dir("rmskProfiler", which = "cache")`. A different cache can be
+used by passing a path or a `BiocFileCache` object to the `cache` argument of
+any function.
+
+The cache holds three types of resources, as reported in the `type` column of
+`listResources()`:
+
+| Resource | Type | Created by | Contents | Approx. size (human) |
+|---|---|---|---|---|
+| `genome` | download | `downloadResources()` | GENCODE primary assembly genome fasta | 850 MB |
+| `transcripts` | download | `downloadResources()` | GENCODE transcript sequences | 110 MB |
+| `gtf` | download | `downloadResources()` | GENCODE annotation GTF | 65 MB |
+| `annotation.txdb` | annotation | `createAnnotation()` | TxDb created from the GTF, re-used by `aggregateCounts()` | 200 MB |
+| `rmsk.bed` | build | `rmskToBed()` | Filtered RepeatMasker records | 200 MB |
+| `rmsk-unique.fa.gz` | build | `extractUniqueSeqs()` | Unique TE sequences, named by their SHA1 hash | 540 MB |
+| `rmsk-duplicateInfo.rds` | build | `extractUniqueSeqs()` | Table mapping each hash to its TE loci | 150 MB |
+| `rmsk-rowData.rds` | build | `createAnnotation()` | Transcript and TE annotations used as the `rowData` by `importQuants()` | 500 MB |
+| `rmsk-gentrome.fa.gz` | build | `createGentrome()` | Transcripts, unique TEs, and genome used to build the Salmon index | 1.5 GB |
+| `decoys.txt` | build | `createGentrome()` | Names of the decoy (genome) sequences | < 1 KB |
+
+Downloads and the TxDb only depend on the species. Build resources also depend
+on the `exclude` and `min_len` settings and are stored separately for each
+combination of settings, identified by the `build` key in `listResources()`.
+If you build the index with non-default settings, pass the same values to
+`importQuants()`. The Salmon index itself is written to `index_dir` and is not
+part of the cache.
+
+```{r cache}
+# Path to a cached file, e.g. to use it outside of rmskProfiler
+getResource("gtf", species = "Hs", cache = bfc)
+
+# Remove the files generated for the default build
+removeResources(species = "Hs", cache = bfc)
+listResources(cache = bfc)
+```
+
+# References
+
+Baldoni PL, Chen Y, Hediyeh-zadeh S, Liao Y, Dong X, Ritchie ME, Shi W, Smyth
+GK (2024). Dividing out quantification uncertainty allows efficient assessment
+of differential transcript expression with edgeR. *Nucleic Acids Research*,
+52(3), e13. <https://doi.org/10.1093/nar/gkad1167>
+
+# Session information
+
+```{r session}
+sessionInfo()
+```
