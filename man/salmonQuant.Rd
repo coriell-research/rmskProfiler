@@ -48,7 +48,12 @@ See the example below for how to do this.
 if (nzchar(Sys.which("salmon"))) {
     bfc <- exampleCache(build = TRUE)
     index_dir <- tempfile("index")
-    createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
+    createGentrome(
+        species = "Hs",
+        index_dir = index_dir,
+        cache = bfc,
+        genome = exampleGenome()
+    )
 
     fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
     out_dir <- tempfile("quants")

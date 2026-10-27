@@ -11,7 +11,8 @@ createGentrome(
   min_len = 32,
   create_index = TRUE,
   threads = 1,
-  cache = NULL
+  cache = NULL,
+  genome = NULL
 )
 }
 \arguments{
@@ -40,6 +41,11 @@ This assumes that "salmon" is available on your PATH}
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
+
+\item{genome}{NULL (default) to use the BSgenome package for the species, or
+a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
+file. The sequence names must match the RepeatMasker records and GTF
+(e.g. "chr1").}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of writing the
@@ -54,15 +60,31 @@ will save a gentrome fasta file and decoys.txt file to the rmskProfiler
 cache and (optionally) create a Salmon index from these files in
 \code{index_dir}.
 }
+\details{
+The transcript sequences are extracted from the genome using the exons of
+each transcript in the GENCODE GTF. These are identical to the GENCODE
+transcript sequences. The primary chromosomes of the genome (chr1-22, X,
+and Y) are used as the decoys.
+}
 \examples{
 # Create the gentrome and decoys for the example data
 bfc <- exampleCache(build = TRUE)
-createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
+createGentrome(
+    species = "Hs",
+    create_index = FALSE,
+    cache = bfc,
+    genome = exampleGenome()
+)
 getResource("decoys.txt", species = "Hs", cache = bfc)
 
 # Also create the Salmon index if Salmon is available
 if (nzchar(Sys.which("salmon"))) {
     index_dir <- tempfile("index")
-    createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
+    createGentrome(
+        species = "Hs",
+        index_dir = index_dir,
+        cache = bfc,
+        genome = exampleGenome()
+    )
 }
 }

@@ -8,7 +8,8 @@ extractUniqueSeqs(
   species = c("Hs", "Mm"),
   exclude = .DEFAULT_EXCLUDE,
   min_len = 32,
-  cache = NULL
+  cache = NULL,
+  genome = NULL
 )
 }
 \arguments{
@@ -26,6 +27,11 @@ Default 32.}
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
+
+\item{genome}{NULL (default) to use the BSgenome package for the species, or
+a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
+file. The sequence names must match the RepeatMasker records and GTF
+(e.g. "chr1").}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of writing the
@@ -40,13 +46,18 @@ addition to producing a fasta file of the unique sequences, a data.table
 saved as rmsk-duplicateInfo.rds is also saved to the cache which maps SHA1
 hash values of sequences to records in the BED file.
 }
+\details{
+The sequences are extracted from the BSgenome package for the species,
+BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+(GRCm38), unless another genome is given with \code{genome}.
+}
 \examples{
 bfc <- exampleCache()
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
 rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-extractUniqueSeqs(species = "Hs", cache = bfc)
+extractUniqueSeqs(species = "Hs", cache = bfc, genome = exampleGenome())
 
 # Loci with identical sequences share a hash
 info <- readRDS(

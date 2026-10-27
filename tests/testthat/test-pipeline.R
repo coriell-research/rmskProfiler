@@ -29,11 +29,64 @@ test_that("the example build contains annotations for transcripts and TEs", {
 
 test_that("createGentrome() writes the gentrome and decoys", {
     bfc <- builtCache()
-    suppressMessages(
-        createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
-    )
+    suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
     decoys <- readLines(getResource("decoys.txt", species = "Hs", cache = bfc))
     expect_identical(decoys, "chr22")
+
+    # Transcripts in GTF order, then the unique TE sequences, then the decoys
+    gentrome <- Biostrings::readDNAStringSet(
+        getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
+    )
+    tx <- Biostrings::readDNAStringSet(test_path(
+        "fixtures",
+        "transcripts-chr22.fa.gz"
+    ))
+    uniq <- Biostrings::readDNAStringSet(
+        getResource("rmsk-unique.fa.gz", species = "Hs", cache = bfc)
+    )
+    expect_identical(
+        names(gentrome),
+        c(sub("\\|.*", "", names(tx)), names(uniq), "chr22")
+    )
+    expect_identical(
+        as.character(gentrome[seq_along(tx)]),
+        stats::setNames(as.character(tx), sub("\\|.*", "", names(tx)))
+    )
+    expect_identical(
+        listResources(cache = bfc)$genome[
+            listResources(cache = bfc)$resource == "rmsk-gentrome.fa.gz"
+        ],
+        .getGenome("Hs", exampleGenome())$label
+    )
+})
+
+test_that("createGentrome() warns if the TEs come from a different genome", {
+    bfc <- builtCache()
+    genome <- Biostrings::readDNAStringSet(exampleGenome())
+
+    # The same genome given as a DNAStringSet does not warn
+    expect_no_warning(suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = genome
+    )))
+
+    other <- c(genome, Biostrings::DNAStringSet(c(chrZ = "ACGT")))
+    expect_warning(
+        suppressMessages(createGentrome(
+            species = "Hs",
+            create_index = FALSE,
+            cache = bfc,
+            genome = other
+        )),
+        "different genome"
+    )
 })
 
 test_that("importQuants() returns a SummarizedExperiment", {

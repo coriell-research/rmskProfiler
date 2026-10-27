@@ -16,8 +16,9 @@ Default NULL uses the rmskProfiler cache at
 }
 \value{
 data.frame with columns species, type, build, exclude, min_len,
-resource, size_mb, created, and path. Values in the resource column can be
-passed to \code{getResource()}.
+genome, resource, size_mb, created, and path. Values in the resource column
+can be passed to \code{getResource()}, except for the "genome" and
+"transcripts" downloads of earlier versions.
 }
 \description{
 Lists all of the downloaded and generated resources that rmskProfiler has
@@ -27,11 +28,15 @@ stored in the cache along with the settings used to build them.
 Resources are one of three types:
 
 \describe{
-\item{download}{GENCODE files downloaded by \code{downloadResources()}}
+\item{download}{The GENCODE GTF downloaded by \code{downloadResources()}.
+GENCODE genome and transcript sequences downloaded by earlier versions of
+rmskProfiler are also listed as downloads. They are no longer used and can
+be removed with \code{removeResources(downloads = TRUE)}.}
 \item{annotation}{The TxDb created from the GENCODE GTF}
 \item{build}{Files generated for a specific combination of \code{exclude}
 and \code{min_len} settings. The \code{build} column contains a short key
-identifying these settings.}
+identifying these settings. The \code{genome} column contains the genome
+the TE and gentrome sequences were extracted from.}
 }
 
 The Salmon index is not stored in the cache and is not listed.

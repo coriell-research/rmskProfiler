@@ -4,20 +4,30 @@
 \alias{.newResource}
 \title{Get a path in the cache to write a generated resource to}
 \usage{
-.newResource(bfc, species, resource, ext, exclude = NULL, min_len = NULL)
+.newResource(
+  bfc,
+  species,
+  resource,
+  ext,
+  exclude = NULL,
+  min_len = NULL,
+  genome = NULL
+)
 }
 \arguments{
 \item{bfc}{BiocFileCache}
 
 \item{species}{Either "Hs" or "Mm"}
 
-\item{resource}{One of "gtf", "transcripts", or "genome" for GENCODE
-downloads, "annotation.txdb", or one of the files in \code{.BUILD_FILES}}
+\item{resource}{"gtf" for the GENCODE GTF, "annotation.txdb", or one of the
+files in \code{.BUILD_FILES}}
 
 \item{ext}{File extension of the resource, e.g. ".bed"}
 
 \item{exclude, min_len}{Settings used to build the resource. Required for
 files in \code{.BUILD_FILES}, ignored otherwise.}
+
+\item{genome}{Label of the genome the resource was built from, or NULL}
 }
 \value{
 Path to the cached file

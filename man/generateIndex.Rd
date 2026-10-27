@@ -13,7 +13,8 @@ generateIndex(
   create_index = TRUE,
   threads = 1,
   cache = NULL,
-  rmsk = NULL
+  rmsk = NULL,
+  genome = NULL
 )
 }
 \arguments{
@@ -48,6 +49,11 @@ Default NULL uses the rmskProfiler cache at
 
 \item{rmsk}{NULL (default) or a GRanges of RepeatMasker records passed to
 \code{rmskToBed()}.}
+
+\item{genome}{NULL (default) to use the BSgenome package for the species, or
+a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
+file. The sequence names must match the RepeatMasker records and GTF
+(e.g. "chr1").}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of creating all
@@ -65,8 +71,7 @@ RepeatMasker elements + a genomic decoy. It does so by calling the following
 functions:
 
 \describe{
-\item{\code{downloadResources()}}{Downloads all necessary files for
-downstream processing}
+\item{\code{downloadResources()}}{Downloads the GENCODE GTF}
 \item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
 \item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
 sequences from the genome}
@@ -75,6 +80,12 @@ respect to annotations in GTF}
 \item{\code{createGentrome()}}{Creates the files needed for decoy-aware
 Salmon index and calls 'Salmon index'}
 }
+
+The genome sequence is taken from the BSgenome package for the species,
+BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+(GRCm38), which must be installed, unless another genome is given with
+\code{genome}. The transcript sequences are extracted from the genome using
+the GENCODE GTF.
 }
 \examples{
 # Run the whole pipeline on the example data. With the default cache,
@@ -89,7 +100,8 @@ generateIndex(
     check_integrity = FALSE,
     create_index = nzchar(Sys.which("salmon")),
     cache = bfc,
-    rmsk = rmsk
+    rmsk = rmsk,
+    genome = exampleGenome()
 )
 listResources(cache = bfc)
 }

@@ -1,7 +1,7 @@
 #' Extract unique RepeatMasker sequences and their loci from the genome
 #'
 #' @param rmsk_bed Path to the BED file created by \code{rmskToBed()}
-#' @param genome_fa Path to the (gzipped) genome fasta file
+#' @param genome Genome returned by \code{.getGenome()}
 #' @param chunk_size Number of sequences hashed at a time
 #'
 #' @return list with elements \code{seqs}, a DNAStringSet of unique sequences
@@ -9,7 +9,7 @@
 #' the RepeatMasker loci with that sequence (0-based start)
 #' @import data.table
 #' @keywords internal
-.extractUniqueRecords <- function(rmsk_bed, genome_fa, chunk_size = 1e5) {
+.extractUniqueRecords <- function(rmsk_bed, genome, chunk_size = 1e5) {
     message("Reading in the BED file...")
     bed <- data.table::fread(
         rmsk_bed,
@@ -18,14 +18,8 @@
         col.names = c("seqnames", "start", "end", "RepName", "strand")
     )
 
-    message("Reading in the genome fasta...")
-    fa <- ShortRead::readFasta(genome_fa)
-    genome <- ShortRead::sread(fa)
-    names(genome) <- sub(" .*", "", as.character(ShortRead::id(fa)))
-    rm(fa)
-
     # Like bedtools getfasta, skip records not contained in the genome
-    chrom_len <- Biostrings::width(genome)[match(bed$seqnames, names(genome))]
+    chrom_len <- .genomeLengths(genome)[bed$seqnames]
     in_bounds <- !is.na(chrom_len) & bed$end <= chrom_len
     if (!all(in_bounds)) {
         warning(
@@ -36,14 +30,16 @@
         bed <- bed[in_bounds]
     }
 
-    message("Extracting RepeatMasker sequences...")
-    seqs <- Biostrings::subseq(
-        genome[bed$seqnames],
-        start = bed$start + 1L,
-        end = bed$end
+    # Unstranded records are extracted from the plus strand
+    message("Extracting RepeatMasker sequences from the genome...")
+    seqs <- .genomeSeqs(
+        genome,
+        GenomicRanges::GRanges(
+            bed$seqnames,
+            IRanges::IRanges(bed$start + 1L, bed$end),
+            strand = ifelse(bed$strand == "-", "-", "+")
+        )
     )
-    minus <- bed$strand == "-"
-    seqs[minus] <- Biostrings::reverseComplement(seqs[minus])
 
     message("Hashing RepeatMasker sequences and checking for duplicates...")
     sha1 <- digest::getVDigest("sha1")
@@ -76,6 +72,10 @@
 #' saved as rmsk-duplicateInfo.rds is also saved to the cache which maps SHA1
 #' hash values of sequences to records in the BED file.
 #'
+#' The sequences are extracted from the BSgenome package for the species,
+#' BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+#' (GRCm38), unless another genome is given with \code{genome}.
+#'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
 #' excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
@@ -87,6 +87,10 @@
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
+#' @param genome NULL (default) to use the BSgenome package for the species, or
+#' a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
+#' file. The sequence names must match the RepeatMasker records and GTF
+#' (e.g. "chr1").
 #'
 #' @return Invisibly \code{NULL}. Called for its side effect of writing the
 #' unique sequences (rmsk-unique.fa.gz) and duplicate information
@@ -99,7 +103,7 @@
 #'     package = "rmskProfiler"
 #' ))
 #' rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-#' extractUniqueSeqs(species = "Hs", cache = bfc)
+#' extractUniqueSeqs(species = "Hs", cache = bfc, genome = exampleGenome())
 #'
 #' # Loci with identical sequences share a hash
 #' info <- readRDS(
@@ -110,17 +114,12 @@ extractUniqueSeqs <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,
     min_len = 32,
-    cache = NULL
+    cache = NULL,
+    genome = NULL
 ) {
     species <- match.arg(species)
 
     bfc <- .getCache(cache)
-    genome_fa <- .getResource(
-        bfc,
-        species,
-        "genome",
-        hint = "Run downloadResources() first."
-    )
     rmsk_bed <- .getResource(
         bfc,
         species,
@@ -133,7 +132,9 @@ extractUniqueSeqs <- function(
         )
     )
 
-    res <- .extractUniqueRecords(rmsk_bed, genome_fa)
+    genome <- .getGenome(species, genome)
+    message("Using genome: ", genome$label)
+    res <- .extractUniqueRecords(rmsk_bed, genome)
 
     out_fa <- .newResource(
         bfc,
@@ -141,7 +142,8 @@ extractUniqueSeqs <- function(
         "rmsk-unique.fa.gz",
         ".fa.gz",
         exclude,
-        min_len
+        min_len,
+        genome = genome$label
     )
     message("Writing unique RepeatMasker sequences to: ", out_fa)
     # Write sequences on a single line where possible. Biostrings caps the line
@@ -159,7 +161,8 @@ extractUniqueSeqs <- function(
         "rmsk-duplicateInfo.rds",
         ".rds",
         exclude,
-        min_len
+        min_len,
+        genome = genome$label
     )
     message("Writing duplicate information to: ", out_info)
     saveRDS(res$info, out_info)

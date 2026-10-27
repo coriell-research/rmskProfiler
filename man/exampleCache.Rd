@@ -10,18 +10,20 @@ exampleCache(build = FALSE)
 \item{build}{TRUE/FALSE. If TRUE, also run \code{rmskToBed()},
 \code{extractUniqueSeqs()}, and \code{createAnnotation()} with the default
 settings so that the cache contains everything needed by
-\code{importQuants()}. Default FALSE.}
+\code{importQuants()}. The sequences are extracted from
+\code{exampleGenome()}. Default FALSE.}
 }
 \value{
 BiocFileCache
 }
 \description{
 Creates a new BiocFileCache in a temporary directory containing the example
-data shipped with rmskProfiler in place of the GENCODE downloads. The example
-data are a ~1 Mb region of hg38 chr22 (the rest of chr22 is masked with Ns)
-with the GENCODE v48 annotations and transcripts of the genes in that region.
-The cache can be passed to the \code{cache} argument of any rmskProfiler
-function with \code{species = "Hs"}.
+GTF shipped with rmskProfiler in place of the GENCODE download. The example
+data are a ~1 Mb region of hg38 chr22 with the GENCODE v48 annotations of the
+genes in that region. The cache can be passed to the \code{cache} argument of
+any rmskProfiler function with \code{species = "Hs"}. Pass
+\code{exampleGenome()} to the \code{genome} argument of functions that
+extract sequences.
 }
 \details{
 The example files are found in \code{system.file("extdata", package =

@@ -19,7 +19,10 @@ test_that("sequences are hashed, reverse complemented, and deduplicated", {
         "chrA\t16\t24\tMER1:hAT:DNA\t0\t+",
         "chrA\t24\t32\tL1a:L1:LINE\t0\t+"
     ))
-    res <- suppressMessages(.extractUniqueRecords(files$bed, files$genome))
+    res <- suppressMessages(.extractUniqueRecords(
+        files$bed,
+        .getGenome("Hs", files$genome)
+    ))
     sha1 <- function(x) digest::digest(x, algo = "sha1", serialize = FALSE)
 
     # GGGGTTTT on the minus strand is AAAACCCC, a duplicate of the first locus
@@ -53,9 +56,40 @@ test_that("records outside of the genome are skipped with a warning", {
         "chrB\t0\t8\tL1a:L1:LINE\t0\t+"
     ))
     expect_warning(
-        res <- suppressMessages(.extractUniqueRecords(files$bed, files$genome)),
+        res <- suppressMessages(.extractUniqueRecords(
+            files$bed,
+            .getGenome("Hs", files$genome)
+        )),
         "2 records not contained in the genome were skipped"
     )
     expect_identical(nrow(res$info), 1L)
     expect_length(res$seqs, 1L)
+})
+
+test_that("unstranded records are extracted from the plus strand", {
+    files <- writeToyInputs(c(
+        "chrA\t0\t8\tL1a:L1:LINE\t0\t.",
+        "chrA\t8\t16\tAluY:Alu:SINE\t0\t-"
+    ))
+    res <- suppressMessages(
+        .extractUniqueRecords(files$bed, .getGenome("Hs", files$genome))
+    )
+    expect_identical(unname(as.character(res$seqs)), "AAAACCCC")
+    expect_identical(res$info$strand, c(".", "-"))
+})
+
+test_that("unstranded records work with the BSgenome", {
+    skip_if_not_installed("BSgenome.Hsapiens.UCSC.hg38")
+    bed <- tempfile(fileext = ".bed")
+    writeLines(
+        c(
+            "chr22\t37000000\t37000010\tL1a:L1:LINE\t0\t.",
+            "chr22\t37000000\t37000010\tL1a:L1:LINE\t0\t+",
+            "chr22\t37000020\t37000030\tL1a:L1:LINE\t0\t-"
+        ),
+        bed
+    )
+    res <- suppressMessages(.extractUniqueRecords(bed, .getGenome("Hs")))
+    expect_identical(res$info$Hash[1], res$info$Hash[2])
+    expect_length(res$seqs, 2L)
 })

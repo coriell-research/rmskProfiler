@@ -10,8 +10,7 @@
 #' functions:
 #'
 #' \describe{
-#'   \item{\code{downloadResources()}}{Downloads all necessary files for
-#'   downstream processing}
+#'   \item{\code{downloadResources()}}{Downloads the GENCODE GTF}
 #'   \item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
 #'   \item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
 #'   sequences from the genome}
@@ -21,6 +20,13 @@
 #'   Salmon index and calls 'Salmon index'}
 #' }
 #'
+#' The genome sequence is taken from the BSgenome package for the species,
+#' BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+#' (GRCm38), which must be installed, unless another genome is given with
+#' \code{genome}. The transcript sequences are extracted from the genome using
+#' the GENCODE GTF.
+#'
+#' @inheritParams extractUniqueSeqs
 #' @param index_dir Directory in which to create the Salmon index. All other
 #' resources are saved to the rmskProfiler cache.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
@@ -63,7 +69,8 @@
 #'     check_integrity = FALSE,
 #'     create_index = nzchar(Sys.which("salmon")),
 #'     cache = bfc,
-#'     rmsk = rmsk
+#'     rmsk = rmsk,
+#'     genome = exampleGenome()
 #' )
 #' listResources(cache = bfc)
 generateIndex <- function(
@@ -75,7 +82,8 @@ generateIndex <- function(
     create_index = TRUE,
     threads = 1,
     cache = NULL,
-    rmsk = NULL
+    rmsk = NULL,
+    genome = NULL
 ) {
     species <- match.arg(species)
     if (isTRUE(create_index)) {
@@ -85,8 +93,10 @@ generateIndex <- function(
         .checkSalmon("Or set create_index = FALSE to skip building the index.")
     }
     bfc <- .getCache(cache)
+    # Fail before downloading anything if the genome is not available
+    genome <- .getGenome(species, genome)
 
-    message("Downloading resources --------------------------------------")
+    message("Downloading the GTF ----------------------------------------")
     downloadResources(
         species = species,
         check_integrity = check_integrity,
@@ -105,7 +115,8 @@ generateIndex <- function(
         species = species,
         exclude = exclude,
         min_len = min_len,
-        cache = bfc
+        cache = bfc,
+        genome = genome
     )
     message("Annotating unique sequences with genomic features ----------")
     createAnnotation(
@@ -122,7 +133,8 @@ generateIndex <- function(
         min_len = min_len,
         create_index = create_index,
         threads = threads,
-        cache = bfc
+        cache = bfc,
+        genome = genome
     )
 
     return(invisible(NULL))

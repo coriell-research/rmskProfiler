@@ -4,7 +4,14 @@
 \alias{.recordResource}
 \title{Record build information for a resource in the cache metadata}
 \usage{
-.recordResource(bfc, rid, species, exclude = NULL, min_len = NULL)
+.recordResource(
+  bfc,
+  rid,
+  species,
+  exclude = NULL,
+  min_len = NULL,
+  genome = NULL
+)
 }
 \arguments{
 \item{bfc}{BiocFileCache}
@@ -15,6 +22,9 @@
 
 \item{exclude, min_len}{Settings used to build the resource, or NULL for
 resources that do not depend on them}
+
+\item{genome}{Label of the genome the resource was built from, or NULL for
+resources that do not depend on it}
 }
 \description{
 Any existing record for the resource is replaced.

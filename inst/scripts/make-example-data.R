@@ -1,13 +1,15 @@
 # Create the example data in inst/extdata
 #
 # The example data are a 1 Mb region of hg38 chr22 (chr22:37,000,000-37,999,999)
-# with the GENCODE v48 annotations and transcripts of the genes contained in
-# it, the UCSC RepeatMasker records in it, and Salmon quants of simulated reads
-# against the rmskProfiler index built from these files.
+# with the GENCODE v48 annotations of the genes contained in it, the UCSC
+# RepeatMasker records in it, and Salmon quants of simulated reads against the
+# rmskProfiler index built from these files. The GENCODE transcript sequences
+# of these genes are written to tests/testthat/fixtures.
 #
 # Requirements:
-# - the GENCODE v48 human files in the rmskProfiler cache, i.e.
+# - the GENCODE v48 GTF in the rmskProfiler cache, i.e.
 #   downloadResources(species = "Hs")
+# - BSgenome.Hsapiens.UCSC.hg38
 # - AnnotationHub access to AH111333 (UCSC RepeatMasker, hg38)
 # - Salmon (>= 1.10.0) on PATH
 #
@@ -29,15 +31,12 @@ region <- GRanges("chr22", IRanges(37e6, 38e6 - 1))
 # Coordinates are unchanged so the GTF and RepeatMasker records need no
 # shifting and the Ns compress to almost nothing
 message("Creating genome...")
-genome <- readDNAStringSet(getResource("genome", species = "Hs"))
-chr22 <- genome[[which(sub(" .*", "", names(genome)) == "chr22")]]
-chr22_header <- names(genome)[sub(" .*", "", names(genome)) == "chr22"]
-rm(genome)
+chr22 <- BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38[["chr22"]]
 masked <- DNAStringSet(paste0(
     strrep("N", start(region) - 1L),
     as.character(subseq(chr22, start(region), end(region)))
 ))
-names(masked) <- chr22_header
+names(masked) <- "chr22"
 writeXStringSet(
     masked,
     file.path(out_dir, "genome-chr22.fa.gz"),
@@ -58,13 +57,21 @@ writeLines(readLines(gtf_file), con)
 close(con)
 
 # Transcripts -----------------------------------------------------------------
+# Extracted from the genome as in createGentrome(), in the order of the GTF
 message("Creating transcripts...")
-tx_seqs <- readDNAStringSet(getResource("transcripts", species = "Hs"))
+txdb <- suppressWarnings(txdbmaker::makeTxDbFromGFF(
+    file.path(out_dir, "gencode-chr22.gtf.gz"),
+    format = "gtf"
+))
 tx_ids <- unique(gtf$transcript_id[gtf$type == "transcript"])
-tx_seqs <- tx_seqs[sub("\\|.*", "", names(tx_seqs)) %in% tx_ids]
+tx_seqs <- .transcriptSeqs(
+    txdb,
+    .getGenome("Hs", file.path(out_dir, "genome-chr22.fa.gz")),
+    tx_order = tx_ids
+)
 writeXStringSet(
     tx_seqs,
-    file.path(out_dir, "transcripts-chr22.fa.gz"),
+    file.path("tests", "testthat", "fixtures", "transcripts-chr22.fa.gz"),
     compress = TRUE,
     width = 60
 )
@@ -88,7 +95,8 @@ generateIndex(
     check_integrity = FALSE,
     threads = 4,
     cache = bfc,
-    rmsk = rmsk
+    rmsk = rmsk,
+    genome = exampleGenome()
 )
 
 # Simulate reads --------------------------------------------------------------

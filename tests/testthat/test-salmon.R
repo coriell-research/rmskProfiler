@@ -43,7 +43,8 @@ test_that("Salmon is not required when the index is not created", {
         check_integrity = FALSE,
         create_index = FALSE,
         cache = bfc,
-        rmsk = rmsk
+        rmsk = rmsk,
+        genome = exampleGenome()
     ))))
     expect_true("decoys.txt" %in% listResources(cache = bfc)$resource)
 })

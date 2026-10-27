@@ -36,7 +36,9 @@ Invisibly, the names of the removed resources
 \description{
 Removes all files generated for a build (a combination of species,
 \code{exclude}, and \code{min_len} settings) from the cache. Optionally, the
-GENCODE downloads and the TxDb created from them can also be removed. The
+GENCODE downloads and the TxDb created from them can also be removed,
+including the GENCODE genome and transcript sequences downloaded by earlier
+versions of rmskProfiler. The
 Salmon index is not stored in the cache and is not removed.
 }
 \examples{
