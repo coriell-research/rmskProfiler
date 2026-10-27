@@ -253,12 +253,17 @@ assay(se, "counts")[1:3, ]
 
 For example, `r Biocpkg("edgeR")` creates a `DGEList` directly from the object,
 keeping the annotation for transcripts and TEs, after which the usual edgeR or
-limma-voom workflow applies:
+limma-voom workflow applies. Remove the `Ranges` column first: `SE2DGEList()`
+stores it as a list of `GRanges` in the `genes` data.frame, which cannot be
+written to a file, e.g. when saving the output of `topTags()`. The ranges
+remain available in `rowData(se)`.
 
 ```{r edger, eval = FALSE}
 library(edgeR)
 
-y <- SE2DGEList(se)
+se_dge <- se
+rowData(se_dge)$Ranges <- NULL
+y <- SE2DGEList(se_dge)
 keep <- filterByExpr(y, group = y$samples$group)
 y <- normLibSizes(y[keep, , keep.lib.sizes = FALSE])
 design <- model.matrix(~group, data = y$samples)
