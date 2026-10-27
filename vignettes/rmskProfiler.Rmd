@@ -255,19 +255,6 @@ For example, `r Biocpkg("edgeR")` creates a `DGEList` directly from the object,
 keeping the annotation for transcripts and TEs, after which the usual edgeR or
 limma-voom workflow applies.
 
-The `Ranges` column has to be removed first. It is a `GRangesList` rather than
-an ordinary column because each row can have several locations: all the loci
-sharing a TE sequence, or all the exons of a transcript. `SE2DGEList()`
-converts the `rowData` to the `genes` data.frame of the `DGEList`, where
-`Ranges` becomes a list of `GRanges` objects, one per row. Model fitting still
-works, but tables containing it cannot be written to a file, e.g. when saving
-the output of `topTags()`. The same applies to any other tool or function that
-converts the `rowData` to a data.frame or expects every column to be a simple
-vector, such as `as.data.frame()`, `write.csv()`, or conversion to a
-`data.table` or tibble. In those cases, drop `Ranges` from a copy of the object
-as below. The locations remain available in `rowData(se)$Ranges` of the
-original object.
-
 ```{r edger, eval = FALSE}
 library(edgeR)
 
@@ -295,25 +282,17 @@ the genome that do not overlap exons or UTRs on either strand, and to sum
 counts to the gene and TE subfamily level:
 
 ```{r aggregate}
-keep_te <- subset(
-    rd,
-    !is.na(Hash) &
+# subset() evaluates the conditions using the rowData columns. TEs have NA
+# transcript_id and transcripts have NA Hash, so each row matches one condition
+filtered <- subset(
+    se,
+    (!is.na(Hash) &
         !hasUnstrandedExonic &
         !hasUnstranded3UTR &
         !hasUnstranded5UTR &
-        N_Loci == 1,
-    select = "Hash",
-    drop = TRUE
+        N_Loci == 1) |
+        (!is.na(transcript_id) & gene_type == "protein_coding")
 )
-
-keep_tx <- subset(
-    rd,
-    !is.na(transcript_id) & gene_type == "protein_coding",
-    select = "transcript_id",
-    drop = TRUE
-)
-
-filtered <- se[rownames(se) %in% c(keep_tx, keep_te), ]
 
 aggregated <- aggregateCounts(
     filtered,
