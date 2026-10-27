@@ -78,6 +78,12 @@ generateIndex <- function(
     rmsk = NULL
 ) {
     species <- match.arg(species)
+    if (isTRUE(create_index)) {
+        if (missing(index_dir)) {
+            stop("index_dir must be provided when create_index = TRUE")
+        }
+        .checkSalmon("Or set create_index = FALSE to skip building the index.")
+    }
     bfc <- .getCache(cache)
 
     message("Downloading resources --------------------------------------")

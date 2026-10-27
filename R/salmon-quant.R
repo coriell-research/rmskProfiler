@@ -60,6 +60,7 @@ salmonQuant <- function(
     n_gibbs = 30,
     ...
 ) {
+    .checkSalmon()
     stopifnot(
         "fq1, fq2, and sample_names differ in length" = length(fq1) ==
             length(fq2) &&
@@ -92,6 +93,27 @@ salmonQuant <- function(
                 n_gibbs,
                 more_args
             )
+        )
+    }
+
+    return(invisible(NULL))
+}
+
+
+#' Stop if Salmon is not available on the PATH
+#'
+#' @param hint Message appended to the error
+#'
+#' @return Invisibly \code{NULL}. Called for its side effect of stopping with
+#' an error if Salmon cannot be found.
+#' @keywords internal
+.checkSalmon <- function(hint = "") {
+    if (!nzchar(Sys.which("salmon"))) {
+        stop(
+            "Salmon was not found on the PATH. Install Salmon ",
+            "(https://salmon.readthedocs.io) and add it to the PATH. ",
+            hint,
+            call. = FALSE
         )
     }
 
