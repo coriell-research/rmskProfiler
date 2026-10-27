@@ -253,14 +253,26 @@ assay(se, "counts")[1:3, ]
 
 For example, `r Biocpkg("edgeR")` creates a `DGEList` directly from the object,
 keeping the annotation for transcripts and TEs, after which the usual edgeR or
-limma-voom workflow applies. Remove the `Ranges` column first: `SE2DGEList()`
-stores it as a list of `GRanges` in the `genes` data.frame, which cannot be
-written to a file, e.g. when saving the output of `topTags()`. The ranges
-remain available in `rowData(se)`.
+limma-voom workflow applies.
+
+The `Ranges` column has to be removed first. It is a `GRangesList` rather than
+an ordinary column because each row can have several locations: all the loci
+sharing a TE sequence, or all the exons of a transcript. `SE2DGEList()`
+converts the `rowData` to the `genes` data.frame of the `DGEList`, where
+`Ranges` becomes a list of `GRanges` objects, one per row. Model fitting still
+works, but tables containing it cannot be written to a file, e.g. when saving
+the output of `topTags()`. The same applies to any other tool or function that
+converts the `rowData` to a data.frame or expects every column to be a simple
+vector, such as `as.data.frame()`, `write.csv()`, or conversion to a
+`data.table` or tibble. In those cases, drop `Ranges` from a copy of the object
+as below. The locations remain available in `rowData(se)$Ranges` of the
+original object.
 
 ```{r edger, eval = FALSE}
 library(edgeR)
 
+# Ranges is a GRangesList that would become a list column of GRanges in
+# y$genes, so remove it from a copy of the object before converting
 se_dge <- se
 rowData(se_dge)$Ranges <- NULL
 y <- SE2DGEList(se_dge)
