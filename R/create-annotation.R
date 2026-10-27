@@ -1,58 +1,3 @@
-#' Extract duplicate info from json file as a data.table
-#'
-#' @param jsonfile JSON file containing information about rmsk sequences
-#' @import data.table
-#' @return data.table
-#'
-.dupInfoToDT <- function(jsonfile) {
-  message(
-    "Reading in the duplicate information from ",
-    basename(jsonfile),
-    "..."
-  )
-  info <- jsonlite::fromJSON(jsonfile)
-
-  message("Creating data.table from json information...")
-  dt <- data.table::data.table(Hash = names(info), Instance = info)
-
-  message("Unnesting json information...")
-  dt <- dt[, .(Instance = as.character(unlist(Instance))), by = Hash]
-
-  message("Extracting repetitive element names from location strings...")
-  dt[,
-    c("RepName", "Location") := data.table::tstrsplit(
-      Instance,
-      "::",
-      fixed = TRUE
-    )
-  ]
-
-  message("Extracting position information...")
-  dt[,
-    c("seqnames", "position") := data.table::tstrsplit(
-      Location,
-      ":",
-      fixed = TRUE
-    )
-  ]
-  dt[,
-    strand := data.table::fifelse(
-      stringi::stri_detect(position, regex = "\\(\\+\\)$"),
-      "+",
-      "-"
-    )
-  ]
-  dt[, position := stringi::stri_replace(position, "", regex = "\\(.\\)")][,
-    c("start", "end") := data.table::tstrsplit(position, "-", fixed = TRUE)
-  ][,
-    `:=`(start = as.integer(start), end = as.integer(end))
-  ]
-  dt[, `:=`(Location = NULL, position = NULL, Instance = NULL)]
-
-  return(dt)
-}
-
-
 #' Load the TxDb for a species from the cache, creating it if needed
 #'
 #' @param species Either "Hs" or "Mm"
@@ -270,10 +215,10 @@ createAnnotation <- function(
 ) {
   species <- match.arg(species)
   bfc <- .getCache(cache)
-  info_json <- .getResource(
+  info_rds <- .getResource(
     bfc,
     species,
-    "rmsk-duplicateInfo.json",
+    "rmsk-duplicateInfo.rds",
     exclude,
     min_len,
     hint = "Run extractUniqueSeqs() with the same species, exclude, and min_len first."
@@ -285,7 +230,8 @@ createAnnotation <- function(
     hint = "Run downloadResources() first."
   )
 
-  dt <- .dupInfoToDT(info_json)
+  message("Reading in the duplicate information...")
+  dt <- data.table::setDT(readRDS(info_rds))
 
   message("Creating a GRangesList for all TE ranges...")
   gr <- GenomicRanges::makeGRangesFromDataFrame(

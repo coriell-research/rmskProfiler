@@ -111,7 +111,7 @@ listResources <- function(species = NULL, cache = NULL) {
 #'
 #' @param resource Name of the resource. One of "gtf", "transcripts", or
 #' "genome" for the GENCODE downloads, "annotation.txdb" for the TxDb, or one of
-#' "rmsk.bed", "rmsk-duplicateInfo.json", "rmsk-unique.fa.gz",
+#' "rmsk.bed", "rmsk-duplicateInfo.rds", "rmsk-unique.fa.gz",
 #' "rmsk-rowData.rds", "rmsk-gentrome.fa.gz", or "decoys.txt" for files
 #' generated for a specific build.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)

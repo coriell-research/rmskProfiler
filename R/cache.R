@@ -112,7 +112,7 @@
 #' @keywords internal
 .BUILD_FILES <- c(
   "rmsk.bed",
-  "rmsk-duplicateInfo.json",
+  "rmsk-duplicateInfo.rds",
   "rmsk-unique.fa.gz",
   "rmsk-rowData.rds",
   "rmsk-gentrome.fa.gz",
