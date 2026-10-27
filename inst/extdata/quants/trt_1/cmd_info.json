@@ -1,0 +1,15 @@
+{
+  "salmon_version": "2.8.0",
+  "index": "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/index",
+  "libType": "A",
+  "output": "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/quants/trt_1_quants",
+  "mates1": [
+    "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/trt_1_R1.fq.gz"
+  ],
+  "mates2": [
+    "/tmp/RtmpMGVhQh/rmskProfiler-example-88cac6c802f/trt_1_R2.fq.gz"
+  ],
+  "unmatedReads": [],
+  "threads": 4,
+  "sketch": false
+}
