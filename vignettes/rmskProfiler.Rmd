@@ -126,12 +126,17 @@ library(rmskProfiler)
 library(SummarizedExperiment)
 ```
 
+A [Salmon](https://salmon.readthedocs.io) index and all relevant annotation files can be constructed
+with a call to `generateIndex()`. 
+
 ```{r build}
+# Loads the example cache and files
 bfc <- exampleCache()
+
+# This GRanges object is only used in the vignette. keep rmsk = NULL in normal use 
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
-rmsk
 
 generateIndex(
     index_dir = tempfile("index"),
@@ -139,25 +144,16 @@ generateIndex(
     check_integrity = FALSE,
     create_index = FALSE,
     cache = bfc,
-    rmsk = rmsk
+    rmsk = rmsk  # Set to NULL for normal use
 )
 ```
 
 With `create_index = TRUE` (the default) the Salmon index is also built in
-`index_dir`. All other files are now in the cache:
+`index_dir`. All other files (see [Managing cached resources](#managing-cached-resources)) are now 
+in the cache:
 
 ```{r list}
 listResources(cache = bfc)
-```
-
-The duplicate information maps each unique sequence to the TE loci sharing it:
-
-```{r dupinfo}
-info <- readRDS(
-    getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
-)
-head(info)
-table(table(info$Hash))
 ```
 
 ## Quantifying reads
@@ -237,6 +233,44 @@ head(te[, c("Subfamily", "Family", "Class", "N_Loci", "hasIntronic")])
 te$Ranges[[1]]
 ```
 
+## Working with SummarizedExperiment objects
+
+`importQuants()` and `aggregateCounts()` return standard
+`r Biocpkg("SummarizedExperiment")` objects, so the imported counts can be used
+with any Bioconductor package or function that accepts a
+`SummarizedExperiment`. Transcripts and TEs are rows like any other feature, so
+they can be subset, combined with sample information in `colData`, and passed
+on together:
+
+```{r se}
+colData(se)$group <- factor(sub("_.*", "", colnames(se)))
+colData(se)
+
+# Subset rows and columns as with any SummarizedExperiment
+se[!is.na(rowData(se)$Hash), se$group == "trt"]
+assay(se, "counts")[1:3, ]
+```
+
+For example, `r Biocpkg("edgeR")` creates a `DGEList` directly from the object,
+keeping the annotation for transcripts and TEs, after which the usual edgeR or
+limma-voom workflow applies:
+
+```{r edger, eval = FALSE}
+library(edgeR)
+
+y <- SE2DGEList(se)
+keep <- filterByExpr(y, group = y$samples$group)
+y <- normLibSizes(y[keep, , keep.lib.sizes = FALSE])
+design <- model.matrix(~group, data = y$samples)
+fit <- glmQLFit(y, design)
+res <- glmQLFTest(fit, coef = 2)
+topTags(res)
+```
+
+The `counts` assay is scaled for multi-mapping uncertainty and is not integer
+valued. Methods that model the counts as negative binomial with non-integer
+counts allowed, such as edgeR and limma, are appropriate.
+
 ## Filtering and aggregating
 
 For many analyses it is useful to only keep TE loci with a single location in
@@ -254,12 +288,14 @@ keep_te <- subset(
     select = "Hash",
     drop = TRUE
 )
+
 keep_tx <- subset(
     rd,
     !is.na(transcript_id) & gene_type == "protein_coding",
     select = "transcript_id",
     drop = TRUE
 )
+
 filtered <- se[rownames(se) %in% c(keep_tx, keep_te), ]
 
 aggregated <- aggregateCounts(
@@ -268,8 +304,8 @@ aggregated <- aggregateCounts(
     te_level = "subfamily",
     cache = bfc
 )
+
 aggregated
-head(rowData(aggregated))
 ```
 
 # Managing cached resources
@@ -277,9 +313,30 @@ head(rowData(aggregated))
 By default, files are stored in the rmskProfiler cache at
 `tools::R_user_dir("rmskProfiler", which = "cache")`. A different cache can be
 used by passing a path or a `BiocFileCache` object to the `cache` argument of
-any function. Files that depend on the `exclude` and `min_len` settings are
-stored separately for each combination of settings, so if you build the index
-with non-default settings, pass the same values to `importQuants()`.
+any function.
+
+The cache holds three types of resources, as reported in the `type` column of
+`listResources()`:
+
+| Resource | Type | Created by | Contents | Approx. size (human) |
+|---|---|---|---|---|
+| `genome` | download | `downloadResources()` | GENCODE primary assembly genome fasta | 850 MB |
+| `transcripts` | download | `downloadResources()` | GENCODE transcript sequences | 110 MB |
+| `gtf` | download | `downloadResources()` | GENCODE annotation GTF | 65 MB |
+| `annotation.txdb` | annotation | `createAnnotation()` | TxDb created from the GTF, re-used by `aggregateCounts()` | 200 MB |
+| `rmsk.bed` | build | `rmskToBed()` | Filtered RepeatMasker records | 200 MB |
+| `rmsk-unique.fa.gz` | build | `extractUniqueSeqs()` | Unique TE sequences, named by their SHA1 hash | 540 MB |
+| `rmsk-duplicateInfo.rds` | build | `extractUniqueSeqs()` | Table mapping each hash to its TE loci | 150 MB |
+| `rmsk-rowData.rds` | build | `createAnnotation()` | Transcript and TE annotations used as the `rowData` by `importQuants()` | 500 MB |
+| `rmsk-gentrome.fa.gz` | build | `createGentrome()` | Transcripts, unique TEs, and genome used to build the Salmon index | 1.5 GB |
+| `decoys.txt` | build | `createGentrome()` | Names of the decoy (genome) sequences | < 1 KB |
+
+Downloads and the TxDb only depend on the species. Build resources also depend
+on the `exclude` and `min_len` settings and are stored separately for each
+combination of settings, identified by the `build` key in `listResources()`.
+If you build the index with non-default settings, pass the same values to
+`importQuants()`. The Salmon index itself is written to `index_dir` and is not
+part of the cache.
 
 ```{r cache}
 # Path to a cached file, e.g. to use it outside of rmskProfiler
