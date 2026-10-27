@@ -50,11 +50,8 @@ salmonQuant(
 #    SummarizedExperiment, with counts scaled for multi-mapping uncertainty
 se <- importQuants("quants", species = "Hs")
 
-# 4. Analyse: sum transcripts to genes and TE loci to subfamilies, and/or
-#    estimate how much of each TE's expression is read-through from its host
-#    gene
+# 4. Sum transcripts to genes and TE loci to subfamilies
 aggregated <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
-rt <- estimateReadThrough(se)
 
 # Inspect, locate, or remove the cached files
 listResources()
@@ -273,32 +270,6 @@ aggregated <- aggregateCounts(
 )
 aggregated
 head(rowData(aggregated))
-```
-
-## Read-through transcription
-
-Many intronic TEs and TEs just downstream of genes are covered by reads from
-the host gene's pre-mRNA rather than being transcribed from their own
-promoters. The experimental `estimateReadThrough()` estimates the expected
-read-through for each TE from its host's expression and models each TE's
-counts as a mixture of read-through and autonomous expression. Here the
-autonomous component is allowed to differ between the groups:
-
-```{r readthrough}
-group <- factor(sub("_.*", "", colnames(se)))
-rt <- estimateReadThrough(se, group = group)
-head(rt[order(rt$padj_autonomous), c(
-    "Hash", "rt_fraction", "padj_readthrough", "padj_autonomous"
-)])
-```
-
-TEs whose counts are mostly explained by read-through can be removed before
-downstream analysis:
-
-```{r drop-readthrough}
-drop <- rt$Hash[which(rt$padj_readthrough < 0.05 & rt$rt_fraction > 0.8)]
-se_autonomous <- se[!rownames(se) %in% drop, ]
-dim(se_autonomous)
 ```
 
 # Managing cached resources

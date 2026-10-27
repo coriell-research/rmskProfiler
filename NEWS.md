@@ -6,5 +6,3 @@
   `rmsk-duplicateInfo.rds`.
 * Downloaded and generated files are managed with BiocFileCache. Use
   `listResources()`, `getResource()`, and `removeResources()` to manage them.
-* Added the experimental `estimateReadThrough()` to separate TE read-through
-  transcription from autonomous expression.
