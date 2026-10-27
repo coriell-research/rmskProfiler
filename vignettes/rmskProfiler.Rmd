@@ -325,7 +325,7 @@ form their own group, e.g. "AluSx,AluSx1:Alu:SINE". The `rowData` contains:
   sequence in the group, so a sequence with several loci contributes the width
   of each of them.
 
-The `Ranges` column is not carried over to the aggregated object.
+The `Ranges` column is not carried over to the aggregated `SummarizedExperiment` object.
 
 # Managing cached resources
 
