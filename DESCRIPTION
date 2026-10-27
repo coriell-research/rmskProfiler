@@ -2,7 +2,8 @@ Package: rmskProfiler
 Title: Quantify transposable elements at the locus-level
 Version: 0.99.0
 Authors@R: 
-    person("Gennaro", "Calendo", , "gcalendo@coriell.org", role = c("aut", "cre"))
+    person("Gennaro", "Calendo", , "gcalendo@coriell.org", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-4510-5530"))
 Description: An end-to-end workflow for quantifying transposable elements at the
     locus-level using RNA-seq data. This package provides functions for creating
     an index, quantifying transcripts and TEs, and importing counts into annotated
