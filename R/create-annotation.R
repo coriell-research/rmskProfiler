@@ -9,6 +9,7 @@
     dbfile <- .findResource(bfc, .resourceRname(species, "annotation.txdb"))
     if (!is.null(dbfile)) {
         message("Loading TxDb...")
+        # loadDb() loads packages that print startup messages
         return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
     }
 
@@ -26,6 +27,7 @@
     }
 
     message("Creating TxDb from GTF...")
+    # makeTxDbFromGFF() warns about GENCODE records it does not import
     txdb <- suppressWarnings(
         txdbmaker::makeTxDbFromGFF(
             file = gtf_file,
@@ -67,6 +69,7 @@
 
     # Create a Transcript-to-Gene map to standardize Introns/UTRs
     message("Mapping transcripts to genes...")
+    # select() reports how keys map to columns, e.g. "1:1 mapping"
     tx2gene <- suppressMessages(
         AnnotationDbi::select(
             txdb,
@@ -209,7 +212,8 @@
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' annotation (rmsk-rowData.rds) to the cache.
 #' @import data.table
 #' @export
 #'

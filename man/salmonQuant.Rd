@@ -29,6 +29,10 @@ ensures a good coverage with minimal cost in terms of speed.}
 \item{...}{Additional arguments passed to Salmon as character strings, e.g.
 "--gcBias", "--seqBias" "--threads 12", see examples below}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of writing the
+Salmon quant directories for each sample to \code{out_dir}.
+}
 \description{
 This function provides a simple wrapper around a system call to
 \code{salmon quant ...}. The default arguments assume that you have paired

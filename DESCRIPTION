@@ -1,6 +1,6 @@
 Package: rmskProfiler
 Title: Quantify transposable elements at the locus-level
-Version: 0.0.1
+Version: 0.99.0
 Authors@R: 
     person("Gennaro", "Calendo", , "gcalendo@coriell.org", role = c("aut", "cre"))
 Description: An end-to-end workflow for quantifying transposable elements at the
@@ -8,14 +8,18 @@ Description: An end-to-end workflow for quantifying transposable elements at the
     an index, quantifying transcripts and TEs, and importing counts into annotated
     R objects for downstream analysis. 
 License: MIT + file LICENSE
+URL: https://github.com/coriell-research/rmskProfiler
 BugReports: https://github.com/coriell-research/rmskProfiler/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends: 
-    R (>= 4.5.0)
+    R (>= 4.6.0)
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+biocViews: Software, RNASeq, Transcriptomics, GeneExpression, Sequencing,
+    Annotation, Alignment
+SystemRequirements: Salmon (>= 1.10.0)
 Imports: 
     AnnotationDbi,
     AnnotationHub,

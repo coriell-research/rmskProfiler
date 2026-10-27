@@ -22,6 +22,10 @@ files}
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of downloading
+the GENCODE files into the cache.
+}
 \description{
 This function will attempt to download all of the necessary resources for
 generating the rmsk-gentrome index into the rmskProfiler cache. For humans,

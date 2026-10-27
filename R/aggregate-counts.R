@@ -67,10 +67,7 @@ aggregateCounts <- function(
     txdb <- .getTxDb(species, .getCache(cache))
 
     # Gene lengths are reduced exon widths
-    exons_by_gene <- suppressWarnings(GenomicFeatures::exonsBy(
-        txdb,
-        by = "gene"
-    ))
+    exons_by_gene <- GenomicFeatures::exonsBy(txdb, by = "gene")
     reduced_exon_lengths <- sum(GenomicRanges::width(GenomicRanges::reduce(
         exons_by_gene
     )))

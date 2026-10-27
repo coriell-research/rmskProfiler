@@ -27,6 +27,10 @@ Default 32.}
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of writing the
+annotation (rmsk-rowData.rds) to the cache.
+}
 \description{
 This function produces multiple annotation files used to annotate downstream
 counts generated after quantification with Salmon. It creates a GRangesList

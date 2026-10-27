@@ -45,6 +45,11 @@ This assumes that "salmon" is available on your PATH}
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of creating all
+resources in the cache and, if \code{create_index = TRUE}, the Salmon index
+in \code{index_dir}.
+}
 \description{
 This function is a wrapper around several other functions for downloading and
 generating all of the files needed to create a Salmon index in order to
@@ -55,16 +60,16 @@ This function creates a Salmon index from all GENCODE transcripts + selected
 RepeatMasker elements + a genomic decoy. It does so by calling the following
 functions:
 
-\itemize{
-\item{"downloadResources()"}{Downloads all neccessary files for downstream
-processing}
-\item{"rmskToBed()"}{Extracts and filters RepeatMasker to BED file}
-\item{"extractUniqueSeqs()"}{Extracts all unique RepeatMasker sequences from
-the genome}
-\item{"createAnnotation()"}{Creates annotations of all TE loci with respect
-to annotations in GTF}
-\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon
-index and calls 'Salmon index'}
+\describe{
+\item{\code{downloadResources()}}{Downloads all necessary files for
+downstream processing}
+\item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
+\item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
+sequences from the genome}
+\item{\code{createAnnotation()}}{Creates annotations of all TE loci with
+respect to annotations in GTF}
+\item{\code{createGentrome()}}{Creates the files needed for decoy-aware
+Salmon index and calls 'Salmon index'}
 }
 }
 \examples{

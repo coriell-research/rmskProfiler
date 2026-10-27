@@ -29,7 +29,7 @@
     ResampleType <- rep_len("", NSamples)
     for (j in 1L:NSamples) {
         if (verbose) {
-            cat("Reading ", paths[j], ", ", sep = "")
+            message("Reading ", paths[j], ", ", appendLF = FALSE)
         }
         MetaFile <- file.path(paths[j], "aux_info", "meta_info.json")
         QuantFile <- file.path(paths[j], "quant.sf")
@@ -68,7 +68,7 @@
         }
 
         if (verbose) {
-            cat(NTx, "transcripts,", NBoot, Type, "samples\n")
+            message(NTx, " transcripts, ", NBoot, " ", Type, " samples")
         }
 
         if (j == 1L) {
@@ -76,7 +76,7 @@
             TPM <- matrix(0, NTx, NSamples)
             DF <- rep_len(0L, NTx)
             OverDisp <- rep_len(0, NTx)
-            Quant1 <- suppressWarnings(data.table::fread(
+            Quant1 <- data.table::fread(
                 QuantFile,
                 sep = "\t",
                 select = c(
@@ -85,16 +85,16 @@
                     "NumReads" = "numeric"
                 ),
                 showProgress = FALSE
-            ))
+            )
             Counts[, 1L] <- Quant1$NumReads
             TPM[, 1L] <- Quant1$TPM
         } else {
-            Quant <- suppressWarnings(data.table::fread(
+            Quant <- data.table::fread(
                 QuantFile,
                 sep = "\t",
                 select = c("TPM" = "numeric", "NumReads" = "numeric"),
                 showProgress = FALSE
-            ))
+            )
             Counts[, j] <- Quant$NumReads
             TPM[, j] <- Quant$TPM
         }

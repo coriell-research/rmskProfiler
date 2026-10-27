@@ -27,7 +27,9 @@
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' gentrome fasta and decoys file to the cache and, if
+#' \code{create_index = TRUE}, creating the Salmon index in \code{index_dir}.
 #' @export
 #'
 #' @examples
@@ -138,30 +140,32 @@ createGentrome <- function(
 
     if (isTRUE(create_index)) {
         message("Creating salmon index...")
-        cmd <- paste(
-            "salmon index -t",
-            shQuote(gentrome_fa),
-            "-d",
-            shQuote(decoy_file),
-            "-p",
-            threads,
-            "-k",
-            31,
-            "-i",
-            shQuote(index_dir),
-            "--gencode",
-            "--no-clip"
+        status <- system2(
+            "salmon",
+            args = c(
+                "index",
+                "-t",
+                shQuote(gentrome_fa),
+                "-d",
+                shQuote(decoy_file),
+                "-p",
+                threads,
+                "-k",
+                31,
+                "-i",
+                shQuote(index_dir),
+                "--gencode",
+                "--no-clip"
+            )
         )
-
-        tryCatch(
-            system(cmd),
-            warning = function(w) print(w),
-            error = function(e) {
-                stop(
-                    "An error occurred during index generation! Check Salmon logs"
-                )
-            }
-        )
+        if (status != 0L) {
+            stop(
+                "Salmon index generation failed with exit status ",
+                status,
+                ". Check the Salmon logs.",
+                call. = FALSE
+            )
+        }
     }
 
     return(invisible(NULL))

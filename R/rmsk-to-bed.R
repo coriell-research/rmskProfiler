@@ -26,7 +26,8 @@
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' filtered RepeatMasker records (rmsk.bed) to the cache.
 #' @export
 #'
 #' @examples

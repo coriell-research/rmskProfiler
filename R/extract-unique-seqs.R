@@ -14,7 +14,7 @@
     bed <- data.table::fread(
         rmsk_bed,
         header = FALSE,
-        select = c(1:4, 6),
+        select = c(seq_len(4L), 6L),
         col.names = c("seqnames", "start", "end", "RepName", "strand")
     )
 
@@ -88,7 +88,9 @@
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' unique sequences (rmsk-unique.fa.gz) and duplicate information
+#' (rmsk-duplicateInfo.rds) to the cache.
 #' @export
 #'
 #' @examples

@@ -6,3 +6,4 @@
 .quarto
 .vscode
 **/__pycache__/
+*.Rproj

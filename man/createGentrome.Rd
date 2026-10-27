@@ -41,6 +41,11 @@ This assumes that "salmon" is available on your PATH}
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of writing the
+gentrome fasta and decoys file to the cache and, if
+\code{create_index = TRUE}, creating the Salmon index in \code{index_dir}.
+}
 \description{
 This function creates the gentrome (transcripts + unique rmsk sequences +
 decoy) fasta and (optionally) the Salmon index. If index generation is

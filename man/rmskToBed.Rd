@@ -26,6 +26,10 @@ shorter than this length are excluded from the resulting BED file.}
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
+\value{
+Invisibly \code{NULL}. Called for its side effect of writing the
+filtered RepeatMasker records (rmsk.bed) to the cache.
+}
 \description{
 This function queries AnnotationHub for UCSC RepeatMasker annotations and
 removes all records

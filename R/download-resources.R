@@ -16,7 +16,8 @@
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of downloading
+#' the GENCODE files into the cache.
 #' @export
 #' @examples
 #' \dontrun{

@@ -133,7 +133,7 @@ importQuants <- function(
 
     if (isTRUE(std_chromosomes)) {
         message("Dropping transcripts from non-standard chromosomes...")
-        std_chrom <- paste0("chr", c(1:22, "X", "Y"))
+        std_chrom <- paste0("chr", c(seq_len(22L), "X", "Y"))
 
         # Checking ranges only has to be done for transcript features
         tx_ranges <- SummarizedExperiment::rowData(se)[

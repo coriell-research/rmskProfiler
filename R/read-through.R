@@ -1097,6 +1097,8 @@ estimateReadThrough <- function(
 #' @return data.frame with columns locus, host, position, and distance
 #' @keywords internal
 .downstreamPairs <- function(te, span, downstream) {
+    # flank() warns about out-of-bound ranges past chromosome ends, which
+    # trim() then clips
     region <- suppressWarnings(GenomicRanges::trim(
         GenomicRanges::flank(span, width = downstream, start = FALSE)
     ))

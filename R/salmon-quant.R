@@ -24,7 +24,8 @@
 #' @param ... Additional arguments passed to Salmon as character strings, e.g.
 #' "--gcBias", "--seqBias" "--threads 12", see examples below
 #'
-#' @return NULL
+#' @return Invisibly \code{NULL}. Called for its side effect of writing the
+#' Salmon quant directories for each sample to \code{out_dir}.
 #' @export
 #'
 #' @examples
