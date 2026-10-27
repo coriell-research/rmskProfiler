@@ -4,175 +4,102 @@
 # rmskProfiler
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
-This package provides an end-to-end solution for accurately quantifying
-transposable elements from RNA-seq data at the locus-level and importing
-into R for downstream analysis.
+rmskProfiler quantifies transposable elements (TEs) at the locus level
+from RNA-seq data and imports the counts into R for downstream analysis.
+It:
+
+1.  builds a [Salmon](https://salmon.readthedocs.io) index from GENCODE
+    transcripts, the unique sequences of RepeatMasker TE loci, and the
+    genome as a decoy,
+2.  quantifies reads against this index with Gibbs sampling, and
+3.  imports the quantifications as an annotated `SummarizedExperiment`,
+    with the counts scaled for the uncertainty from multi-mapping reads.
+
+TE loci with identical sequences cannot be told apart by any read, so
+they are collapsed into a single target named by the SHA1 hash of the
+sequence. The annotation records all the loci that share each hash,
+their RepeatMasker classifications, and the genomic features (exons,
+introns, UTRs, promoters) they overlap.
 
 ## Installation
 
-You can install the development version of `rmskProfiler` from
-[GitHub](https://github.com/) with:
+You can install the development version of rmskProfiler from
+[GitHub](https://github.com/coriell-research/rmskProfiler) with:
 
 ``` r
 # install.packages("pak")
 pak::pak("coriell-research/rmskProfiler")
 ```
 
-### Salmon dependency
+Building the index and quantifying reads requires a recent version of
+[Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
+on your `PATH`. Importing and analysing quantifications does not.
 
-This package assumes that you have a recent version of
-[Salmon](https://salmon.readthedocs.io/en/latest/salmon.html) installed
-and available on your PATH. If not, please follow the latest
-[installation](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
-instructions before using this package.
+## Quick start
 
-## Overview of the method
-
-This package simply creates a Salmon index using GENCODE v48 annotated
-transcripts, unique RepeatMasker repeat regions, and a full genomic
-decoy and provides utilities for importing Salmon quants into R. The
-imported counts are stored along with their annotation information
-(including GenomicRanges) as a SummarizedExperiment object that is ready
-for downstream analysis.
-
-By default, not all repeats are included in the generated index.
-“Simple_repeat”, “Low_complexity”, “Satellite”, “RNA”, “rRNA”, “snRNA”,
-“scRNA”, “srpRNA”, “tRNA”, and “Unknown” loci are excluded.
-Additionally, TE loci with lengths \<=31 bp are removed (as these are
-the size of the minimum k-mer length used by Salmon).
-
-After the index has been created, reads are then quantified using a
-minimum of 30 Gibbs re-samples. The Gibbs re-sampled quants are imported
-into R using `edgeR::catchSalmon()`. The original counts from Salmon
-along with the overdispersion corrected counts from `catchSalmon()` are
-stored as separate assays in the resulting `SummarizedExperiment`
-object.
-
-Downloaded and intermediate files are managed with
-[BiocFileCache](https://bioconductor.org/packages/BiocFileCache/) and
-stored in the rmskProfiler cache
-(`tools::R_user_dir("rmskProfiler", which = "cache")` by default) for
-further inspection and re-use. A different cache can be used by passing
-a path or a `BiocFileCache` object to the `cache` argument of any
-function. Files that depend on the `exclude` and `min_len` settings are
-stored separately for each combination of settings, so if you build the
-index with non-default settings, pass the same values to
-`importQuants()`. The Salmon index is written to the directory you
-choose.
-
-## Usage
-
-The package has three main components:
-
-1.  Generate a `Salmon` index using unique RepeatMasker elements +
-    transcripts + genomic decoy
-2.  Quantify reads with Salmon using Gibbs sampling
-3.  Import the Salmon quants as a `SummarizedExperiment` for downstream
-    differential expression analysis
-
-A full pipeline for generation of the index, quantification, and
-importing of quants looks like:
+The whole workflow for human RNA-seq samples takes four steps:
 
 ``` r
 library(rmskProfiler)
 
-
-# Generate the Salmon index for humans using 12 threads 
-# and save the index to a directory named 'hg38-salmon_index'
+# 1. Build the index (once per species). This downloads GENCODE v48, extracts
+#    the unique RepeatMasker TE sequences, annotates them, and builds a Salmon
+#    index of transcripts + TEs with the genome as a decoy. Files are kept in
+#    the rmskProfiler cache, the index is written to "hg38-salmon_index".
 generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
 
-fq1 <- c("/path/to/sample1.R1.fq.gz", "/path/to/sample2.R1.fq.gz", "/path/to/sample3.R1.fq.gz")
-fq2 <- c("/path/to/sample1.R2.fq.gz", "/path/to/sample2.R2.fq.gz", "/path/to/sample3.R2.fq.gz")
-sample_names <- c("sample1", "sample2", "sample3")
-
-# Perform quantification with Salmon on fastq files
-# NOTE: Once the index is built you can quantify reads using any workflow
-#       just make sure you perform Gibbs re-sampling
+# 2. Quantify reads with Salmon using Gibbs sampling. This can also be done
+#    outside of R, as long as Salmon is run with --numGibbsSamples
 salmonQuant(
-  fq1 = fq1, 
-  fq2 = fq2, 
-  sample_names = sample_names, 
-  index_dir = "hg38-salmon_index", 
-  out_dir = "quants", 
-  n_gibbs = 30,
-  "--gcBias",       # Additional arguments can be passed as character strings
-  "--seqBias",
-  "--posBias",
-  "--threads 12"
-  )
+    fq1 = c("sample1.R1.fq.gz", "sample2.R1.fq.gz"),
+    fq2 = c("sample1.R2.fq.gz", "sample2.R2.fq.gz"),
+    sample_names = c("sample1", "sample2"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--threads 12"
+)
 
-# Import the transcripts and TE loci counts as a SummarizedExperiment object
-# rowData contains transcript and TE annotations and GRanges
+# 3. Import transcript and TE locus counts as an annotated
+#    SummarizedExperiment, with counts scaled for multi-mapping uncertainty
 se <- importQuants("quants", species = "Hs")
 
-# Proceed to downstream analysis using edgeR
-```
+# 4. Sum transcripts to genes and TE loci to subfamilies
+aggregated <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
 
-### Filtering and aggregating
-
-The imported object contains information on the TE-loci and transcript
-levels but sometimes a gene/subfamily-level analysis is desired. The
-following code can be used to filter out TE-loci assigned to exons and
-then summarize counts for TE-loci to the subfamily level and transcripts
-to the gene-level.
-
-Below, any TE-loci that overlaps with an exon, 3’UTR, 5’UTR on either
-strand or has more than one exact sequence location in the genome are
-removed from downstream analysis. Protein coding transcripts are
-selected for downstream analysis.
-
-``` r
-library(rmskProfiler)
-library(SummarizedExperiment)
-
-
-# Select loci to keep
-loci <- subset(
-  rowData(se), 
-  !is.na(Hash) & 
-  hasUnstrandedExonic == FALSE & 
-  hasUnstranded3UTR == FALSE & 
-  hasUnstranded5UTR == FALSE &
-  N_Loci == 1,
-  select = "Hash",
-  drop = TRUE
-  )
-
-# Select only protein coding transcripts
-tx <- subset(
-  rowData(se), 
-  !is.na(transcript_id) & gene_type == "protein_coding", 
-  "transcript_id", 
-  drop = TRUE
-  )
-
-# Filter the Summarized experiment object
-keep <- rownames(se) %in% c(tx, loci)
-filtered <- se[keep, ]
-
-# Sum assays to the gene/subfamily level
-aggregated <- aggregateCounts(filtered, species = "Hs", te_level = "subfamily")
-```
-
-### Managing cached resources
-
-Downloaded and generated files are stored in the rmskProfiler cache. The
-following helpers can be used to inspect, access, and remove them:
-
-``` r
-# List all cached resources along with the settings used to build them
+# Inspect, locate, or remove the cached files
 listResources()
+```
 
-# Get the path to a cached file, e.g. to use it outside of rmskProfiler
-gtf <- getResource("gtf", species = "Hs")
-rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs"))
+By default, RepeatMasker records shorter than 32 bp and those with
+classes “Simple_repeat”, “Low_complexity”, “Satellite”, “RNA”, “rRNA”,
+“snRNA”, “scRNA”, “srpRNA”, “tRNA”, and “Unknown” are excluded from the
+index. Use the `exclude` and `min_len` arguments to change this, and
+pass the same values to `importQuants()`.
 
-# Remove files generated for a build with non-default settings
-removeResources(species = "Hs", min_len = 50)
+## Learn more
 
-# Remove everything for the default human build, including the GENCODE downloads
-removeResources(species = "Hs", downloads = TRUE)
+The package vignette walks through the whole workflow on example data
+included with the package, and covers:
+
+- running Salmon outside of R,
+- the annotations stored in the imported `SummarizedExperiment`,
+- filtering TE loci and transcripts and aggregating counts to genes and
+  TE subfamilies, families, or classes,
+- differential expression testing with edgeR or limma,
+- the resources stored in the rmskProfiler cache and how to manage them.
+
+Read the vignette source in
+[vignettes/rmskProfiler.Rmd](vignettes/rmskProfiler.Rmd), or install the
+package with its vignette and open it from R:
+
+``` r
+remotes::install_github(
+    "coriell-research/rmskProfiler",
+    dependencies = TRUE,
+    build_vignettes = TRUE
+)
+vignette("rmskProfiler")
 ```
