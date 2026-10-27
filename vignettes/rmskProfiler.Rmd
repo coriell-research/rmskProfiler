@@ -20,6 +20,46 @@ vignette: >
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
 ```
 
+# Quick start
+
+The whole workflow for human RNA-seq samples takes four steps. Each function is
+described in more detail in the rest of this vignette.
+
+```{r quickstart, eval = FALSE}
+library(rmskProfiler)
+
+# 1. Build the index (once per species). This downloads GENCODE v48, extracts
+#    the unique RepeatMasker TE sequences, annotates them, and builds a Salmon
+#    index of transcripts + TEs with the genome as a decoy. Files are kept in
+#    the rmskProfiler cache, the index is written to "hg38-salmon_index".
+generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
+
+# 2. Quantify reads with Salmon using Gibbs sampling. This can also be done
+#    outside of R (see "Quantifying reads")
+salmonQuant(
+    fq1 = c("sample1.R1.fq.gz", "sample2.R1.fq.gz"),
+    fq2 = c("sample1.R2.fq.gz", "sample2.R2.fq.gz"),
+    sample_names = c("sample1", "sample2"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--threads 12"
+)
+
+# 3. Import transcript and TE locus counts as an annotated
+#    SummarizedExperiment, with counts scaled for multi-mapping uncertainty
+se <- importQuants("quants", species = "Hs")
+
+# 4. Analyse: sum transcripts to genes and TE loci to subfamilies, and/or
+#    estimate how much of each TE's expression is read-through from its host
+#    gene
+aggregated <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
+rt <- estimateReadThrough(se)
+
+# Inspect, locate, or remove the cached files
+listResources()
+```
+
 # Introduction
 
 Transposable elements (TEs) make up nearly half of the human genome, but most
@@ -53,33 +93,7 @@ Building the index and quantifying reads requires a recent version of
 [Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
 on your `PATH`. Importing and analysing quantifications does not.
 
-# Overview of the workflow
-
-The full workflow for human samples looks like:
-
-```{r workflow, eval = FALSE}
-library(rmskProfiler)
-
-# Download GENCODE v48, build the annotations, and create the Salmon index
-generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
-
-# Quantify reads with Gibbs sampling. Any workflow can be used as long as
-# Salmon is run with --numGibbsSamples
-salmonQuant(
-    fq1 = c("sample1.R1.fq.gz", "sample2.R1.fq.gz"),
-    fq2 = c("sample1.R2.fq.gz", "sample2.R2.fq.gz"),
-    sample_names = c("sample1", "sample2"),
-    index_dir = "hg38-salmon_index",
-    out_dir = "quants",
-    n_gibbs = 30,
-    "--gcBias",
-    "--seqBias",
-    "--threads 12"
-)
-
-# Import the transcript and TE locus counts
-se <- importQuants("quants", species = "Hs")
-```
+# Index generation
 
 `generateIndex()` runs the following steps, which can also be run on their
 own:
@@ -148,6 +162,54 @@ info <- readRDS(
 head(info)
 table(table(info$Hash))
 ```
+
+## Quantifying reads
+
+Reads can be quantified against the index with `salmonQuant()`, a thin wrapper
+around `salmon quant` that runs each pair of FASTQ files with automatic library
+type detection and the requested number of Gibbs samples. Any other Salmon
+options are passed as character strings:
+
+```{r salmonquant, eval = FALSE}
+salmonQuant(
+    fq1 = c("ctrl_1.R1.fq.gz", "trt_1.R1.fq.gz"),
+    fq2 = c("ctrl_1.R2.fq.gz", "trt_1.R2.fq.gz"),
+    sample_names = c("ctrl_1", "trt_1"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--gcBias",
+    "--seqBias",
+    "--threads 12"
+)
+```
+
+Quantification does not need to be done in R. Salmon can be run directly, for
+example on a cluster or as part of an existing pipeline, as long as:
+
+- the index built by `generateIndex()` or `createGentrome()` is used,
+- Gibbs samples are drawn (`--numGibbsSamples`, 30 is a good default), since
+  `importQuants()` uses them to estimate the overdispersion from multi-mapping
+  reads, and
+- each sample is written to its own subdirectory of a common directory. The
+  subdirectory names become the column names of the imported object.
+
+```{bash salmon-cli, eval = FALSE}
+salmon quant \
+    -i hg38-salmon_index \
+    -l A \
+    -1 ctrl_1.R1.fq.gz \
+    -2 ctrl_1.R2.fq.gz \
+    --numGibbsSamples 30 \
+    --gcBias \
+    --seqBias \
+    -p 12 \
+    -o quants/ctrl_1
+```
+
+The example quants used below were created this way from simulated reads
+against the index built from the example data (see
+`inst/scripts/make-example-data.R`).
 
 ## Importing quants
 
