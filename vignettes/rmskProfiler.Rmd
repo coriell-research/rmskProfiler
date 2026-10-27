@@ -273,7 +273,9 @@ topTags(res)
 
 The `counts` assay is scaled for multi-mapping uncertainty and is not integer
 valued. Methods that model the counts as negative binomial with non-integer
-counts allowed, such as edgeR and limma, are appropriate.
+counts allowed, such as edgeR and limma, are appropriate. See Baldoni et al.
+([2024](https://doi.org/10.1093/nar/gkad1167)) for details of how dividing out
+the quantification uncertainty allows these counts to be analysed with edgeR.
 
 ## Filtering and aggregating
 
@@ -282,8 +284,6 @@ the genome that do not overlap exons or UTRs on either strand, and to sum
 counts to the gene and TE subfamily level:
 
 ```{r aggregate}
-# subset() evaluates the conditions using the rowData columns. TEs have NA
-# transcript_id and transcripts have NA Hash, so each row matches one condition
 filtered <- subset(
     se,
     (!is.na(Hash) &
@@ -342,6 +342,13 @@ getResource("gtf", species = "Hs", cache = bfc)
 removeResources(species = "Hs", cache = bfc)
 listResources(cache = bfc)
 ```
+
+# References
+
+Baldoni PL, Chen Y, Hediyeh-zadeh S, Liao Y, Dong X, Ritchie ME, Shi W, Smyth
+GK (2024). Dividing out quantification uncertainty allows efficient assessment
+of differential transcript expression with edgeR. *Nucleic Acids Research*,
+52(3), e13. <https://doi.org/10.1093/nar/gkad1167>
 
 # Session information
 
