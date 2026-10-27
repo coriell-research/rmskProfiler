@@ -7,10 +7,12 @@
 .catchSalmon2(paths, verbose = TRUE)
 }
 \arguments{
-\item{paths}{character vector giving paths to the sample-specific directories created by a kallisto or
+\item{paths}{character vector giving paths to the sample-specific directories
+created by a kallisto or
 Salmon. Each entry corresponds to one RNA-seq sample.}
 
-\item{verbose}{logical If TRUE, progress information will be sent to standard output as each sample is processed.}
+\item{verbose}{logical If TRUE, progress information will be sent to standard
+output as each sample is processed.}
 }
 \description{
 Import transcript-level counts with offset
@@ -20,7 +22,8 @@ This function is mostly lifted from:
 
 https://github.com/plbaldoni/TranscriptDE-code/blob/main/code/pkg/R/utils.R#L52
 
-and combined with existing catchSalmon code. I only used data.table::fread in place of readr so
+and combined with existing catchSalmon code. I only used data.table::fread in
+place of readr so
 as to not add more dependencies.
 }
 \keyword{internal}

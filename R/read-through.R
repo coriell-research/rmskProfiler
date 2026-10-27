@@ -46,7 +46,8 @@
 #' reference distances.
 #'
 #' \strong{Expected counts.} The expected read-through count for a TE locus in
-#' sample j is \eqn{rate_j \times width \times TPM_{host,j}}. Expected counts are
+#' sample j is \eqn{rate_j \times width \times TPM_{host,j}}. Expected counts
+#' are
 #' summed over all hosts of a TE locus (e.g. overlapping genes) and over all
 #' loci of a TE sequence.
 #'
@@ -170,270 +171,276 @@
 #' filtered <- se[!rownames(se) %in% drop, ]
 #' }
 estimateReadThrough <- function(
-  x,
-  level = c("gene", "transcript"),
-  downstream = 10000,
-  downstream_bins = 5,
-  min_host_tpm = 1,
-  min_mean_count = 5,
-  min_host_cv = 0.1,
-  unique_only = TRUE,
-  design = NULL,
-  group = NULL
+    x,
+    level = c("gene", "transcript"),
+    downstream = 10000,
+    downstream_bins = 5,
+    min_host_tpm = 1,
+    min_mean_count = 5,
+    min_host_cv = 0.1,
+    unique_only = TRUE,
+    design = NULL,
+    group = NULL
 ) {
-  level <- match.arg(level)
-  design <- .autonomousDesign(design, group, ncol(x))
+    level <- match.arg(level)
+    design <- .autonomousDesign(design, group, ncol(x))
 
-  rd <- SummarizedExperiment::rowData(x)
-  counts <- SummarizedExperiment::assay(x, "counts")
-  orig <- SummarizedExperiment::assay(x, "orig")
-  tpms <- SummarizedExperiment::assay(x, "tpms")
-  is_tx <- !is.na(rd$transcript_id)
-  is_te <- !is.na(rd$Hash) & !rd$hasExonic
-  if (isTRUE(unique_only)) {
-    is_te <- is_te & rd$N_Loci == 1L
-  }
+    rd <- SummarizedExperiment::rowData(x)
+    counts <- SummarizedExperiment::assay(x, "counts")
+    orig <- SummarizedExperiment::assay(x, "orig")
+    tpms <- SummarizedExperiment::assay(x, "tpms")
+    is_tx <- !is.na(rd$transcript_id)
+    is_te <- !is.na(rd$Hash) & !rd$hasExonic
+    if (isTRUE(unique_only)) {
+        is_te <- is_te & rd$N_Loci == 1L
+    }
 
-  # TE loci ----------------------------------------------------------------------
-  te_loci <- unlist(rd$Ranges[is_te])
-  te_hash <- names(te_loci)
-  names(te_loci) <- NULL
-  te_width <- GenomicRanges::width(te_loci)
+    # TE loci ------------------------------------------------------------------
+    te_loci <- unlist(rd$Ranges[is_te])
+    te_hash <- names(te_loci)
+    names(te_loci) <- NULL
+    te_width <- GenomicRanges::width(te_loci)
 
-  # Salmon quantifies a TE from fragments that fit within it, so expected
-  # counts scale with its effective length rather than its width
-  te_ids <- unique(te_hash)
-  eff_length <- .effectiveLengths(
-    orig[te_ids, , drop = FALSE],
-    tpms[te_ids, , drop = FALSE],
-    te_width[match(te_ids, te_hash)]
-  )
-
-  # Host spans and expression ------------------------------------------------------
-  tx_ids <- rownames(x)[is_tx]
-  tx_span <- unlist(rd$Ranges[is_tx])
-
-  if (level == "transcript") {
-    host_span <- tx_span
-    host_tpm <- tpms[tx_ids, , drop = FALSE]
-    host_name <- stats::setNames(rd$gene_name[is_tx], tx_ids)
-  } else {
-    gene_ids <- rd$gene_id[is_tx]
-    gene_span <- range(S4Vectors::splitAsList(tx_span, gene_ids))
-
-    # Genes whose transcripts span more than one chromosome or strand are dropped
-    host_span <- unlist(gene_span[lengths(gene_span) == 1L])
-    host_tpm <- rowsum(tpms[tx_ids, , drop = FALSE], gene_ids)
-    host_name <- stats::setNames(
-      rd$gene_name[is_tx],
-      gene_ids
-    )[!duplicated(gene_ids)]
-  }
-
-  # Pair TE loci with hosts ----------------------------------------------------------
-  # TE loci overlapping a same-strand exon were removed above, so any TE locus
-  # within a same-strand host span lies in one of its introns
-  message("Finding intronic and downstream TE loci...")
-  hits <- GenomicRanges::findOverlaps(te_loci, host_span, type = "within")
-  pairs <- data.frame(
-    locus = S4Vectors::queryHits(hits),
-    host = S4Vectors::subjectHits(hits),
-    position = rep("intron", length(hits)),
-    distance = rep(0L, length(hits))
-  )
-  if (downstream > 0) {
-    pairs <- rbind(pairs, .downstreamPairs(te_loci, host_span, downstream))
-  }
-  if (nrow(pairs) == 0L) {
-    message("No intronic or downstream TE loci found.")
-    return(data.frame())
-  }
-
-  pair_hash <- te_hash[pairs$locus]
-  pair_host <- names(host_span)[pairs$host]
-  host_expr <- host_tpm[pair_host, , drop = FALSE]
-  pair_counts <- counts[pair_hash, , drop = FALSE]
-  exposure <- eff_length[pair_hash, , drop = FALSE] * host_expr
-
-  # Reference pairs: single-locus TE sequences paired with a single host, used
-  # in samples where the host is expressed
-  pairs_per_locus <- tabulate(pairs$locus, nbins = length(te_loci))
-  is_ref <- rd[pair_hash, "N_Loci"] == 1L & pairs_per_locus[pairs$locus] == 1L
-  use <- is_ref & host_expr >= min_host_tpm
-  ref_counts <- pair_counts * use
-  ref_exposure <- exposure * use
-
-  # Read-through rates for each pair and sample --------------------------------------
-  # Rates are a level for each host (intronic) or distance bin (downstream),
-  # constant across samples, multiplied by robust sample factors
-  message("Estimating read-through rates for ", nrow(pairs), " TE-host pairs...")
-  sample_rate <- .sampleRates(ref_counts, ref_exposure, pair_host)
-  rate <- matrix(NA_real_, nrow(pairs), ncol(x))
-  host_weight <- rep(NA_real_, nrow(pairs))
-  host_dispersion <- NA_real_
-
-  is_intron <- pairs$position == "intron"
-  if (any(is_intron)) {
-    intron <- .intronRates(
-      ref_counts[is_intron, , drop = FALSE],
-      ref_exposure[is_intron, , drop = FALSE],
-      pair_host[is_intron],
-      sample_rate
+    # Salmon quantifies a TE from fragments that fit within it, so expected
+    # counts scale with its effective length rather than its width
+    te_ids <- unique(te_hash)
+    eff_length <- .effectiveLengths(
+        orig[te_ids, , drop = FALSE],
+        tpms[te_ids, , drop = FALSE],
+        te_width[match(te_ids, te_hash)]
     )
-    rate[is_intron, ] <- intron$rate
-    host_weight[is_intron] <- intron$weight
-    host_dispersion <- intron$dispersion
-  }
 
-  is_down <- !is_intron
-  if (any(is_down)) {
-    rate[is_down, ] <- .downstreamRates(
-      ref_counts[is_down, , drop = FALSE],
-      ref_exposure[is_down, , drop = FALSE],
-      pairs$distance[is_down],
-      is_ref[is_down],
-      downstream_bins,
-      sample_rate
+    # Host spans and expression ------------------------------------------------
+    tx_ids <- rownames(x)[is_tx]
+    tx_span <- unlist(rd$Ranges[is_tx])
+
+    if (level == "transcript") {
+        host_span <- tx_span
+        host_tpm <- tpms[tx_ids, , drop = FALSE]
+        host_name <- stats::setNames(rd$gene_name[is_tx], tx_ids)
+    } else {
+        gene_ids <- rd$gene_id[is_tx]
+        gene_span <- range(S4Vectors::splitAsList(tx_span, gene_ids))
+
+        # Genes whose transcripts span more than one chromosome or strand are
+        # dropped
+        host_span <- unlist(gene_span[lengths(gene_span) == 1L])
+        host_tpm <- rowsum(tpms[tx_ids, , drop = FALSE], gene_ids)
+        host_name <- stats::setNames(
+            rd$gene_name[is_tx],
+            gene_ids
+        )[!duplicated(gene_ids)]
+    }
+
+    # Pair TE loci with hosts --------------------------------------------------
+    # TE loci overlapping a same-strand exon were removed above, so any TE locus
+    # within a same-strand host span lies in one of its introns
+    message("Finding intronic and downstream TE loci...")
+    hits <- GenomicRanges::findOverlaps(te_loci, host_span, type = "within")
+    pairs <- data.frame(
+        locus = S4Vectors::queryHits(hits),
+        host = S4Vectors::subjectHits(hits),
+        position = rep("intron", length(hits)),
+        distance = rep(0L, length(hits))
     )
-  }
+    if (downstream > 0) {
+        pairs <- rbind(pairs, .downstreamPairs(te_loci, host_span, downstream))
+    }
+    if (nrow(pairs) == 0L) {
+        message("No intronic or downstream TE loci found.")
+        return(data.frame())
+    }
 
-  # Expected counts ----------------------------------------------------------------------
-  expected_pairs <- rate * exposure
-  expected <- rowsum(expected_pairs, pair_hash)
-  colnames(expected) <- colnames(x)
+    pair_hash <- te_hash[pairs$locus]
+    pair_host <- names(host_span)[pairs$host]
+    host_expr <- host_tpm[pair_host, , drop = FALSE]
+    pair_counts <- counts[pair_hash, , drop = FALSE]
+    exposure <- eff_length[pair_hash, , drop = FALSE] * host_expr
 
-  hash_ids <- rownames(expected)
-  observed <- counts[hash_ids, , drop = FALSE]
-  obs_total <- rowSums(observed)
-  exp_total <- rowSums(expected)
+    # Reference pairs: single-locus TE sequences paired with a single host, used
+    # in samples where the host is expressed
+    pairs_per_locus <- tabulate(pairs$locus, nbins = length(te_loci))
+    is_ref <- rd[pair_hash, "N_Loci"] == 1L & pairs_per_locus[pairs$locus] == 1L
+    use <- is_ref & host_expr >= min_host_tpm
+    ref_counts <- pair_counts * use
+    ref_exposure <- exposure * use
 
-  # Primary host: the pair contributing the most expected counts to each TE
-  pair_total <- rowSums(expected_pairs)
-  ord <- order(pair_hash, -pair_total, na.last = TRUE)
-  primary <- ord[!duplicated(pair_hash[ord])]
-  primary <- primary[match(hash_ids, pair_hash[primary])]
-  host_list <- tapply(pair_host, pair_hash, function(h) {
-    stringi::stri_flatten(unique(h), collapse = ";")
-  })
-
-  # Per-TE read-through model ------------------------------------------------------------
-  # count_ij ~ NB(a_i * expected_ij + depth_j * exp(X_j beta_i)), a_i >= 0. a_i is
-  # the read-through efficiency of the TE relative to the pooled rate and the
-  # second term its host-independent (autonomous) expression, modelled on the
-  # design as in edgeR
-  message("Fitting read-through and autonomous components...")
-  depth <- colSums(counts) / mean(colSums(counts))
-  depth_mat <- matrix(depth, nrow(observed), ncol(observed), byrow = TRUE)
-
-  # Host variation relative to depth that is not explained by the design, which
-  # is needed to separate the two components
-  shape <- expected / depth_mat
-  hat <- design %*% solve(crossprod(design), t(design))
-  resid <- shape - shape %*% hat
-  host_cv <- sqrt(rowSums(resid^2) / (ncol(x) - ncol(design))) / rowMeans(shape)
-
-  fitted <- rowMeans(observed) >= min_mean_count &
-    rowSums(expected) > 0 &
-    is.finite(host_cv) &
-    host_cv >= min_host_cv
-  fit <- .fitReadThrough(
-    observed[fitted, , drop = FALSE],
-    expected[fitted, , drop = FALSE],
-    depth,
-    design
-  )
-
-  n_te <- length(hash_ids)
-  a <- rt_fraction <- p_rt <- p_auto <- zeros_expected <- rep(NA_real_, n_te)
-  a[fitted] <- fit$a
-  readthrough <- expected * a
-  autonomous <- matrix(
-    NA_real_,
-    n_te,
-    ncol(x),
-    dimnames = list(hash_ids, colnames(x))
-  )
-  autonomous[fitted, ] <- fit$autonomous
-  coefficients <- matrix(
-    NA_real_,
-    n_te,
-    ncol(design),
-    dimnames = list(hash_ids, colnames(design))
-  )
-  coefficients[fitted, ] <- fit$beta
-  rt_fraction[fitted] <- rowSums(readthrough[fitted, , drop = FALSE]) /
-    rowSums(fit$mu)
-  p_rt[fitted] <- fit$pvalue_readthrough
-  p_auto[fitted] <- fit$pvalue_autonomous
-  zeros_expected[fitted] <- fit$zeros_expected
-  zeros_observed <- rowSums(round(observed) == 0)
-
-  r <- rep(NA_real_, n_te)
-  if (ncol(x) >= 3L) {
-    r[fitted] <- .rowCor(
-      observed[fitted, , drop = FALSE],
-      expected[fitted, , drop = FALSE],
-      method = "spearman"
+    # Read-through rates for each pair and sample ------------------------------
+    # Rates are a level for each host (intronic) or distance bin (downstream),
+    # constant across samples, multiplied by robust sample factors
+    message(
+        "Estimating read-through rates for ",
+        nrow(pairs),
+        " TE-host pairs..."
     )
-  }
+    sample_rate <- .sampleRates(ref_counts, ref_exposure, pair_host)
+    rate <- matrix(NA_real_, nrow(pairs), ncol(x))
+    host_weight <- rep(NA_real_, nrow(pairs))
+    host_dispersion <- NA_real_
 
-  # Mapping ambiguity from Salmon's Gibbs samples (see importQuants())
-  ann <- S4Vectors::metadata(x)$annotation
-  mapping_od <- if (!is.null(ann$Overdispersion)) {
-    ann[hash_ids, "Overdispersion"]
-  } else {
-    rep(NA_real_, n_te)
-  }
+    is_intron <- pairs$position == "intron"
+    if (any(is_intron)) {
+        intron <- .intronRates(
+            ref_counts[is_intron, , drop = FALSE],
+            ref_exposure[is_intron, , drop = FALSE],
+            pair_host[is_intron],
+            sample_rate
+        )
+        rate[is_intron, ] <- intron$rate
+        host_weight[is_intron] <- intron$weight
+        host_dispersion <- intron$dispersion
+    }
 
-  primary_locus <- te_loci[pairs$locus[primary]]
-  primary_host <- pair_host[primary]
-  result <- data.frame(
-    Hash = hash_ids,
-    Subfamily = rd[hash_ids, "Subfamily"],
-    Family = rd[hash_ids, "Family"],
-    Class = rd[hash_ids, "Class"],
-    N_Loci = rd[hash_ids, "N_Loci"],
-    seqnames = as.character(GenomicRanges::seqnames(primary_locus)),
-    start = GenomicRanges::start(primary_locus),
-    end = GenomicRanges::end(primary_locus),
-    strand = as.character(GenomicRanges::strand(primary_locus)),
-    host_id = primary_host,
-    host_name = unname(host_name[primary_host]),
-    position = pairs$position[primary],
-    distance = pairs$distance[primary],
-    host_weight = host_weight[primary],
-    n_hosts = as.integer(lengths(strsplit(host_list[hash_ids], ";"))),
-    hosts = unname(host_list[hash_ids]),
-    host_cv = host_cv,
-    mean_observed = rowMeans(observed),
-    mean_expected = rowMeans(expected),
-    efficiency = a,
-    mean_readthrough = rowMeans(readthrough),
-    mean_autonomous = rowMeans(autonomous),
-    rt_fraction = rt_fraction,
-    cor = r,
-    pvalue_readthrough = p_rt,
-    padj_readthrough = stats::p.adjust(p_rt, method = "BH"),
-    pvalue_autonomous = p_auto,
-    padj_autonomous = stats::p.adjust(p_auto, method = "BH"),
-    zeros_observed = zeros_observed,
-    zeros_expected = zeros_expected,
-    mapping_overdispersion = mapping_od
-  )
+    is_down <- !is_intron
+    if (any(is_down)) {
+        rate[is_down, ] <- .downstreamRates(
+            ref_counts[is_down, , drop = FALSE],
+            ref_exposure[is_down, , drop = FALSE],
+            pairs$distance[is_down],
+            is_ref[is_down],
+            downstream_bins,
+            sample_rate
+        )
+    }
 
-  ord <- order(result$padj_readthrough, -result$rt_fraction, na.last = TRUE)
-  result <- result[ord, ]
-  rownames(result) <- NULL
-  attr(result, "expected") <- expected[result$Hash, , drop = FALSE]
-  attr(result, "readthrough") <- readthrough[result$Hash, , drop = FALSE]
-  attr(result, "autonomous") <- autonomous[result$Hash, , drop = FALSE]
-  attr(result, "coefficients") <- coefficients[result$Hash, , drop = FALSE]
-  attr(result, "design") <- design
-  attr(result, "depth") <- depth
-  attr(result, "dispersion") <- fit$dispersion
-  attr(result, "host_dispersion") <- host_dispersion
+    # Expected counts ----------------------------------------------------------
+    expected_pairs <- rate * exposure
+    expected <- rowsum(expected_pairs, pair_hash)
+    colnames(expected) <- colnames(x)
 
-  return(result)
+    hash_ids <- rownames(expected)
+    observed <- counts[hash_ids, , drop = FALSE]
+    obs_total <- rowSums(observed)
+    exp_total <- rowSums(expected)
+
+    # Primary host: the pair contributing the most expected counts to each TE
+    pair_total <- rowSums(expected_pairs)
+    ord <- order(pair_hash, -pair_total, na.last = TRUE)
+    primary <- ord[!duplicated(pair_hash[ord])]
+    primary <- primary[match(hash_ids, pair_hash[primary])]
+    host_list <- tapply(pair_host, pair_hash, function(h) {
+        stringi::stri_flatten(unique(h), collapse = ";")
+    })
+
+    # Per-TE read-through model ------------------------------------------------
+    # count_ij ~ NB(a_i * expected_ij + depth_j * exp(X_j beta_i)), a_i >= 0.
+    # a_i is the read-through efficiency of the TE relative to the pooled rate
+    # and the second term its host-independent (autonomous) expression,
+    # modelled on the design as in edgeR
+    message("Fitting read-through and autonomous components...")
+    depth <- colSums(counts) / mean(colSums(counts))
+    depth_mat <- matrix(depth, nrow(observed), ncol(observed), byrow = TRUE)
+
+    # Host variation relative to depth that is not explained by the design,
+    # which is needed to separate the two components
+    shape <- expected / depth_mat
+    hat <- design %*% solve(crossprod(design), t(design))
+    resid <- shape - shape %*% hat
+    host_cv <- sqrt(rowSums(resid^2) / (ncol(x) - ncol(design))) /
+        rowMeans(shape)
+
+    fitted <- rowMeans(observed) >= min_mean_count &
+        rowSums(expected) > 0 &
+        is.finite(host_cv) &
+        host_cv >= min_host_cv
+    fit <- .fitReadThrough(
+        observed[fitted, , drop = FALSE],
+        expected[fitted, , drop = FALSE],
+        depth,
+        design
+    )
+
+    n_te <- length(hash_ids)
+    a <- rt_fraction <- p_rt <- p_auto <- zeros_expected <- rep(NA_real_, n_te)
+    a[fitted] <- fit$a
+    readthrough <- expected * a
+    autonomous <- matrix(
+        NA_real_,
+        n_te,
+        ncol(x),
+        dimnames = list(hash_ids, colnames(x))
+    )
+    autonomous[fitted, ] <- fit$autonomous
+    coefficients <- matrix(
+        NA_real_,
+        n_te,
+        ncol(design),
+        dimnames = list(hash_ids, colnames(design))
+    )
+    coefficients[fitted, ] <- fit$beta
+    rt_fraction[fitted] <- rowSums(readthrough[fitted, , drop = FALSE]) /
+        rowSums(fit$mu)
+    p_rt[fitted] <- fit$pvalue_readthrough
+    p_auto[fitted] <- fit$pvalue_autonomous
+    zeros_expected[fitted] <- fit$zeros_expected
+    zeros_observed <- rowSums(round(observed) == 0)
+
+    r <- rep(NA_real_, n_te)
+    if (ncol(x) >= 3L) {
+        r[fitted] <- .rowCor(
+            observed[fitted, , drop = FALSE],
+            expected[fitted, , drop = FALSE],
+            method = "spearman"
+        )
+    }
+
+    # Mapping ambiguity from Salmon's Gibbs samples (see importQuants())
+    ann <- S4Vectors::metadata(x)$annotation
+    mapping_od <- if (!is.null(ann$Overdispersion)) {
+        ann[hash_ids, "Overdispersion"]
+    } else {
+        rep(NA_real_, n_te)
+    }
+
+    primary_locus <- te_loci[pairs$locus[primary]]
+    primary_host <- pair_host[primary]
+    result <- data.frame(
+        Hash = hash_ids,
+        Subfamily = rd[hash_ids, "Subfamily"],
+        Family = rd[hash_ids, "Family"],
+        Class = rd[hash_ids, "Class"],
+        N_Loci = rd[hash_ids, "N_Loci"],
+        seqnames = as.character(GenomicRanges::seqnames(primary_locus)),
+        start = GenomicRanges::start(primary_locus),
+        end = GenomicRanges::end(primary_locus),
+        strand = as.character(GenomicRanges::strand(primary_locus)),
+        host_id = primary_host,
+        host_name = unname(host_name[primary_host]),
+        position = pairs$position[primary],
+        distance = pairs$distance[primary],
+        host_weight = host_weight[primary],
+        n_hosts = as.integer(lengths(strsplit(host_list[hash_ids], ";"))),
+        hosts = unname(host_list[hash_ids]),
+        host_cv = host_cv,
+        mean_observed = rowMeans(observed),
+        mean_expected = rowMeans(expected),
+        efficiency = a,
+        mean_readthrough = rowMeans(readthrough),
+        mean_autonomous = rowMeans(autonomous),
+        rt_fraction = rt_fraction,
+        cor = r,
+        pvalue_readthrough = p_rt,
+        padj_readthrough = stats::p.adjust(p_rt, method = "BH"),
+        pvalue_autonomous = p_auto,
+        padj_autonomous = stats::p.adjust(p_auto, method = "BH"),
+        zeros_observed = zeros_observed,
+        zeros_expected = zeros_expected,
+        mapping_overdispersion = mapping_od
+    )
+
+    ord <- order(result$padj_readthrough, -result$rt_fraction, na.last = TRUE)
+    result <- result[ord, ]
+    rownames(result) <- NULL
+    attr(result, "expected") <- expected[result$Hash, , drop = FALSE]
+    attr(result, "readthrough") <- readthrough[result$Hash, , drop = FALSE]
+    attr(result, "autonomous") <- autonomous[result$Hash, , drop = FALSE]
+    attr(result, "coefficients") <- coefficients[result$Hash, , drop = FALSE]
+    attr(result, "design") <- design
+    attr(result, "depth") <- depth
+    attr(result, "dispersion") <- fit$dispersion
+    attr(result, "host_dispersion") <- host_dispersion
+
+    return(result)
 }
 
 
@@ -453,34 +460,34 @@ estimateReadThrough <- function(
 #' @return Matrix of effective lengths on the scale of each sample
 #' @keywords internal
 .effectiveLengths <- function(orig, tpms, width) {
-  log_eff <- log(orig / tpms)
-  log_eff[!(orig > 0 & tpms > 0)] <- NA_real_
+    log_eff <- log(orig / tpms)
+    log_eff[!(orig > 0 & tpms > 0)] <- NA_real_
 
-  te_mean <- rowMeans(log_eff, na.rm = TRUE)
-  sample_scale <- apply(log_eff - te_mean, 2, stats::median, na.rm = TRUE)
+    te_mean <- rowMeans(log_eff, na.rm = TRUE)
+    sample_scale <- apply(log_eff - te_mean, 2, stats::median, na.rm = TRUE)
 
-  # TEs without counts in any sample: use TEs of similar width
-  no_counts <- !is.finite(te_mean)
-  if (any(no_counts)) {
-    breaks <- unique(stats::quantile(
-      width[!no_counts],
-      probs = seq(0, 1, length.out = 21)
-    ))
-    bin <- findInterval(width, breaks, all.inside = TRUE)
-    log_ratio <- tapply(
-      te_mean[!no_counts] - log(width[!no_counts]),
-      bin[!no_counts],
-      stats::median
-    )
-    te_mean[no_counts] <- log(width[no_counts]) +
-      log_ratio[as.character(bin[no_counts])]
-  }
+    # TEs without counts in any sample: use TEs of similar width
+    no_counts <- !is.finite(te_mean)
+    if (any(no_counts)) {
+        breaks <- unique(stats::quantile(
+            width[!no_counts],
+            probs = seq(0, 1, length.out = 21)
+        ))
+        bin <- findInterval(width, breaks, all.inside = TRUE)
+        log_ratio <- tapply(
+            te_mean[!no_counts] - log(width[!no_counts]),
+            bin[!no_counts],
+            stats::median
+        )
+        te_mean[no_counts] <- log(width[no_counts]) +
+            log_ratio[as.character(bin[no_counts])]
+    }
 
-  fill <- outer(te_mean, sample_scale, "+")
-  missing <- is.na(log_eff)
-  log_eff[missing] <- fill[missing]
+    fill <- outer(te_mean, sample_scale, "+")
+    missing <- is.na(log_eff)
+    log_eff[missing] <- fill[missing]
 
-  exp(log_eff)
+    exp(log_eff)
 }
 
 
@@ -503,27 +510,29 @@ estimateReadThrough <- function(
 #' @return Numeric vector of sample factors
 #' @keywords internal
 .sampleRates <- function(counts, exposure, host) {
-  pooled <- colSums(counts) / colSums(exposure)
-  if (any(!is.finite(pooled) | pooled <= 0)) {
-    stop(
-      "Not enough reference TE loci in expressed hosts to estimate ",
-      "read-through rates in every sample."
+    pooled <- colSums(counts) / colSums(exposure)
+    if (any(!is.finite(pooled) | pooled <= 0)) {
+        stop(
+            "Not enough reference TE loci in expressed hosts to estimate ",
+            "read-through rates in every sample."
+        )
+    }
+
+    host_counts <- rowsum(counts, host)
+    host_exposure <- rowsum(exposure, host)
+    keep <- rowSums(host_counts) >= 50 &
+        apply(host_counts > 0 & host_exposure > 0, 1, all)
+    if (sum(keep) < 10L) {
+        return(pooled)
+    }
+
+    log_rate <- log(
+        host_counts[keep, , drop = FALSE] /
+            host_exposure[keep, , drop = FALSE]
     )
-  }
+    factors <- exp(apply(log_rate - rowMeans(log_rate), 2, stats::median))
 
-  host_counts <- rowsum(counts, host)
-  host_exposure <- rowsum(exposure, host)
-  keep <- rowSums(host_counts) >= 50 &
-    apply(host_counts > 0 & host_exposure > 0, 1, all)
-  if (sum(keep) < 10L) {
-    return(pooled)
-  }
-
-  log_rate <- log(host_counts[keep, , drop = FALSE] /
-    host_exposure[keep, , drop = FALSE])
-  factors <- exp(apply(log_rate - rowMeans(log_rate), 2, stats::median))
-
-  factors
+    factors
 }
 
 
@@ -551,47 +560,47 @@ estimateReadThrough <- function(
 #' squared coefficient of variation of host relative rates)
 #' @keywords internal
 .intronRates <- function(counts, exposure, host, sample_rate) {
-  sample_mat <- matrix(sample_rate, nrow(counts), ncol(counts), byrow = TRUE)
-  level <- sum(counts) / sum(exposure * sample_mat)
-  base_rate <- sample_mat * level
+    sample_mat <- matrix(sample_rate, nrow(counts), ncol(counts), byrow = TRUE)
+    level <- sum(counts) / sum(exposure * sample_mat)
+    base_rate <- sample_mat * level
 
-  # Counts and counts expected at the genome-wide rate, summed over samples
-  pair_counts <- rowSums(counts)
-  pair_expected <- rowSums(exposure * base_rate)
-  host_counts <- rowsum(pair_counts, host)[, 1]
-  host_expected <- rowsum(pair_expected, host)[, 1]
+    # Counts and counts expected at the genome-wide rate, summed over samples
+    pair_counts <- rowSums(counts)
+    pair_expected <- rowSums(exposure * base_rate)
+    host_counts <- rowsum(pair_counts, host)[, 1]
+    host_expected <- rowsum(pair_expected, host)[, 1]
 
-  # Variance of host relative rates beyond Poisson noise, from hosts with at
-  # least 5 expected reads
-  keep <- host_expected >= 5
-  dispersion <- if (sum(keep) >= 2L) {
-    r <- host_counts[keep] / host_expected[keep]
-    max(0, mean((r - 1)^2 - 1 / host_expected[keep]))
-  } else {
-    0
-  }
+    # Variance of host relative rates beyond Poisson noise, from hosts with at
+    # least 5 expected reads
+    keep <- host_expected >= 5
+    dispersion <- if (sum(keep) >= 2L) {
+        r <- host_counts[keep] / host_expected[keep]
+        max(0, mean((r - 1)^2 - 1 / host_expected[keep]))
+    } else {
+        0
+    }
 
-  if (dispersion <= 0) {
-    # No detectable variation between hosts, use the genome-wide rate
-    return(list(
-      rate = base_rate,
-      weight = rep(0, nrow(counts)),
-      dispersion = 0
-    ))
-  }
+    if (dispersion <= 0) {
+        # No detectable variation between hosts, use the genome-wide rate
+        return(list(
+            rate = base_rate,
+            weight = rep(0, nrow(counts)),
+            dispersion = 0
+        ))
+    }
 
-  # Leave out each pair's own counts, then shrink towards 1 with a gamma prior
-  # with shape and rate alpha
-  loo_counts <- pmax(host_counts[host] - pair_counts, 0)
-  loo_expected <- pmax(host_expected[host] - pair_expected, 0)
-  alpha <- 1 / dispersion
-  relative <- (loo_counts + alpha) / (loo_expected + alpha)
+    # Leave out each pair's own counts, then shrink towards 1 with a gamma prior
+    # with shape and rate alpha
+    loo_counts <- pmax(host_counts[host] - pair_counts, 0)
+    loo_expected <- pmax(host_expected[host] - pair_expected, 0)
+    alpha <- 1 / dispersion
+    relative <- (loo_counts + alpha) / (loo_expected + alpha)
 
-  list(
-    rate = base_rate * relative,
-    weight = loo_expected / (loo_expected + alpha),
-    dispersion = dispersion
-  )
+    list(
+        rate = base_rate * relative,
+        weight = loo_expected / (loo_expected + alpha),
+        dispersion = dispersion
+    )
 }
 
 
@@ -613,35 +622,35 @@ estimateReadThrough <- function(
 #' @return Matrix of rates
 #' @keywords internal
 .downstreamRates <- function(
-  counts,
-  exposure,
-  distance,
-  is_ref,
-  n_bins,
-  sample_rate
+    counts,
+    exposure,
+    distance,
+    is_ref,
+    n_bins,
+    sample_rate
 ) {
-  sample_mat <- matrix(sample_rate, nrow(counts), ncol(counts), byrow = TRUE)
-  pair_counts <- rowSums(counts)
-  pair_expected <- rowSums(exposure * sample_mat)
-  overall <- sum(pair_counts) / sum(pair_expected)
-  if (!is.finite(overall)) {
-    stop(
-      "Not enough downstream reference TE loci in expressed hosts to estimate ",
-      "read-through rates."
-    )
-  }
+    sample_mat <- matrix(sample_rate, nrow(counts), ncol(counts), byrow = TRUE)
+    pair_counts <- rowSums(counts)
+    pair_expected <- rowSums(exposure * sample_mat)
+    overall <- sum(pair_counts) / sum(pair_expected)
+    if (!is.finite(overall)) {
+        stop(
+            "Not enough downstream reference TE loci in expressed hosts to ",
+            "estimate read-through rates."
+        )
+    }
 
-  breaks <- unique(stats::quantile(
-    distance[is_ref],
-    probs = seq(0, 1, length.out = n_bins + 1)
-  ))
-  bin <- findInterval(distance, breaks, all.inside = TRUE)
+    breaks <- unique(stats::quantile(
+        distance[is_ref],
+        probs = seq(0, 1, length.out = n_bins + 1)
+    ))
+    bin <- findInterval(distance, breaks, all.inside = TRUE)
 
-  bin_level <- rowsum(pair_counts, bin)[, 1] / rowsum(pair_expected, bin)[, 1]
-  level <- unname(bin_level[as.character(bin)])
-  level[!is.finite(level)] <- overall
+    bin_level <- rowsum(pair_counts, bin)[, 1] / rowsum(pair_expected, bin)[, 1]
+    level <- unname(bin_level[as.character(bin)])
+    level[!is.finite(level)] <- overall
 
-  sample_mat * level
+    sample_mat * level
 }
 
 
@@ -655,34 +664,34 @@ estimateReadThrough <- function(
 #' are NULL.
 #' @keywords internal
 .autonomousDesign <- function(design, group, n_samples) {
-  if (!is.null(design) && !is.null(group)) {
-    stop("Only one of design and group can be given.")
-  }
-  if (!is.null(group)) {
-    group <- as.factor(group)
-    if (length(group) != n_samples) {
-      stop("group must have one value for each sample.")
+    if (!is.null(design) && !is.null(group)) {
+        stop("Only one of design and group can be given.")
     }
-    design <- stats::model.matrix(~group)
-  }
-  if (is.null(design)) {
-    design <- matrix(1, n_samples, 1, dimnames = list(NULL, "(Intercept)"))
-  }
-  design <- as.matrix(design)
-  if (nrow(design) != n_samples) {
-    stop("design must have one row for each sample.")
-  }
-  if (qr(design)$rank < ncol(design)) {
-    stop("design is not of full rank.")
-  }
-  if (n_samples - ncol(design) < 2L) {
-    stop(
-      "At least 2 more samples than design coefficients are needed to ",
-      "separate read-through from autonomous expression."
-    )
-  }
+    if (!is.null(group)) {
+        group <- as.factor(group)
+        if (length(group) != n_samples) {
+            stop("group must have one value for each sample.")
+        }
+        design <- stats::model.matrix(~group)
+    }
+    if (is.null(design)) {
+        design <- matrix(1, n_samples, 1, dimnames = list(NULL, "(Intercept)"))
+    }
+    design <- as.matrix(design)
+    if (nrow(design) != n_samples) {
+        stop("design must have one row for each sample.")
+    }
+    if (qr(design)$rank < ncol(design)) {
+        stop("design is not of full rank.")
+    }
+    if (n_samples - ncol(design) < 2L) {
+        stop(
+            "At least 2 more samples than design coefficients are needed to ",
+            "separate read-through from autonomous expression."
+        )
+    }
 
-  design
+    design
 }
 
 
@@ -710,30 +719,30 @@ estimateReadThrough <- function(
 #' dispersion
 #' @keywords internal
 .fitReadThrough <- function(y, e, depth, design, n_rounds = 3L) {
-  n_coef <- ncol(design)
-  dispersion <- 0.1
-  for (round in seq_len(n_rounds + 1L)) {
-    rt_only <- .fitReadThroughOnly(y, e, dispersion)
-    auto_only <- .fitAutonomousOnly(y, depth, design, dispersion)
-    full <- .fitFull(y, e, depth, design, dispersion, rt_only, auto_only)
-    if (round <= n_rounds) {
-      dispersion <- .momentDispersion(y, full$mu, n_params = n_coef + 1L)
+    n_coef <- ncol(design)
+    dispersion <- 0.1
+    for (round in seq_len(n_rounds + 1L)) {
+        rt_only <- .fitReadThroughOnly(y, e, dispersion)
+        auto_only <- .fitAutonomousOnly(y, depth, design, dispersion)
+        full <- .fitFull(y, e, depth, design, dispersion, rt_only, auto_only)
+        if (round <= n_rounds) {
+            dispersion <- .momentDispersion(y, full$mu, n_params = n_coef + 1L)
+        }
     }
-  }
 
-  stat_rt <- 2 * (full$loglik - auto_only$loglik)
-  stat_auto <- 2 * (full$loglik - rt_only$loglik)
+    stat_rt <- 2 * (full$loglik - auto_only$loglik)
+    stat_auto <- 2 * (full$loglik - rt_only$loglik)
 
-  list(
-    a = full$a,
-    beta = full$beta,
-    autonomous = full$mu - full$a * e,
-    mu = full$mu,
-    pvalue_readthrough = .chiBarSquare(stat_rt, 1L),
-    pvalue_autonomous = .chiBarSquare(stat_auto, n_coef),
-    zeros_expected = rowSums((1 + dispersion * full$mu)^(-1 / dispersion)),
-    dispersion = dispersion
-  )
+    list(
+        a = full$a,
+        beta = full$beta,
+        autonomous = full$mu - full$a * e,
+        mu = full$mu,
+        pvalue_readthrough = .chiBarSquare(stat_rt, 1L),
+        pvalue_autonomous = .chiBarSquare(stat_auto, n_coef),
+        zeros_expected = rowSums((1 + dispersion * full$mu)^(-1 / dispersion)),
+        dispersion = dispersion
+    )
 }
 
 
@@ -749,15 +758,15 @@ estimateReadThrough <- function(
 #' @return List with a, mu, and loglik
 #' @keywords internal
 .fitReadThroughOnly <- function(y, e, dispersion, n_iter = 25L) {
-  a <- rowSums(y) / rowSums(e)
-  for (iter in seq_len(n_iter)) {
+    a <- rowSums(y) / rowSums(e)
+    for (iter in seq_len(n_iter)) {
+        mu <- pmax(a * e, 1e-8)
+        w <- 1 / (mu + dispersion * mu^2)
+        a <- rowSums(w * e * y) / rowSums(w * e^2)
+    }
     mu <- pmax(a * e, 1e-8)
-    w <- 1 / (mu + dispersion * mu^2)
-    a <- rowSums(w * e * y) / rowSums(w * e^2)
-  }
-  mu <- pmax(a * e, 1e-8)
 
-  list(a = a, mu = mu, loglik = .nbLogLik(y, mu, dispersion))
+    list(a = a, mu = mu, loglik = .nbLogLik(y, mu, dispersion))
 }
 
 
@@ -775,30 +784,33 @@ estimateReadThrough <- function(
 #' @return List with beta, mu, and loglik
 #' @keywords internal
 .fitAutonomousOnly <- function(y, depth, design, dispersion, n_iter = 25L) {
-  offset <- matrix(log(depth), nrow(y), ncol(y), byrow = TRUE)
-  n_coef <- ncol(design)
+    offset <- matrix(log(depth), nrow(y), ncol(y), byrow = TRUE)
+    n_coef <- ncol(design)
 
-  # Start from the least squares fit of log counts
-  z <- log(y + 0.5) - offset
-  beta <- t(solve(crossprod(design), crossprod(design, t(z))))
-  for (iter in seq_len(n_iter)) {
-    eta <- pmin(beta %*% t(design) + offset, 50)
-    mu <- exp(eta)
-    w <- mu / (1 + dispersion * mu)
-    z <- eta - offset + (y - mu) / mu
-    info <- .crossWeighted(lapply(seq_len(n_coef), function(k) {
-      matrix(design[, k], nrow(y), ncol(y), byrow = TRUE)
-    }), w)
-    score <- vapply(
-      seq_len(n_coef),
-      function(k) rowSums(w * z * rep(design[, k], each = nrow(y))),
-      numeric(nrow(y))
-    )
-    beta <- pmax(.batchSolve(info, matrix(score, nrow(y))), -30)
-  }
-  mu <- pmax(exp(pmin(beta %*% t(design) + offset, 50)), 1e-8)
+    # Start from the least squares fit of log counts
+    z <- log(y + 0.5) - offset
+    beta <- t(solve(crossprod(design), crossprod(design, t(z))))
+    for (iter in seq_len(n_iter)) {
+        eta <- pmin(beta %*% t(design) + offset, 50)
+        mu <- exp(eta)
+        w <- mu / (1 + dispersion * mu)
+        z <- eta - offset + (y - mu) / mu
+        info <- .crossWeighted(
+            lapply(seq_len(n_coef), function(k) {
+                matrix(design[, k], nrow(y), ncol(y), byrow = TRUE)
+            }),
+            w
+        )
+        score <- vapply(
+            seq_len(n_coef),
+            function(k) rowSums(w * z * rep(design[, k], each = nrow(y))),
+            numeric(nrow(y))
+        )
+        beta <- pmax(.batchSolve(info, matrix(score, nrow(y))), -30)
+    }
+    mu <- pmax(exp(pmin(beta %*% t(design) + offset, 50)), 1e-8)
 
-  list(beta = beta, mu = mu, loglik = .nbLogLik(y, mu, dispersion))
+    list(beta = beta, mu = mu, loglik = .nbLogLik(y, mu, dispersion))
 }
 
 
@@ -820,110 +832,110 @@ estimateReadThrough <- function(
 #' @return List with a, beta, mu, and loglik
 #' @keywords internal
 .fitFull <- function(
-  y,
-  e,
-  depth,
-  design,
-  dispersion,
-  rt_only,
-  auto_only,
-  n_iter = 50L
+    y,
+    e,
+    depth,
+    design,
+    dispersion,
+    rt_only,
+    auto_only,
+    n_iter = 50L
 ) {
-  n <- nrow(y)
-  n_coef <- ncol(design)
-  depth_mat <- matrix(depth, n, ncol(y), byrow = TRUE)
-  mean_fn <- function(a, beta, rows) {
-    auto <- depth_mat[rows, , drop = FALSE] *
-      exp(pmin(beta %*% t(design), 50))
-    list(mu = pmax(a * e[rows, , drop = FALSE] + auto, 1e-8), auto = auto)
-  }
-
-  # Start halfway between the two single-component fits. Halving the
-  # autonomous term shifts the linear predictor by log(0.5), which is possible
-  # when the design contains a constant
-  a <- rt_only$a / 2
-  beta <- auto_only$beta
-  const <- qr.coef(qr(design), rep(1, nrow(design)))
-  if (max(abs(design %*% const - 1)) < 1e-8) {
-    beta <- beta + log(0.5) * matrix(const, n, n_coef, byrow = TRUE)
-  }
-  m <- mean_fn(a, beta, seq_len(n))
-  ll <- .nbLogLik(y, m$mu, dispersion)
-
-  # Only TEs that have not converged are updated in each iteration
-  active <- seq_len(n)
-  for (iter in seq_len(n_iter)) {
-    n_active <- length(active)
-    y_a <- y[active, , drop = FALSE]
-    mu_a <- m$mu[active, , drop = FALSE]
-    auto_a <- m$auto[active, , drop = FALSE]
-    a_a <- a[active]
-    beta_a <- beta[active, , drop = FALSE]
-    ll_a <- ll[active]
-
-    w <- 1 / (mu_a + dispersion * mu_a^2)
-    jac <- c(
-      list(e[active, , drop = FALSE]),
-      lapply(seq_len(n_coef), function(k) {
-        auto_a * matrix(design[, k], n_active, ncol(y), byrow = TRUE)
-      })
-    )
-    info <- .crossWeighted(jac, w)
-    resid <- w * (y_a - mu_a)
-    score <- vapply(jac, function(j) rowSums(j * resid), numeric(n_active))
-    step <- .batchSolve(info, matrix(score, n_active))
-
-    # Step halving to ensure the log-likelihood does not decrease
-    scale <- rep(1, n_active)
-    todo <- rep(TRUE, n_active)
-    new_a <- a_a
-    new_beta <- beta_a
-    new_ll <- ll_a
-    new_mu <- mu_a
-    new_auto <- auto_a
-    for (half in seq_len(10L)) {
-      cand_a <- pmax(a_a + scale * step[, 1], 0)
-      cand_beta <- pmax(beta_a + scale * step[, -1, drop = FALSE], -30)
-      cand_m <- mean_fn(cand_a, cand_beta, active)
-      cand_ll <- .nbLogLik(y_a, cand_m$mu, dispersion)
-      accept <- todo & cand_ll >= ll_a - 1e-10
-      new_a[accept] <- cand_a[accept]
-      new_beta[accept, ] <- cand_beta[accept, ]
-      new_ll[accept] <- cand_ll[accept]
-      new_mu[accept, ] <- cand_m$mu[accept, ]
-      new_auto[accept, ] <- cand_m$auto[accept, ]
-      todo <- todo & !accept
-      if (!any(todo)) {
-        break
-      }
-      scale[todo] <- scale[todo] / 2
+    n <- nrow(y)
+    n_coef <- ncol(design)
+    depth_mat <- matrix(depth, n, ncol(y), byrow = TRUE)
+    mean_fn <- function(a, beta, rows) {
+        auto <- depth_mat[rows, , drop = FALSE] *
+            exp(pmin(beta %*% t(design), 50))
+        list(mu = pmax(a * e[rows, , drop = FALSE] + auto, 1e-8), auto = auto)
     }
 
-    a[active] <- new_a
-    beta[active, ] <- new_beta
-    ll[active] <- new_ll
-    m$mu[active, ] <- new_mu
-    m$auto[active, ] <- new_auto
-    active <- active[abs(new_ll - ll_a) >= 1e-8]
-    if (length(active) == 0L) {
-      break
+    # Start halfway between the two single-component fits. Halving the
+    # autonomous term shifts the linear predictor by log(0.5), which is possible
+    # when the design contains a constant
+    a <- rt_only$a / 2
+    beta <- auto_only$beta
+    const <- qr.coef(qr(design), rep(1, nrow(design)))
+    if (max(abs(design %*% const - 1)) < 1e-8) {
+        beta <- beta + log(0.5) * matrix(const, n, n_coef, byrow = TRUE)
     }
-  }
+    m <- mean_fn(a, beta, seq_len(n))
+    ll <- .nbLogLik(y, m$mu, dispersion)
 
-  # The single-component fits are limits of the full model
-  use_rt <- rt_only$loglik > ll
-  a[use_rt] <- rt_only$a[use_rt]
-  beta[use_rt, ] <- -30
-  m$mu[use_rt, ] <- rt_only$mu[use_rt, ]
-  ll[use_rt] <- rt_only$loglik[use_rt]
+    # Only TEs that have not converged are updated in each iteration
+    active <- seq_len(n)
+    for (iter in seq_len(n_iter)) {
+        n_active <- length(active)
+        y_a <- y[active, , drop = FALSE]
+        mu_a <- m$mu[active, , drop = FALSE]
+        auto_a <- m$auto[active, , drop = FALSE]
+        a_a <- a[active]
+        beta_a <- beta[active, , drop = FALSE]
+        ll_a <- ll[active]
 
-  use_auto <- auto_only$loglik > ll
-  a[use_auto] <- 0
-  beta[use_auto, ] <- auto_only$beta[use_auto, ]
-  m$mu[use_auto, ] <- auto_only$mu[use_auto, ]
-  ll[use_auto] <- auto_only$loglik[use_auto]
+        w <- 1 / (mu_a + dispersion * mu_a^2)
+        jac <- c(
+            list(e[active, , drop = FALSE]),
+            lapply(seq_len(n_coef), function(k) {
+                auto_a * matrix(design[, k], n_active, ncol(y), byrow = TRUE)
+            })
+        )
+        info <- .crossWeighted(jac, w)
+        resid <- w * (y_a - mu_a)
+        score <- vapply(jac, function(j) rowSums(j * resid), numeric(n_active))
+        step <- .batchSolve(info, matrix(score, n_active))
 
-  list(a = a, beta = beta, mu = m$mu, loglik = ll)
+        # Step halving to ensure the log-likelihood does not decrease
+        scale <- rep(1, n_active)
+        todo <- rep(TRUE, n_active)
+        new_a <- a_a
+        new_beta <- beta_a
+        new_ll <- ll_a
+        new_mu <- mu_a
+        new_auto <- auto_a
+        for (half in seq_len(10L)) {
+            cand_a <- pmax(a_a + scale * step[, 1], 0)
+            cand_beta <- pmax(beta_a + scale * step[, -1, drop = FALSE], -30)
+            cand_m <- mean_fn(cand_a, cand_beta, active)
+            cand_ll <- .nbLogLik(y_a, cand_m$mu, dispersion)
+            accept <- todo & cand_ll >= ll_a - 1e-10
+            new_a[accept] <- cand_a[accept]
+            new_beta[accept, ] <- cand_beta[accept, ]
+            new_ll[accept] <- cand_ll[accept]
+            new_mu[accept, ] <- cand_m$mu[accept, ]
+            new_auto[accept, ] <- cand_m$auto[accept, ]
+            todo <- todo & !accept
+            if (!any(todo)) {
+                break
+            }
+            scale[todo] <- scale[todo] / 2
+        }
+
+        a[active] <- new_a
+        beta[active, ] <- new_beta
+        ll[active] <- new_ll
+        m$mu[active, ] <- new_mu
+        m$auto[active, ] <- new_auto
+        active <- active[abs(new_ll - ll_a) >= 1e-8]
+        if (length(active) == 0L) {
+            break
+        }
+    }
+
+    # The single-component fits are limits of the full model
+    use_rt <- rt_only$loglik > ll
+    a[use_rt] <- rt_only$a[use_rt]
+    beta[use_rt, ] <- -30
+    m$mu[use_rt, ] <- rt_only$mu[use_rt, ]
+    ll[use_rt] <- rt_only$loglik[use_rt]
+
+    use_auto <- auto_only$loglik > ll
+    a[use_auto] <- 0
+    beta[use_auto, ] <- auto_only$beta[use_auto, ]
+    m$mu[use_auto, ] <- auto_only$mu[use_auto, ]
+    ll[use_auto] <- auto_only$loglik[use_auto]
+
+    list(a = a, beta = beta, mu = m$mu, loglik = ll)
 }
 
 
@@ -936,15 +948,15 @@ estimateReadThrough <- function(
 #' \code{sum_j w[i, j] * mats[[u]][i, j] * mats[[v]][i, j]}
 #' @keywords internal
 .crossWeighted <- function(mats, w) {
-  q <- length(mats)
-  out <- array(0, c(nrow(w), q, q))
-  for (u in seq_len(q)) {
-    for (v in seq_len(u)) {
-      out[, u, v] <- out[, v, u] <- rowSums(w * mats[[u]] * mats[[v]])
+    q <- length(mats)
+    out <- array(0, c(nrow(w), q, q))
+    for (u in seq_len(q)) {
+        for (v in seq_len(u)) {
+            out[, u, v] <- out[, v, u] <- rowSums(w * mats[[u]] * mats[[v]])
+        }
     }
-  }
 
-  out
+    out
 }
 
 
@@ -959,46 +971,47 @@ estimateReadThrough <- function(
 #' @return Matrix with dimensions n x q
 #' @keywords internal
 .batchSolve <- function(A, b) {
-  n <- dim(A)[1]
-  q <- dim(A)[2]
-  ridge <- 1e-10 * pmax(apply(A, 1, function(m) max(diag(m))), 1)
-  L <- array(0, c(n, q, q))
-  for (j in seq_len(q)) {
-    prev <- seq_len(j - 1L)
-    d <- A[, j, j] + ridge
-    if (j > 1L) {
-      d <- d - rowSums(matrix(L[, j, prev], n)^2)
+    n <- dim(A)[1]
+    q <- dim(A)[2]
+    ridge <- 1e-10 * pmax(apply(A, 1, function(m) max(diag(m))), 1)
+    L <- array(0, c(n, q, q))
+    for (j in seq_len(q)) {
+        prev <- seq_len(j - 1L)
+        d <- A[, j, j] + ridge
+        if (j > 1L) {
+            d <- d - rowSums(matrix(L[, j, prev], n)^2)
+        }
+        L[, j, j] <- sqrt(pmax(d, 1e-12))
+        for (i in seq_len(q)[-seq_len(j)]) {
+            s <- A[, i, j]
+            if (j > 1L) {
+                s <- s -
+                    rowSums(matrix(L[, i, prev], n) * matrix(L[, j, prev], n))
+            }
+            L[, i, j] <- s / L[, j, j]
+        }
     }
-    L[, j, j] <- sqrt(pmax(d, 1e-12))
-    for (i in seq_len(q)[-seq_len(j)]) {
-      s <- A[, i, j]
-      if (j > 1L) {
-        s <- s - rowSums(matrix(L[, i, prev], n) * matrix(L[, j, prev], n))
-      }
-      L[, i, j] <- s / L[, j, j]
-    }
-  }
 
-  z <- matrix(0, n, q)
-  for (i in seq_len(q)) {
-    s <- b[, i]
-    if (i > 1L) {
-      prev <- seq_len(i - 1L)
-      s <- s - rowSums(matrix(L[, i, prev], n) * matrix(z[, prev], n))
+    z <- matrix(0, n, q)
+    for (i in seq_len(q)) {
+        s <- b[, i]
+        if (i > 1L) {
+            prev <- seq_len(i - 1L)
+            s <- s - rowSums(matrix(L[, i, prev], n) * matrix(z[, prev], n))
+        }
+        z[, i] <- s / L[, i, i]
     }
-    z[, i] <- s / L[, i, i]
-  }
-  x <- matrix(0, n, q)
-  for (i in rev(seq_len(q))) {
-    s <- z[, i]
-    if (i < q) {
-      nxt <- seq(i + 1L, q)
-      s <- s - rowSums(matrix(L[, nxt, i], n) * matrix(x[, nxt], n))
+    x <- matrix(0, n, q)
+    for (i in rev(seq_len(q))) {
+        s <- z[, i]
+        if (i < q) {
+            nxt <- seq(i + 1L, q)
+            s <- s - rowSums(matrix(L[, nxt, i], n) * matrix(x[, nxt], n))
+        }
+        x[, i] <- s / L[, i, i]
     }
-    x[, i] <- s / L[, i, i]
-  }
 
-  x
+    x
 }
 
 
@@ -1011,15 +1024,17 @@ estimateReadThrough <- function(
 #' to df degrees of freedom
 #' @keywords internal
 .chiBarSquare <- function(stat, df) {
-  stat <- pmax(stat, 0)
-  weights <- stats::dbinom(0:df, df, 0.5)
-  p <- vapply(
-    seq_len(df),
-    function(k) weights[k + 1L] * stats::pchisq(stat, k, lower.tail = FALSE),
-    numeric(length(stat))
-  )
-  p <- matrix(p, length(stat))
-  ifelse(stat > 1e-8, rowSums(p), 1)
+    stat <- pmax(stat, 0)
+    weights <- stats::dbinom(0:df, df, 0.5)
+    p <- vapply(
+        seq_len(df),
+        function(k) {
+            weights[k + 1L] * stats::pchisq(stat, k, lower.tail = FALSE)
+        },
+        numeric(length(stat))
+    )
+    p <- matrix(p, length(stat))
+    ifelse(stat > 1e-8, rowSums(p), 1)
 }
 
 
@@ -1033,21 +1048,21 @@ estimateReadThrough <- function(
 #' per-row moment estimates, where Var(y) = mu + dispersion * mu^2
 #' @keywords internal
 .momentDispersion <- function(y, mu, n_params) {
-  keep <- rowMeans(mu) >= 1
-  if (sum(keep) < 10L) {
-    warning(
-      "Fewer than 10 TEs with enough counts to estimate the dispersion. ",
-      "Using a dispersion of 0.1."
-    )
-    return(0.1)
-  }
-  n <- ncol(y)
-  y <- y[keep, , drop = FALSE]
-  mu <- mu[keep, , drop = FALSE]
-  per_te <- (rowSums((y - mu)^2) * n / (n - n_params) - rowSums(mu)) /
-    rowSums(mu^2)
+    keep <- rowMeans(mu) >= 1
+    if (sum(keep) < 10L) {
+        warning(
+            "Fewer than 10 TEs with enough counts to estimate the dispersion. ",
+            "Using a dispersion of 0.1."
+        )
+        return(0.1)
+    }
+    n <- ncol(y)
+    y <- y[keep, , drop = FALSE]
+    mu <- mu[keep, , drop = FALSE]
+    per_te <- (rowSums((y - mu)^2) * n / (n - n_params) - rowSums(mu)) /
+        rowSums(mu^2)
 
-  max(stats::median(per_te), 1e-4)
+    max(stats::median(per_te), 1e-4)
 }
 
 
@@ -1062,14 +1077,14 @@ estimateReadThrough <- function(
 #' @return Numeric vector of log-likelihoods
 #' @keywords internal
 .nbLogLik <- function(y, mu, dispersion) {
-  size <- 1 / dispersion
-  ll <- lgamma(y + size) -
-    lgamma(size) -
-    lgamma(y + 1) +
-    size * log(size / (size + mu)) +
-    y * log(mu / (size + mu))
+    size <- 1 / dispersion
+    ll <- lgamma(y + size) -
+        lgamma(size) -
+        lgamma(y + 1) +
+        size * log(size / (size + mu)) +
+        y * log(mu / (size + mu))
 
-  rowSums(ll)
+    rowSums(ll)
 }
 
 
@@ -1082,19 +1097,19 @@ estimateReadThrough <- function(
 #' @return data.frame with columns locus, host, position, and distance
 #' @keywords internal
 .downstreamPairs <- function(te, span, downstream) {
-  region <- suppressWarnings(GenomicRanges::trim(
-    GenomicRanges::flank(span, width = downstream, start = FALSE)
-  ))
-  hits <- GenomicRanges::findOverlaps(te, region, type = "within")
-  locus <- S4Vectors::queryHits(hits)
-  host <- S4Vectors::subjectHits(hits)
+    region <- suppressWarnings(GenomicRanges::trim(
+        GenomicRanges::flank(span, width = downstream, start = FALSE)
+    ))
+    hits <- GenomicRanges::findOverlaps(te, region, type = "within")
+    locus <- S4Vectors::queryHits(hits)
+    host <- S4Vectors::subjectHits(hits)
 
-  data.frame(
-    locus = locus,
-    host = host,
-    position = rep("downstream", length(hits)),
-    distance = GenomicRanges::distance(te[locus], span[host])
-  )
+    data.frame(
+        locus = locus,
+        host = host,
+        position = rep("downstream", length(hits)),
+        distance = GenomicRanges::distance(te[locus], span[host])
+    )
 }
 
 
@@ -1106,18 +1121,18 @@ estimateReadThrough <- function(
 #' @return Numeric vector of correlations, NA where a row has zero variance
 #' @keywords internal
 .rowCor <- function(x, y, method = c("spearman", "pearson")) {
-  method <- match.arg(method)
-  if (nrow(x) == 0L) {
-    return(numeric())
-  }
-  if (method == "spearman") {
-    x <- matrix(t(apply(x, 1, rank)), nrow = nrow(x))
-    y <- matrix(t(apply(y, 1, rank)), nrow = nrow(y))
-  }
-  x <- x - rowMeans(x)
-  y <- y - rowMeans(y)
-  r <- rowSums(x * y) / sqrt(rowSums(x^2) * rowSums(y^2))
-  r[!is.finite(r)] <- NA_real_
+    method <- match.arg(method)
+    if (nrow(x) == 0L) {
+        return(numeric())
+    }
+    if (method == "spearman") {
+        x <- matrix(t(apply(x, 1, rank)), nrow = nrow(x))
+        y <- matrix(t(apply(y, 1, rank)), nrow = nrow(y))
+    }
+    x <- x - rowMeans(x)
+    y <- y - rowMeans(y)
+    r <- rowSums(x * y) / sqrt(rowSums(x^2) * rowSums(y^2))
+    r[!is.finite(r)] <- NA_real_
 
-  return(r)
+    return(r)
 }

@@ -18,7 +18,8 @@ aggregateCounts(
 the species used to generate the index.}
 
 \item{te_level}{One of "subfamily" (default), "locus", "family", or "class".
-"locus" keeps TE-loci independent, while others aggregate based on classification.}
+"locus" keeps TE-loci independent, while others aggregate based on
+classification.}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
@@ -28,11 +29,16 @@ Default NULL uses the rmskProfiler cache at
 SummarizedExperiment
 }
 \description{
-This function will sum counts to the gene level for all transcripts, and to the
-specified level for TE-loci. A new SummarizedExperiment object is returned with
-aggregated assays. rowData is added indicating the number of features summed ('Freq')
-and a 'feature_length' column. For genes, 'feature_length' is the sum of reduced
-exon widths. For TEs, it is the sum of the length of all TE-loci that are members
+This function will sum counts to the gene level for all transcripts, and to
+the
+specified level for TE-loci. A new SummarizedExperiment object is returned
+with
+aggregated assays. rowData is added indicating the number of features summed
+('Freq')
+and a 'feature_length' column. For genes, 'feature_length' is the sum of
+reduced
+exon widths. For TEs, it is the sum of the length of all TE-loci that are
+members
 of the aggregated group, or the locus length if te_level is "locus".
 }
 \examples{

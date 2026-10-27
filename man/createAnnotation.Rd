@@ -16,9 +16,11 @@ createAnnotation(
 
 \item{exclude}{A character vector specifying which elements (repClass) were
 excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+"Unknown".}
 
-\item{min_len}{Minimum sequence length of a record used by \code{rmskToBed()}.
+\item{min_len}{Minimum sequence length of a record used by
+\code{rmskToBed()}.
 Default 32.}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.

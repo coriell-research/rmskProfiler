@@ -11,10 +11,12 @@ downloadResources(
 )
 }
 \arguments{
-\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
+which
 species to download resources for}
 
-\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files}
+\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE
+files}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at

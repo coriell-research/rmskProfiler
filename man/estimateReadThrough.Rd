@@ -112,7 +112,8 @@ same distance bin. Bins are the \code{downstream_bins} quantiles of the
 reference distances.
 
 \strong{Expected counts.} The expected read-through count for a TE locus in
-sample j is \eqn{rate_j \times width \times TPM_{host,j}}. Expected counts are
+sample j is \eqn{rate_j \times width \times TPM_{host,j}}. Expected counts
+are
 summed over all hosts of a TE locus (e.g. overlapping genes) and over all
 loci of a TE sequence.
 

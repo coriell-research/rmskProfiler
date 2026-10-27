@@ -11,14 +11,18 @@ salmonQuant(fq1, fq2, sample_names, index_dir, out_dir, n_gibbs = 30, ...)
 
 \item{fq2}{vector of file paths to fastq read 2 files}
 
-\item{sample_names}{character vector of samples names matching each pair of fastq files}
+\item{sample_names}{character vector of samples names matching each pair of
+fastq files}
 
-\item{index_dir}{path to the Salmon index created by \code{generateIndex()} or \code{createGentrome()}}
+\item{index_dir}{path to the Salmon index created by \code{generateIndex()}
+or \code{createGentrome()}}
 
 \item{out_dir}{path to save the quant directories for each sample. This will
-be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants}
+be the parent directory, samples are saved in subdirectories like
+out_dir/<sample_name>_quants}
 
-\item{n_gibbs}{integer number of Gibbs samples to perform. Default 30. Published
+\item{n_gibbs}{integer number of Gibbs samples to perform. Default 30.
+Published
 work suggests this number can be set to around 180 / length(samples) but 30
 ensures a good coverage with minimal cost in terms of speed.}
 

@@ -10,11 +10,15 @@
 #'
 #' @param fq1 vector of file paths to fastq read 1 files
 #' @param fq2 vector of file paths to fastq read 2 files
-#' @param sample_names character vector of samples names matching each pair of fastq files
-#' @param index_dir path to the Salmon index created by \code{generateIndex()} or \code{createGentrome()}
+#' @param sample_names character vector of samples names matching each pair of
+#' fastq files
+#' @param index_dir path to the Salmon index created by \code{generateIndex()}
+#' or \code{createGentrome()}
 #' @param out_dir path to save the quant directories for each sample. This will
-#' be the parent directory, samples are saved in subdirectories like out_dir/<sample_name>_quants
-#' @param n_gibbs integer number of Gibbs samples to perform. Default 30. Published
+#' be the parent directory, samples are saved in subdirectories like
+#' out_dir/<sample_name>_quants
+#' @param n_gibbs integer number of Gibbs samples to perform. Default 30.
+#' Published
 #' work suggests this number can be set to around 180 / length(samples) but 30
 #' ensures a good coverage with minimal cost in terms of speed.
 #' @param ... Additional arguments passed to Salmon as character strings, e.g.
@@ -49,48 +53,48 @@
 #'   )
 #' }
 salmonQuant <- function(
-  fq1,
-  fq2,
-  sample_names,
-  index_dir,
-  out_dir,
-  n_gibbs = 30,
-  ...
+    fq1,
+    fq2,
+    sample_names,
+    index_dir,
+    out_dir,
+    n_gibbs = 30,
+    ...
 ) {
-  stopifnot(
-    "fq1, fq2, and sample_names differ in length" = length(fq1) ==
-      length(fq2) &&
-      length(fq1) == length(sample_names)
-  )
-
-  stopifnot("index_dir does not exist!" = dir.exists(index_dir))
-
-  out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
-
-  dots <- list(...)
-  more_args <- unlist(dots)
-
-  for (i in seq_along(fq1)) {
-    system2(
-      "salmon",
-      args = c(
-        "quant",
-        "--libType",
-        "A",
-        "--mates1",
-        fq1[i],
-        "--mates2",
-        fq2[i],
-        "--output",
-        out_dirs[i],
-        "--index",
-        index_dir,
-        "--numGibbsSamples",
-        n_gibbs,
-        more_args
-      )
+    stopifnot(
+        "fq1, fq2, and sample_names differ in length" = length(fq1) ==
+            length(fq2) &&
+            length(fq1) == length(sample_names)
     )
-  }
 
-  return(invisible(NULL))
+    stopifnot("index_dir does not exist!" = dir.exists(index_dir))
+
+    out_dirs <- file.path(out_dir, paste0(sample_names, "_quants"))
+
+    dots <- list(...)
+    more_args <- unlist(dots)
+
+    for (i in seq_along(fq1)) {
+        system2(
+            "salmon",
+            args = c(
+                "quant",
+                "--libType",
+                "A",
+                "--mates1",
+                fq1[i],
+                "--mates2",
+                fq2[i],
+                "--output",
+                out_dirs[i],
+                "--index",
+                index_dir,
+                "--numGibbsSamples",
+                n_gibbs,
+                more_args
+            )
+        )
+    }
+
+    return(invisible(NULL))
 }

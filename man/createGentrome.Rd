@@ -17,20 +17,25 @@ createGentrome(
 \arguments{
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
-\item{index_dir}{Path to the directory where the Salmon index will be created.
+\item{index_dir}{Path to the directory where the Salmon index will be
+created.
 Only used if \code{create_index = TRUE}.}
 
 \item{exclude}{A character vector specifying which elements (repClass) were
 excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+"Unknown".}
 
-\item{min_len}{Minimum sequence length of a record used by \code{rmskToBed()}.
+\item{min_len}{Minimum sequence length of a record used by
+\code{rmskToBed()}.
 Default 32.}
 
-\item{create_index}{Create salmon index after generating resources? Default TRUE.
+\item{create_index}{Create salmon index after generating resources? Default
+TRUE.
 This assumes that "salmon" is available on your PATH}
 
-\item{threads}{Number of threads to use for salmon index generation. Default 1}
+\item{threads}{Number of threads to use for salmon index generation. Default
+1}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at

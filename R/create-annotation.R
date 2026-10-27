@@ -6,41 +6,41 @@
 #' @return TxDb
 #' @keywords internal
 .getTxDb <- function(species, bfc) {
-  dbfile <- .findResource(bfc, .resourceRname(species, "annotation.txdb"))
-  if (!is.null(dbfile)) {
-    message("Loading TxDb...")
-    return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
-  }
+    dbfile <- .findResource(bfc, .resourceRname(species, "annotation.txdb"))
+    if (!is.null(dbfile)) {
+        message("Loading TxDb...")
+        return(suppressPackageStartupMessages(AnnotationDbi::loadDb(dbfile)))
+    }
 
-  gtf_file <- .getResource(
-    bfc,
-    species,
-    "gtf",
-    hint = "Run downloadResources() first."
-  )
-  organism <- "Homo sapiens"
-  taxid <- 9606
-  if (species == "Mm") {
-    organism <- "Mus musculus"
-    taxid <- 10090
-  }
-
-  message("Creating TxDb from GTF...")
-  txdb <- suppressWarnings(
-    txdbmaker::makeTxDbFromGFF(
-      file = gtf_file,
-      format = "gtf",
-      organism = organism,
-      taxonomyId = taxid,
-      dataSource = .gencodeResources(species)["gtf", "url"]
+    gtf_file <- .getResource(
+        bfc,
+        species,
+        "gtf",
+        hint = "Run downloadResources() first."
     )
-  )
-  AnnotationDbi::saveDb(
-    txdb,
-    .newResource(bfc, species, "annotation.txdb", ".txdb")
-  )
+    organism <- "Homo sapiens"
+    taxid <- 9606
+    if (species == "Mm") {
+        organism <- "Mus musculus"
+        taxid <- 10090
+    }
 
-  return(txdb)
+    message("Creating TxDb from GTF...")
+    txdb <- suppressWarnings(
+        txdbmaker::makeTxDbFromGFF(
+            file = gtf_file,
+            format = "gtf",
+            organism = organism,
+            taxonomyId = taxid,
+            dataSource = .gencodeResources(species)["gtf", "url"]
+        )
+    )
+    AnnotationDbi::saveDb(
+        txdb,
+        .newResource(bfc, species, "annotation.txdb", ".txdb")
+    )
+
+    return(txdb)
 }
 
 
@@ -55,128 +55,136 @@
 #'
 #' @return List of hash vectors overlapping genomic features
 .getHashOverlaps <- function(x, txdb) {
-  message("Preparing reduced genomic features...")
+    message("Preparing reduced genomic features...")
 
-  gr_exons <- unlist(GenomicFeatures::exonsBy(txdb, by = "gene"))
-  GenomicRanges::mcols(gr_exons)$feature_id <- names(gr_exons)
-  GenomicRanges::mcols(gr_exons)$type <- "exon"
+    gr_exons <- unlist(GenomicFeatures::exonsBy(txdb, by = "gene"))
+    GenomicRanges::mcols(gr_exons)$feature_id <- names(gr_exons)
+    GenomicRanges::mcols(gr_exons)$type <- "exon"
 
-  gr_promoters <- GenomicRanges::promoters(GenomicFeatures::genes(txdb))
-  GenomicRanges::mcols(gr_promoters)$feature_id <- names(gr_promoters)
-  GenomicRanges::mcols(gr_promoters)$type <- "promoter"
+    gr_promoters <- GenomicRanges::promoters(GenomicFeatures::genes(txdb))
+    GenomicRanges::mcols(gr_promoters)$feature_id <- names(gr_promoters)
+    GenomicRanges::mcols(gr_promoters)$type <- "promoter"
 
-  # Create a Transcript-to-Gene map to standardize Introns/UTRs
-  message("Mapping transcripts to genes...")
-  tx2gene <- suppressMessages(
-    AnnotationDbi::select(
-      txdb,
-      keys = AnnotationDbi::keys(txdb, "TXNAME"),
-      columns = "GENEID",
-      keytype = "TXNAME"
+    # Create a Transcript-to-Gene map to standardize Introns/UTRs
+    message("Mapping transcripts to genes...")
+    tx2gene <- suppressMessages(
+        AnnotationDbi::select(
+            txdb,
+            keys = AnnotationDbi::keys(txdb, "TXNAME"),
+            columns = "GENEID",
+            keytype = "TXNAME"
+        )
     )
-  )
-  tx2gene_map <- stats::setNames(tx2gene$GENEID, tx2gene$TXNAME)
+    tx2gene_map <- stats::setNames(tx2gene$GENEID, tx2gene$TXNAME)
 
-  gr_introns <- unlist(GenomicFeatures::intronsByTranscript(
-    txdb,
-    use.names = TRUE
-  ))
-  GenomicRanges::mcols(gr_introns)$feature_id <- tx2gene_map[names(gr_introns)]
-  GenomicRanges::mcols(gr_introns)$type <- "intron"
+    gr_introns <- unlist(GenomicFeatures::intronsByTranscript(
+        txdb,
+        use.names = TRUE
+    ))
+    GenomicRanges::mcols(gr_introns)$feature_id <- tx2gene_map[names(
+        gr_introns
+    )]
+    GenomicRanges::mcols(gr_introns)$type <- "intron"
 
-  gr_3utr <- unlist(GenomicFeatures::threeUTRsByTranscript(
-    txdb,
-    use.names = TRUE
-  ))
-  GenomicRanges::mcols(gr_3utr)$feature_id <- tx2gene_map[names(gr_3utr)]
-  GenomicRanges::mcols(gr_3utr)$type <- "3utr"
+    gr_3utr <- unlist(GenomicFeatures::threeUTRsByTranscript(
+        txdb,
+        use.names = TRUE
+    ))
+    GenomicRanges::mcols(gr_3utr)$feature_id <- tx2gene_map[names(gr_3utr)]
+    GenomicRanges::mcols(gr_3utr)$type <- "3utr"
 
-  gr_5utr <- unlist(GenomicFeatures::fiveUTRsByTranscript(
-    txdb,
-    use.names = TRUE
-  ))
-  GenomicRanges::mcols(gr_5utr)$feature_id <- tx2gene_map[names(gr_5utr)]
-  GenomicRanges::mcols(gr_5utr)$type <- "5utr"
+    gr_5utr <- unlist(GenomicFeatures::fiveUTRsByTranscript(
+        txdb,
+        use.names = TRUE
+    ))
+    GenomicRanges::mcols(gr_5utr)$feature_id <- tx2gene_map[names(gr_5utr)]
+    GenomicRanges::mcols(gr_5utr)$type <- "5utr"
 
-  cols_to_keep <- c("feature_id", "type")
-  GenomicRanges::mcols(gr_exons) <- GenomicRanges::mcols(gr_exons)[,
-    cols_to_keep
-  ]
-  GenomicRanges::mcols(gr_promoters) <- GenomicRanges::mcols(gr_promoters)[,
-    cols_to_keep
-  ]
-  GenomicRanges::mcols(gr_introns) <- GenomicRanges::mcols(gr_introns)[,
-    cols_to_keep
-  ]
-  GenomicRanges::mcols(gr_3utr) <- GenomicRanges::mcols(gr_3utr)[, cols_to_keep]
-  GenomicRanges::mcols(gr_5utr) <- GenomicRanges::mcols(gr_5utr)[, cols_to_keep]
+    cols_to_keep <- c("feature_id", "type")
+    GenomicRanges::mcols(gr_exons) <- GenomicRanges::mcols(gr_exons)[,
+        cols_to_keep
+    ]
+    GenomicRanges::mcols(gr_promoters) <- GenomicRanges::mcols(gr_promoters)[,
+        cols_to_keep
+    ]
+    GenomicRanges::mcols(gr_introns) <- GenomicRanges::mcols(gr_introns)[,
+        cols_to_keep
+    ]
+    GenomicRanges::mcols(gr_3utr) <- GenomicRanges::mcols(gr_3utr)[,
+        cols_to_keep
+    ]
+    GenomicRanges::mcols(gr_5utr) <- GenomicRanges::mcols(gr_5utr)[,
+        cols_to_keep
+    ]
 
-  gr_features <- c(gr_exons, gr_introns, gr_promoters, gr_3utr, gr_5utr)
+    gr_features <- c(gr_exons, gr_introns, gr_promoters, gr_3utr, gr_5utr)
 
-  message("Finding overlaps...")
-  hits <- GenomicRanges::findOverlaps(x, gr_features, ignore.strand = TRUE)
+    message("Finding overlaps...")
+    hits <- GenomicRanges::findOverlaps(x, gr_features, ignore.strand = TRUE)
 
-  dt_hits <- data.table(
-    query_idx = S4Vectors::queryHits(hits),
-    subject_idx = S4Vectors::subjectHits(hits)
-  )
-
-  dt_hits[, Hash := GenomicRanges::mcols(x)$Hash[query_idx]]
-  dt_hits[, q_strand := as.character(GenomicRanges::strand(x)[query_idx])]
-  dt_hits[, feature := GenomicRanges::mcols(gr_features)$type[subject_idx]]
-  dt_hits[,
-    feature_id := GenomicRanges::mcols(gr_features)$feature_id[subject_idx]
-  ]
-  dt_hits[,
-    s_strand := as.character(GenomicRanges::strand(gr_features)[subject_idx])
-  ]
-
-  dt_hits[, strand_match := (q_strand == s_strand)]
-
-  dt_hits[,
-    feature_label := data.table::fifelse(
-      is.na(feature_id),
-      NA_character_,
-      paste0(feature, ":", feature_id)
+    dt_hits <- data.table(
+        query_idx = S4Vectors::queryHits(hits),
+        subject_idx = S4Vectors::subjectHits(hits)
     )
-  ]
 
-  # Aggregate features by Hash
-  mapping_dt <- dt_hits[,
-    .(
-      overlapping_features = stringi::stri_flatten(
-        unique(feature_label[!is.na(feature_label)]),
-        collapse = ";"
-      )
-    ),
-    by = Hash
-  ]
+    dt_hits[, Hash := GenomicRanges::mcols(x)$Hash[query_idx]]
+    dt_hits[, q_strand := as.character(GenomicRanges::strand(x)[query_idx])]
+    dt_hits[, feature := GenomicRanges::mcols(gr_features)$type[subject_idx]]
+    dt_hits[,
+        feature_id := GenomicRanges::mcols(gr_features)$feature_id[subject_idx]
+    ]
+    dt_hits[,
+        s_strand := as.character(GenomicRanges::strand(gr_features)[
+            subject_idx
+        ])
+    ]
 
-  getHashes <- function(dt, feat, stranded = FALSE) {
-    if (isTRUE(stranded)) {
-      unique(dt[feature == feat & strand_match == TRUE, Hash])
-    } else {
-      unique(dt[feature == feat, Hash])
+    dt_hits[, strand_match := (q_strand == s_strand)]
+
+    dt_hits[,
+        feature_label := data.table::fifelse(
+            is.na(feature_id),
+            NA_character_,
+            paste0(feature, ":", feature_id)
+        )
+    ]
+
+    # Aggregate features by Hash
+    mapping_dt <- dt_hits[,
+        .(
+            overlapping_features = stringi::stri_flatten(
+                unique(feature_label[!is.na(feature_label)]),
+                collapse = ";"
+            )
+        ),
+        by = Hash
+    ]
+
+    getHashes <- function(dt, feat, stranded = FALSE) {
+        if (isTRUE(stranded)) {
+            unique(dt[feature == feat & strand_match == TRUE, Hash])
+        } else {
+            unique(dt[feature == feat, Hash])
+        }
     }
-  }
 
-  result <- list(
-    hash_in_exon = getHashes(dt_hits, "exon", TRUE),
-    hash_in_intron = getHashes(dt_hits, "intron", TRUE),
-    hash_in_promoter = getHashes(dt_hits, "promoter", TRUE),
-    hash_in_3utr = getHashes(dt_hits, "3utr", TRUE),
-    hash_in_5utr = getHashes(dt_hits, "5utr", TRUE),
+    result <- list(
+        hash_in_exon = getHashes(dt_hits, "exon", TRUE),
+        hash_in_intron = getHashes(dt_hits, "intron", TRUE),
+        hash_in_promoter = getHashes(dt_hits, "promoter", TRUE),
+        hash_in_3utr = getHashes(dt_hits, "3utr", TRUE),
+        hash_in_5utr = getHashes(dt_hits, "5utr", TRUE),
 
-    u_hash_in_exon = getHashes(dt_hits, "exon", FALSE),
-    u_hash_in_intron = getHashes(dt_hits, "intron", FALSE),
-    u_hash_in_promoter = getHashes(dt_hits, "promoter", FALSE),
-    u_hash_in_3utr = getHashes(dt_hits, "3utr", FALSE),
-    u_hash_in_5utr = getHashes(dt_hits, "5utr", FALSE),
+        u_hash_in_exon = getHashes(dt_hits, "exon", FALSE),
+        u_hash_in_intron = getHashes(dt_hits, "intron", FALSE),
+        u_hash_in_promoter = getHashes(dt_hits, "promoter", FALSE),
+        u_hash_in_3utr = getHashes(dt_hits, "3utr", FALSE),
+        u_hash_in_5utr = getHashes(dt_hits, "5utr", FALSE),
 
-    mapping_dt = mapping_dt
-  )
+        mapping_dt = mapping_dt
+    )
 
-  return(result)
+    return(result)
 }
 
 
@@ -192,8 +200,10 @@
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
 #' excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
-#' @param min_len Minimum sequence length of a record used by \code{rmskToBed()}.
+#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+#' "Unknown".
+#' @param min_len Minimum sequence length of a record used by
+#' \code{rmskToBed()}.
 #' Default 32.
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
@@ -208,125 +218,131 @@
 #' createAnnotation(species = "Hs")
 #' }
 createAnnotation <- function(
-  species = c("Hs", "Mm"),
-  exclude = .DEFAULT_EXCLUDE,
-  min_len = 32,
-  cache = NULL
+    species = c("Hs", "Mm"),
+    exclude = .DEFAULT_EXCLUDE,
+    min_len = 32,
+    cache = NULL
 ) {
-  species <- match.arg(species)
-  bfc <- .getCache(cache)
-  info_rds <- .getResource(
-    bfc,
-    species,
-    "rmsk-duplicateInfo.rds",
-    exclude,
-    min_len,
-    hint = "Run extractUniqueSeqs() with the same species, exclude, and min_len first."
-  )
-  gtf_file <- .getResource(
-    bfc,
-    species,
-    "gtf",
-    hint = "Run downloadResources() first."
-  )
-
-  message("Reading in the duplicate information...")
-  dt <- data.table::setDT(readRDS(info_rds))
-
-  message("Creating a GRangesList for all TE ranges...")
-  gr <- GenomicRanges::makeGRangesFromDataFrame(
-    dt,
-    starts.in.df.are.0based = TRUE,
-    keep.extra.columns = TRUE
-  )
-  grl <- S4Vectors::splitAsList(gr, gr$Hash)
-
-  message("Computing overlaps of TE-loci with transcript annotations...")
-  txdb <- .getTxDb(species, bfc)
-  ov <- .getHashOverlaps(gr, txdb)
-
-  message("Getting all unique hash-element pairs...")
-  hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
-  hash_dt[,
-    c("Subfamily", "Family", "Class") := data.table::tstrsplit(
-      RepName,
-      ":",
-      fixed = TRUE
+    species <- match.arg(species)
+    bfc <- .getCache(cache)
+    info_rds <- .getResource(
+        bfc,
+        species,
+        "rmsk-duplicateInfo.rds",
+        exclude,
+        min_len,
+        hint = paste(
+            "Run extractUniqueSeqs() with the same species, exclude, and",
+            "min_len first."
+        )
     )
-  ]
+    gtf_file <- .getResource(
+        bfc,
+        species,
+        "gtf",
+        hint = "Run downloadResources() first."
+    )
 
-  message("Collapsing hash-level information into rowData...")
-  by_hash <- hash_dt[,
-    .(
-      Class = stringi::stri_flatten(unique(Class), collapse = ","),
-      Family = stringi::stri_flatten(unique(Family), collapse = ","),
-      Subfamily = stringi::stri_flatten(unique(Subfamily), collapse = ","),
-      N_Loci = sum(N_Loci),
-      N_Class = length(unique(Class)),
-      N_Family = length(unique(Family)),
-      N_Subfamily = length(unique(Subfamily))
-    ),
-    by = Hash
-  ]
+    message("Reading in the duplicate information...")
+    dt <- data.table::setDT(readRDS(info_rds))
 
-  by_hash[, `:=`(
-    hasPromoter = Hash %chin% ov$hash_in_promoter,
-    hasExonic = Hash %chin% ov$hash_in_exon,
-    hasIntronic = Hash %chin% ov$hash_in_intron,
-    has3UTR = Hash %chin% ov$hash_in_3utr,
-    has5UTR = Hash %chin% ov$hash_in_5utr,
-    hasUnstrandedPromoter = Hash %chin% ov$u_hash_in_promoter,
-    hasUnstrandedExonic = Hash %chin% ov$u_hash_in_exon,
-    hasUnstrandedIntronic = Hash %chin% ov$u_hash_in_intron,
-    hasUnstranded3UTR = Hash %chin% ov$u_hash_in_3utr,
-    hasUnstranded5UTR = Hash %chin% ov$u_hash_in_5utr
-  )][, `:=`(
-    hasIntergenic = (!hasExonic & !hasIntronic & !has3UTR & !has5UTR),
-    hasUnstrandedIntergenic = (!hasUnstrandedExonic &
-      !hasUnstrandedIntronic &
-      !hasUnstranded3UTR &
-      !hasUnstranded5UTR)
-  )]
+    message("Creating a GRangesList for all TE ranges...")
+    gr <- GenomicRanges::makeGRangesFromDataFrame(
+        dt,
+        starts.in.df.are.0based = TRUE,
+        keep.extra.columns = TRUE
+    )
+    grl <- S4Vectors::splitAsList(gr, gr$Hash)
 
-  message("Merging exact feature overlaps...")
-  by_hash <- merge(by_hash, ov$mapping_dt, by = "Hash", all.x = TRUE)
-  by_hash[is.na(overlapping_features), overlapping_features := ""]
+    message("Computing overlaps of TE-loci with transcript annotations...")
+    txdb <- .getTxDb(species, bfc)
+    ov <- .getHashOverlaps(gr, txdb)
 
-  message("Reading in transcript annotations...")
-  gtf <- rtracklayer::import(gtf_file)
-  tx <- gtf[gtf$type == "transcript", ]
-  tx_dt <- data.table::as.data.table(data.frame(tx))[, .(
-    transcript_id,
-    gene_id,
-    gene_name,
-    gene_type
-  )]
-  names(tx) <- tx$transcript_id
-  tx <- methods::as(tx, "GRangesList")
-  rmsk_grl <- c(tx, grl)
+    message("Getting all unique hash-element pairs...")
+    hash_dt <- dt[, .(N_Loci = .N), by = .(Hash, RepName)]
+    hash_dt[,
+        c("Subfamily", "Family", "Class") := data.table::tstrsplit(
+            RepName,
+            ":",
+            fixed = TRUE
+        )
+    ]
 
-  # Strip redundant metadata
-  unlisted_rmsk <- unlist(rmsk_grl)
-  GenomicRanges::mcols(unlisted_rmsk) <- NULL
-  rmsk_grl <- BiocGenerics::relist(unlisted_rmsk, rmsk_grl)
+    message("Collapsing hash-level information into rowData...")
+    by_hash <- hash_dt[,
+        .(
+            Class = stringi::stri_flatten(unique(Class), collapse = ","),
+            Family = stringi::stri_flatten(unique(Family), collapse = ","),
+            Subfamily = stringi::stri_flatten(
+                unique(Subfamily),
+                collapse = ","
+            ),
+            N_Loci = sum(N_Loci),
+            N_Class = length(unique(Class)),
+            N_Family = length(unique(Family)),
+            N_Subfamily = length(unique(Subfamily))
+        ),
+        by = Hash
+    ]
 
-  # Combine annotation DataFrames
-  rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
-  rd <- S4Vectors::DataFrame(rd)
-  rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
-  rd$Ranges <- rmsk_grl[rownames(rd)]
+    by_hash[, `:=`(
+        hasPromoter = Hash %chin% ov$hash_in_promoter,
+        hasExonic = Hash %chin% ov$hash_in_exon,
+        hasIntronic = Hash %chin% ov$hash_in_intron,
+        has3UTR = Hash %chin% ov$hash_in_3utr,
+        has5UTR = Hash %chin% ov$hash_in_5utr,
+        hasUnstrandedPromoter = Hash %chin% ov$u_hash_in_promoter,
+        hasUnstrandedExonic = Hash %chin% ov$u_hash_in_exon,
+        hasUnstrandedIntronic = Hash %chin% ov$u_hash_in_intron,
+        hasUnstranded3UTR = Hash %chin% ov$u_hash_in_3utr,
+        hasUnstranded5UTR = Hash %chin% ov$u_hash_in_5utr
+    )][, `:=`(
+        hasIntergenic = (!hasExonic & !hasIntronic & !has3UTR & !has5UTR),
+        hasUnstrandedIntergenic = (!hasUnstrandedExonic &
+            !hasUnstrandedIntronic &
+            !hasUnstranded3UTR &
+            !hasUnstranded5UTR)
+    )]
 
-  rd_file <- .newResource(
-    bfc,
-    species,
-    "rmsk-rowData.rds",
-    ".rds",
-    exclude,
-    min_len
-  )
-  message("Writing out rowData to: ", rd_file)
-  saveRDS(rd, rd_file)
-  message("Done.")
+    message("Merging exact feature overlaps...")
+    by_hash <- merge(by_hash, ov$mapping_dt, by = "Hash", all.x = TRUE)
+    by_hash[is.na(overlapping_features), overlapping_features := ""]
 
-  return(invisible(NULL))
+    message("Reading in transcript annotations...")
+    gtf <- rtracklayer::import(gtf_file)
+    tx <- gtf[gtf$type == "transcript", ]
+    tx_dt <- data.table::as.data.table(data.frame(tx))[, .(
+        transcript_id,
+        gene_id,
+        gene_name,
+        gene_type
+    )]
+    names(tx) <- tx$transcript_id
+    tx <- methods::as(tx, "GRangesList")
+    rmsk_grl <- c(tx, grl)
+
+    # Strip redundant metadata
+    unlisted_rmsk <- unlist(rmsk_grl)
+    GenomicRanges::mcols(unlisted_rmsk) <- NULL
+    rmsk_grl <- BiocGenerics::relist(unlisted_rmsk, rmsk_grl)
+
+    # Combine annotation DataFrames
+    rd <- data.table::rbindlist(list(tx_dt, by_hash), fill = TRUE)
+    rd <- S4Vectors::DataFrame(rd)
+    rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
+    rd$Ranges <- rmsk_grl[rownames(rd)]
+
+    rd_file <- .newResource(
+        bfc,
+        species,
+        "rmsk-rowData.rds",
+        ".rds",
+        exclude,
+        min_len
+    )
+    message("Writing out rowData to: ", rd_file)
+    saveRDS(rd, rd_file)
+    message("Done.")
+
+    return(invisible(NULL))
 }

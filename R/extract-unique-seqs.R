@@ -10,60 +10,60 @@
 #' @import data.table
 #' @keywords internal
 .extractUniqueRecords <- function(rmsk_bed, genome_fa, chunk_size = 1e5) {
-  message("Reading in the BED file...")
-  bed <- data.table::fread(
-    rmsk_bed,
-    header = FALSE,
-    select = c(1:4, 6),
-    col.names = c("seqnames", "start", "end", "RepName", "strand")
-  )
-
-  message("Reading in the genome fasta...")
-  fa <- ShortRead::readFasta(genome_fa)
-  genome <- ShortRead::sread(fa)
-  names(genome) <- sub(" .*", "", as.character(ShortRead::id(fa)))
-  rm(fa)
-
-  # Like bedtools getfasta, skip records not contained in the genome
-  chrom_len <- Biostrings::width(genome)[match(bed$seqnames, names(genome))]
-  in_bounds <- !is.na(chrom_len) & bed$end <= chrom_len
-  if (!all(in_bounds)) {
-    warning(
-      sum(!in_bounds),
-      " records not contained in the genome were skipped",
-      call. = FALSE
+    message("Reading in the BED file...")
+    bed <- data.table::fread(
+        rmsk_bed,
+        header = FALSE,
+        select = c(1:4, 6),
+        col.names = c("seqnames", "start", "end", "RepName", "strand")
     )
-    bed <- bed[in_bounds]
-  }
 
-  message("Extracting RepeatMasker sequences...")
-  seqs <- Biostrings::subseq(
-    genome[bed$seqnames],
-    start = bed$start + 1L,
-    end = bed$end
-  )
-  minus <- bed$strand == "-"
-  seqs[minus] <- Biostrings::reverseComplement(seqs[minus])
+    message("Reading in the genome fasta...")
+    fa <- ShortRead::readFasta(genome_fa)
+    genome <- ShortRead::sread(fa)
+    names(genome) <- sub(" .*", "", as.character(ShortRead::id(fa)))
+    rm(fa)
 
-  message("Hashing RepeatMasker sequences and checking for duplicates...")
-  sha1 <- digest::getVDigest("sha1")
-  chunks <- split(seq_along(seqs), ceiling(seq_along(seqs) / chunk_size))
-  bed[,
-    Hash := unlist(
-      lapply(chunks, function(i) {
-        sha1(as.character(seqs[i]), serialize = FALSE)
-      }),
-      use.names = FALSE
+    # Like bedtools getfasta, skip records not contained in the genome
+    chrom_len <- Biostrings::width(genome)[match(bed$seqnames, names(genome))]
+    in_bounds <- !is.na(chrom_len) & bed$end <= chrom_len
+    if (!all(in_bounds)) {
+        warning(
+            sum(!in_bounds),
+            " records not contained in the genome were skipped",
+            call. = FALSE
+        )
+        bed <- bed[in_bounds]
+    }
+
+    message("Extracting RepeatMasker sequences...")
+    seqs <- Biostrings::subseq(
+        genome[bed$seqnames],
+        start = bed$start + 1L,
+        end = bed$end
     )
-  ]
+    minus <- bed$strand == "-"
+    seqs[minus] <- Biostrings::reverseComplement(seqs[minus])
 
-  first <- !duplicated(bed$Hash)
-  uniq_seqs <- seqs[first]
-  names(uniq_seqs) <- bed$Hash[first]
+    message("Hashing RepeatMasker sequences and checking for duplicates...")
+    sha1 <- digest::getVDigest("sha1")
+    chunks <- split(seq_along(seqs), ceiling(seq_along(seqs) / chunk_size))
+    bed[,
+        Hash := unlist(
+            lapply(chunks, function(i) {
+                sha1(as.character(seqs[i]), serialize = FALSE)
+            }),
+            use.names = FALSE
+        )
+    ]
 
-  info <- bed[, .(Hash, RepName, seqnames, strand, start, end)]
+    first <- !duplicated(bed$Hash)
+    uniq_seqs <- seqs[first]
+    names(uniq_seqs) <- bed$Hash[first]
 
-  return(list(seqs = uniq_seqs, info = info))
+    info <- bed[, .(Hash, RepName, seqnames, strand, start, end)]
+
+    return(list(seqs = uniq_seqs, info = info))
 }
 
 
@@ -79,8 +79,10 @@
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
 #' excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
-#' @param min_len Minimum sequence length of a record used by \code{rmskToBed()}.
+#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+#' "Unknown".
+#' @param min_len Minimum sequence length of a record used by
+#' \code{rmskToBed()}.
 #' Default 32.
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
@@ -94,59 +96,62 @@
 #' extractUniqueSeqs(species = "Hs")
 #' }
 extractUniqueSeqs <- function(
-  species = c("Hs", "Mm"),
-  exclude = .DEFAULT_EXCLUDE,
-  min_len = 32,
-  cache = NULL
+    species = c("Hs", "Mm"),
+    exclude = .DEFAULT_EXCLUDE,
+    min_len = 32,
+    cache = NULL
 ) {
-  species <- match.arg(species)
+    species <- match.arg(species)
 
-  bfc <- .getCache(cache)
-  genome_fa <- .getResource(
-    bfc,
-    species,
-    "genome",
-    hint = "Run downloadResources() first."
-  )
-  rmsk_bed <- .getResource(
-    bfc,
-    species,
-    "rmsk.bed",
-    exclude,
-    min_len,
-    hint = "Run rmskToBed() with the same species, exclude, and min_len first."
-  )
+    bfc <- .getCache(cache)
+    genome_fa <- .getResource(
+        bfc,
+        species,
+        "genome",
+        hint = "Run downloadResources() first."
+    )
+    rmsk_bed <- .getResource(
+        bfc,
+        species,
+        "rmsk.bed",
+        exclude,
+        min_len,
+        hint = paste(
+            "Run rmskToBed() with the same species, exclude, and min_len",
+            "first."
+        )
+    )
 
-  res <- .extractUniqueRecords(rmsk_bed, genome_fa)
+    res <- .extractUniqueRecords(rmsk_bed, genome_fa)
 
-  out_fa <- .newResource(
-    bfc,
-    species,
-    "rmsk-unique.fa.gz",
-    ".fa.gz",
-    exclude,
-    min_len
-  )
-  message("Writing unique RepeatMasker sequences to: ", out_fa)
-  # Write sequences on a single line where possible. Biostrings caps the line
-  # width at 200001
-  Biostrings::writeXStringSet(
-    res$seqs,
-    out_fa,
-    compress = TRUE,
-    width = min(max(Biostrings::width(res$seqs), 1L), 200001L)
-  )
+    out_fa <- .newResource(
+        bfc,
+        species,
+        "rmsk-unique.fa.gz",
+        ".fa.gz",
+        exclude,
+        min_len
+    )
+    message("Writing unique RepeatMasker sequences to: ", out_fa)
+    # Write sequences on a single line where possible. Biostrings caps the line
+    # width at 200001
+    Biostrings::writeXStringSet(
+        res$seqs,
+        out_fa,
+        compress = TRUE,
+        width = min(max(Biostrings::width(res$seqs), 1L), 200001L)
+    )
 
-  out_info <- .newResource(
-    bfc,
-    species,
-    "rmsk-duplicateInfo.rds",
-    ".rds",
-    exclude,
-    min_len
-  )
-  message("Writing duplicate information to: ", out_info)
-  saveRDS(res$info, out_info)
+    out_info <- .newResource(
+        bfc,
+        species,
+        "rmsk-duplicateInfo.rds",
+        ".rds",
+        exclude,
+        min_len
+    )
+    message("Writing duplicate information to: ", out_info)
+    saveRDS(res$info, out_info)
 
-  return(invisible(NULL))
+    return(invisible(NULL))
 }

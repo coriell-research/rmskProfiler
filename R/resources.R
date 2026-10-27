@@ -33,74 +33,74 @@
 #' listResources(species = "Hs")
 #' }
 listResources <- function(species = NULL, cache = NULL) {
-  if (!is.null(species)) {
-    species <- match.arg(species, c("Hs", "Mm"))
-  }
-  bfc <- .getCache(cache)
+    if (!is.null(species)) {
+        species <- match.arg(species, c("Hs", "Mm"))
+    }
+    bfc <- .getCache(cache)
 
-  info <- as.data.frame(BiocFileCache::bfcinfo(bfc))
-  info <- info[
-    startsWith(info$rname, "rmskProfiler:"),
-    c("rid", "rname", "rpath", "create_time")
-  ]
+    info <- as.data.frame(BiocFileCache::bfcinfo(bfc))
+    info <- info[
+        startsWith(info$rname, "rmskProfiler:"),
+        c("rid", "rname", "rpath", "create_time")
+    ]
 
-  # Resource names are "rmskProfiler:<species>[:<build>]:<file>"
-  parts <- strsplit(info$rname, ":", fixed = TRUE)
-  info$species <- vapply(parts, `[`, character(1), 2L)
-  info$build <- vapply(
-    parts,
-    function(x) if (length(x) == 4L) x[3L] else NA_character_,
-    character(1)
-  )
-  file <- vapply(parts, function(x) x[length(x)], character(1))
+    # Resource names are "rmskProfiler:<species>[:<build>]:<file>"
+    parts <- strsplit(info$rname, ":", fixed = TRUE)
+    info$species <- vapply(parts, `[`, character(1), 2L)
+    info$build <- vapply(
+        parts,
+        function(x) if (length(x) == 4L) x[3L] else NA_character_,
+        character(1)
+    )
+    file <- vapply(parts, function(x) x[length(x)], character(1))
 
-  gencode <- rbind(.gencodeResources("Hs"), .gencodeResources("Mm"))
-  is_download <- file %in% gencode$file
-  info$resource <- file
-  info$resource[is_download] <- gencode$type[match(
-    file[is_download],
-    gencode$file
-  )]
-  info$type <- ifelse(
-    is_download,
-    "download",
-    ifelse(is.na(info$build), "annotation", "build")
-  )
+    gencode <- rbind(.gencodeResources("Hs"), .gencodeResources("Mm"))
+    is_download <- file %in% gencode$file
+    info$resource <- file
+    info$resource[is_download] <- gencode$type[match(
+        file[is_download],
+        gencode$file
+    )]
+    info$type <- ifelse(
+        is_download,
+        "download",
+        ifelse(is.na(info$build), "annotation", "build")
+    )
 
-  meta <- .readMeta(bfc)
-  info <- merge(
-    info,
-    meta[, c("rid", "exclude", "min_len")],
-    by = "rid",
-    all.x = TRUE
-  )
-  info$size_mb <- round(file.size(info$rpath) / 1e6, 1)
+    meta <- .readMeta(bfc)
+    info <- merge(
+        info,
+        meta[, c("rid", "exclude", "min_len")],
+        by = "rid",
+        all.x = TRUE
+    )
+    info$size_mb <- round(file.size(info$rpath) / 1e6, 1)
 
-  if (!is.null(species)) {
-    info <- info[info$species == species, ]
-  }
-  info <- info[
-    order(
-      info$species,
-      match(info$type, c("download", "annotation", "build")),
-      info$build,
-      info$resource
-    ),
-  ]
+    if (!is.null(species)) {
+        info <- info[info$species == species, ]
+    }
+    info <- info[
+        order(
+            info$species,
+            match(info$type, c("download", "annotation", "build")),
+            info$build,
+            info$resource
+        ),
+    ]
 
-  result <- data.frame(
-    species = info$species,
-    type = info$type,
-    build = info$build,
-    exclude = info$exclude,
-    min_len = info$min_len,
-    resource = info$resource,
-    size_mb = info$size_mb,
-    created = info$create_time,
-    path = info$rpath
-  )
+    result <- data.frame(
+        species = info$species,
+        type = info$type,
+        build = info$build,
+        exclude = info$exclude,
+        min_len = info$min_len,
+        resource = info$resource,
+        size_mb = info$size_mb,
+        created = info$create_time,
+        path = info$rpath
+    )
 
-  return(result)
+    return(result)
 }
 
 
@@ -137,31 +137,31 @@ listResources <- function(species = NULL, cache = NULL) {
 #' rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs"))
 #' }
 getResource <- function(
-  resource,
-  species = c("Hs", "Mm"),
-  exclude = .DEFAULT_EXCLUDE,
-  min_len = 32,
-  cache = NULL
-) {
-  resource <- match.arg(
     resource,
-    c("gtf", "transcripts", "genome", "annotation.txdb", .BUILD_FILES)
-  )
-  species <- match.arg(species)
-
-  hint <- if (resource %in% c("gtf", "transcripts", "genome")) {
-    "Run downloadResources() first."
-  } else if (resource == "annotation.txdb") {
-    "Run createAnnotation() first."
-  } else {
-    paste(
-      "Check that exclude and min_len match the values used to build the",
-      "index, or run generateIndex() first. Use listResources() to see the",
-      "available builds."
+    species = c("Hs", "Mm"),
+    exclude = .DEFAULT_EXCLUDE,
+    min_len = 32,
+    cache = NULL
+) {
+    resource <- match.arg(
+        resource,
+        c("gtf", "transcripts", "genome", "annotation.txdb", .BUILD_FILES)
     )
-  }
+    species <- match.arg(species)
 
-  .getResource(.getCache(cache), species, resource, exclude, min_len, hint)
+    hint <- if (resource %in% c("gtf", "transcripts", "genome")) {
+        "Run downloadResources() first."
+    } else if (resource == "annotation.txdb") {
+        "Run createAnnotation() first."
+    } else {
+        paste(
+            "Check that exclude and min_len match the values used to build",
+            "the index, or run generateIndex() first. Use listResources() to",
+            "see the available builds."
+        )
+    }
+
+    .getResource(.getCache(cache), species, resource, exclude, min_len, hint)
 }
 
 
@@ -197,44 +197,44 @@ getResource <- function(
 #' removeResources(species = "Hs", downloads = TRUE)
 #' }
 removeResources <- function(
-  species = c("Hs", "Mm"),
-  exclude = .DEFAULT_EXCLUDE,
-  min_len = 32,
-  downloads = FALSE,
-  cache = NULL
+    species = c("Hs", "Mm"),
+    exclude = .DEFAULT_EXCLUDE,
+    min_len = 32,
+    downloads = FALSE,
+    cache = NULL
 ) {
-  species <- match.arg(species)
-  bfc <- .getCache(cache)
+    species <- match.arg(species)
+    bfc <- .getCache(cache)
 
-  resources <- .BUILD_FILES
-  if (isTRUE(downloads)) {
-    resources <- c(
-      resources,
-      .gencodeResources(species)$type,
-      "annotation.txdb"
+    resources <- .BUILD_FILES
+    if (isTRUE(downloads)) {
+        resources <- c(
+            resources,
+            .gencodeResources(species)$type,
+            "annotation.txdb"
+        )
+    }
+    rnames <- vapply(
+        resources,
+        .resourceRname,
+        character(1),
+        species = species,
+        exclude = exclude,
+        min_len = min_len,
+        USE.NAMES = FALSE
     )
-  }
-  rnames <- vapply(
-    resources,
-    .resourceRname,
-    character(1),
-    species = species,
-    exclude = exclude,
-    min_len = min_len,
-    USE.NAMES = FALSE
-  )
 
-  info <- BiocFileCache::bfcinfo(bfc)
-  hits <- info$rname %in% rnames
-  if (!any(hits)) {
-    message("No matching resources found in the cache.")
-    return(invisible(character()))
-  }
+    info <- BiocFileCache::bfcinfo(bfc)
+    hits <- info$rname %in% rnames
+    if (!any(hits)) {
+        message("No matching resources found in the cache.")
+        return(invisible(character()))
+    }
 
-  removed <- info$rname[hits]
-  BiocFileCache::bfcremove(bfc, info$rid[hits])
-  .writeMeta(bfc, .readMeta(bfc))
-  message("Removed ", length(removed), " resources from the cache.")
+    removed <- info$rname[hits]
+    BiocFileCache::bfcremove(bfc, info$rid[hits])
+    .writeMeta(bfc, .readMeta(bfc))
+    message("Removed ", length(removed), " resources from the cache.")
 
-  return(invisible(removed))
+    return(invisible(removed))
 }

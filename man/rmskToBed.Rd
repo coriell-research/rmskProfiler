@@ -14,7 +14,8 @@ rmskToBed(
 \arguments{
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
-\item{exclude}{A character vector specifying which elements to exclude from the
+\item{exclude}{A character vector specifying which elements to exclude from
+the
 resulting BEd file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
@@ -26,11 +27,15 @@ Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 }
 \description{
-This function queries AnnotationHub for UCSC RepeatMasker annotations and removes all records
+This function queries AnnotationHub for UCSC RepeatMasker annotations and
+removes all records
 shorter than 31 bp, records derived from the following elements
-"Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
-"tRNA", "Unknown" and records not located in standard chromosomes. The extracted ranges are
-then saved to a BED file ("rmsk.bed") in the rmskProfiler cache for downstream processing.
+"Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
+"scRNA", "srpRNA",
+"tRNA", "Unknown" and records not located in standard chromosomes. The
+extracted ranges are
+then saved to a BED file ("rmsk.bed") in the rmskProfiler cache for
+downstream processing.
 }
 \details{
 The RepeatMasker annotations used are:

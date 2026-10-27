@@ -19,22 +19,27 @@ generateIndex(
 \item{index_dir}{Directory in which to create the Salmon index. All other
 resources are saved to the rmskProfiler cache.}
 
-\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating which
+\item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
+which
 species to download resources for}
 
-\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE files after downloading}
+\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE
+files after downloading}
 
-\item{exclude}{A character vector specifying which elements (repClass) to exclude from the
+\item{exclude}{A character vector specifying which elements (repClass) to
+exclude from the
 resulting BED file. Default "Simple_repeat", "Low_complexity", "Satellite",
 "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
 shorter than this length are excluded from the resulting BED file and index.}
 
-\item{create_index}{TRUE/FALSE Create salmon index after generating resources? Default TRUE.
+\item{create_index}{TRUE/FALSE Create salmon index after generating
+resources? Default TRUE.
 This assumes that "salmon" is available on your PATH}
 
-\item{threads}{Number of threads to use for salmon index generation. Default 1}
+\item{threads}{Number of threads to use for salmon index generation. Default
+1}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
@@ -51,11 +56,15 @@ RepeatMasker elements + a genomic decoy. It does so by calling the following
 functions:
 
 \itemize{
-\item{"downloadResources()"}{Downloads all neccessary files for downstream processing}
+\item{"downloadResources()"}{Downloads all neccessary files for downstream
+processing}
 \item{"rmskToBed()"}{Extracts and filters RepeatMasker to BED file}
-\item{"extractUniqueSeqs()"}{Extracts all unique RepeatMasker sequences from the genome}
-\item{"createAnnotation()"}{Creates annotations of all TE loci with respect to annotations in GTF}
-\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon index and calls 'Salmon index'}
+\item{"extractUniqueSeqs()"}{Extracts all unique RepeatMasker sequences from
+the genome}
+\item{"createAnnotation()"}{Creates annotations of all TE loci with respect
+to annotations in GTF}
+\item{"createGentrome()"}{Creates the files needed for decoy-aware Salmon
+index and calls 'Salmon index'}
 }
 }
 \examples{
