@@ -50,7 +50,8 @@ on your `PATH`. Importing and analysing quantifications does not.
 
 ## Quick start
 
-The whole workflow for human RNA-seq samples takes four steps:
+The whole workflow for human RNA-seq samples takes three steps, plus an
+optional fourth:
 
 ```{r, eval = FALSE}
 library(rmskProfiler)
@@ -77,12 +78,17 @@ salmonQuant(
 #    SummarizedExperiment, with counts scaled for multi-mapping uncertainty
 se <- importQuants("quants", species = "Hs")
 
-# 4. Sum transcripts to genes and TE loci to subfamilies
+# 4. (Optional) Sum transcripts to genes and TE loci to subfamilies
 aggregated <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
 
 # Inspect, locate, or remove the cached files
 listResources()
 ```
+
+Aggregation is not required for differential expression analysis. Both `se`
+and `aggregated` are standard `SummarizedExperiment` objects that can be used
+directly with Bioconductor packages for differential expression testing, such
+as edgeR and limma.
 
 By default, RepeatMasker records shorter than 32 bp and those with classes
 "Simple_repeat", "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA",
