@@ -145,16 +145,14 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' se <- importQuants("quants", species = "Hs")
+#' bfc <- exampleCache(build = TRUE)
+#' se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
 #' rt <- estimateReadThrough(se)
 #'
-#' # Allow autonomous expression to differ between treatments
-#' rt <- estimateReadThrough(se, group = se$treatment)
-#'
-#' # Or use any design matrix, as for edgeR or limma
-#' design <- model.matrix(~ treatment + batch, data = colData(se))
-#' rt <- estimateReadThrough(se, design = design)
+#' # Allow autonomous expression to differ between groups. A design matrix,
+#' # e.g. from model.matrix(), can be passed to design instead
+#' group <- factor(sub("_.*", "", colnames(se)))
+#' rt <- estimateReadThrough(se, group = group)
 #'
 #' # TEs whose counts are mostly explained by read-through
 #' subset(rt, padj_readthrough < 0.05 & rt_fraction > 0.8)
@@ -163,13 +161,12 @@
 #' subset(rt, padj_autonomous < 0.05)
 #'
 #' # Fitted read-through counts per sample
-#' readthrough <- attr(rt, "readthrough")
+#' head(attr(rt, "readthrough"))
 #'
 #' # The Hash column matches rownames(se) so it can be used to remove TEs whose
 #' # counts are mostly explained by read-through before downstream analysis
 #' drop <- rt$Hash[which(rt$padj_readthrough < 0.05 & rt$rt_fraction > 0.8)]
 #' filtered <- se[!rownames(se) %in% drop, ]
-#' }
 estimateReadThrough <- function(
     x,
     level = c("gene", "transcript"),
@@ -196,7 +193,7 @@ estimateReadThrough <- function(
     }
 
     # TE loci ------------------------------------------------------------------
-    te_loci <- unlist(rd$Ranges[is_te])
+    te_loci <- .unlistRanges(rd$Ranges[is_te])
     te_hash <- names(te_loci)
     names(te_loci) <- NULL
     te_width <- GenomicRanges::width(te_loci)
@@ -212,7 +209,7 @@ estimateReadThrough <- function(
 
     # Host spans and expression ------------------------------------------------
     tx_ids <- rownames(x)[is_tx]
-    tx_span <- unlist(rd$Ranges[is_tx])
+    tx_span <- .unlistRanges(rd$Ranges[is_tx])
 
     if (level == "transcript") {
         host_span <- tx_span
@@ -1137,4 +1134,22 @@ estimateReadThrough <- function(
     r[!is.finite(r)] <- NA_real_
 
     return(r)
+}
+
+
+#' Unlist a GRangesList naming each range by its list element
+#'
+#' \code{unlist()} combines outer and inner names (e.g. "hash.hash") when the
+#' ranges themselves are named, as they are in rowData created by older
+#' versions of \code{createAnnotation()}.
+#'
+#' @param x GRangesList
+#'
+#' @return GRanges named by the names of \code{x}
+#' @keywords internal
+.unlistRanges <- function(x) {
+    gr <- unlist(x, use.names = FALSE)
+    names(gr) <- rep(names(x), lengths(x))
+
+    gr
 }

@@ -33,8 +33,15 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' createGentrome(species = "Hs", index_dir = "/path/to/rmsk-salmon_index")
+#' # Create the gentrome and decoys for the example data
+#' bfc <- exampleCache(build = TRUE)
+#' createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
+#' getResource("decoys.txt", species = "Hs", cache = bfc)
+#'
+#' # Also create the Salmon index if Salmon is available
+#' if (nzchar(Sys.which("salmon"))) {
+#'     index_dir <- tempfile("index")
+#'     createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
 #' }
 createGentrome <- function(
     species = c("Hs", "Mm"),

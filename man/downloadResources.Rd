@@ -35,7 +35,9 @@ sequences, primary assembly, and annotation GTF. Files that already exist in
 the cache are not downloaded again.
 }
 \examples{
-\dontrun{
-downloadResources(species = "Hs")
-}
+# The example cache already contains (example) GENCODE files, so nothing
+# is downloaded. With the default cache, downloadResources(species = "Hs")
+# downloads the GENCODE v48 files.
+bfc <- exampleCache()
+downloadResources(species = "Hs", check_integrity = FALSE, cache = bfc)
 }

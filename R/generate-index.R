@@ -42,6 +42,8 @@
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
+#' @param rmsk NULL (default) or a GRanges of RepeatMasker records passed to
+#' \code{rmskToBed()}.
 #'
 #' @return Invisibly \code{NULL}. Called for its side effect of creating all
 #' resources in the cache and, if \code{create_index = TRUE}, the Salmon index
@@ -49,10 +51,21 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' # Run pipeline for downloading and creating Salmon index and annotations
-#' generateIndex(index_dir = "hg38-salmon_index", species = "Hs")
-#' }
+#' # Run the whole pipeline on the example data. With the default cache,
+#' # generateIndex("hg38-salmon_index", species = "Hs") builds the full index.
+#' bfc <- exampleCache()
+#' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+#'     package = "rmskProfiler"
+#' ))
+#' generateIndex(
+#'     index_dir = tempfile("index"),
+#'     species = "Hs",
+#'     check_integrity = FALSE,
+#'     create_index = nzchar(Sys.which("salmon")),
+#'     cache = bfc,
+#'     rmsk = rmsk
+#' )
+#' listResources(cache = bfc)
 generateIndex <- function(
     index_dir,
     species = c("Hs", "Mm"),
@@ -61,7 +74,8 @@ generateIndex <- function(
     min_len = 32,
     create_index = TRUE,
     threads = 1,
-    cache = NULL
+    cache = NULL,
+    rmsk = NULL
 ) {
     species <- match.arg(species)
     bfc <- .getCache(cache)
@@ -77,7 +91,8 @@ generateIndex <- function(
         species = species,
         exclude = exclude,
         min_len = min_len,
-        cache = bfc
+        cache = bfc,
+        rmsk = rmsk
     )
     message("Extracting unique rmsk sequences from genome ---------------")
     extractUniqueSeqs(

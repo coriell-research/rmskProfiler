@@ -78,3 +78,10 @@ annotations. By default, \code{importQuants()} will exclude these transcripts
 from the resulting object. The exclusion criteria a transcript where any of
 its ranges does not lie within a standard chromosome will be excluded.
 }
+\examples{
+# Import the example quants using the annotation built from the example data
+bfc <- exampleCache(build = TRUE)
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
+se
+head(SummarizedExperiment::rowData(se)[, c("gene_name", "Hash", "N_Loci")])
+}

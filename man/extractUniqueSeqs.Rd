@@ -41,7 +41,16 @@ saved as rmsk-duplicateInfo.rds is also saved to the cache which maps SHA1
 hash values of sequences to records in the BED file.
 }
 \examples{
-\dontrun{
-extractUniqueSeqs(species = "Hs")
-}
+bfc <- exampleCache()
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
+extractUniqueSeqs(species = "Hs", cache = bfc)
+
+# Loci with identical sequences share a hash
+info <- readRDS(
+    getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
+)
+head(info)
 }

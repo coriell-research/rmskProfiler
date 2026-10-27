@@ -40,11 +40,12 @@ GENCODE downloads and the TxDb created from them can also be removed. The
 Salmon index is not stored in the cache and is not removed.
 }
 \examples{
-\dontrun{
-# Remove files generated with non-default settings
-removeResources(species = "Hs", min_len = 50)
+bfc <- exampleCache(build = TRUE)
 
-# Remove everything for the default build, including downloads
-removeResources(species = "Hs", downloads = TRUE)
-}
+# Remove the files generated for the default build
+removeResources(species = "Hs", cache = bfc)
+
+# Remove everything, including downloads
+removeResources(species = "Hs", downloads = TRUE, cache = bfc)
+listResources(cache = bfc)
 }

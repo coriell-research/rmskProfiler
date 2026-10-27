@@ -37,8 +37,7 @@ identifying these settings.}
 The Salmon index is not stored in the cache and is not listed.
 }
 \examples{
-\dontrun{
-listResources()
-listResources(species = "Hs")
-}
+bfc <- exampleCache(build = TRUE)
+listResources(cache = bfc)
+listResources(species = "Hs", cache = bfc)
 }

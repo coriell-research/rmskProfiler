@@ -12,7 +12,8 @@ generateIndex(
   min_len = 32,
   create_index = TRUE,
   threads = 1,
-  cache = NULL
+  cache = NULL,
+  rmsk = NULL
 )
 }
 \arguments{
@@ -44,6 +45,9 @@ This assumes that "salmon" is available on your PATH}
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
+
+\item{rmsk}{NULL (default) or a GRanges of RepeatMasker records passed to
+\code{rmskToBed()}.}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of creating all
@@ -73,8 +77,19 @@ Salmon index and calls 'Salmon index'}
 }
 }
 \examples{
-\dontrun{
-# Run pipeline for downloading and creating Salmon index and annotations
-generateIndex(index_dir = "hg38-salmon_index", species = "Hs")
-}
+# Run the whole pipeline on the example data. With the default cache,
+# generateIndex("hg38-salmon_index", species = "Hs") builds the full index.
+bfc <- exampleCache()
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+generateIndex(
+    index_dir = tempfile("index"),
+    species = "Hs",
+    check_integrity = FALSE,
+    create_index = nzchar(Sys.which("salmon")),
+    cache = bfc,
+    rmsk = rmsk
+)
+listResources(cache = bfc)
 }

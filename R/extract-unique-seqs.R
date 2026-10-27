@@ -94,9 +94,18 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' extractUniqueSeqs(species = "Hs")
-#' }
+#' bfc <- exampleCache()
+#' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+#'     package = "rmskProfiler"
+#' ))
+#' rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
+#' extractUniqueSeqs(species = "Hs", cache = bfc)
+#'
+#' # Loci with identical sequences share a hash
+#' info <- readRDS(
+#'     getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
+#' )
+#' head(info)
 extractUniqueSeqs <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,

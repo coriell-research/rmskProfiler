@@ -29,29 +29,27 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' # Quantify example reads against the index built from the example data.
+#' # Salmon must be available on your PATH.
+#' if (nzchar(Sys.which("salmon"))) {
+#'     bfc <- exampleCache(build = TRUE)
+#'     index_dir <- tempfile("index")
+#'     createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
 #'
-#' # Specify paths to fastq files and names of the samples
-#' fq1 <- c("sample1.R1.fq.gz", "sample2.R1.fq.gz", "sample3.R1.fq.gz")
-#' fq2 <- c("sample1.R2.fq.gz", "sample2.R2.fq.gz", "sample3.R2.fq.gz")
-#' sample_names <- c("sample1", "sample2", "sample3")
+#'     fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
+#'     out_dir <- tempfile("quants")
 #'
-#' # Perform with all default settings -- probably not recommended
-#' salmonQuant(fq1, fq2, sample_names, index_dir = "hg38-salmon_index", out_dir = "quants")
-#'
-#' # More often though we will want to pass additional arguments to Salmon
-#' # We can do so by providing additoinal flags as a character strings
-#' salmonQuant(
-#'   fq1 = fq1,
-#'   fq2 = fq2,
-#'   sample_names = sample_names,
-#'   index_dir = "hg38-salmon_index",
-#'   out_dir = "quants",
-#'   "--gcBias",
-#'   "--seqBias",
-#'   "--posBias",
-#'   "--threads 12"
-#'   )
+#'     # Additional arguments are passed to Salmon as character strings
+#'     salmonQuant(
+#'         fq1 = file.path(fq_dir, "ctrl_1_R1.fq.gz"),
+#'         fq2 = file.path(fq_dir, "ctrl_1_R2.fq.gz"),
+#'         sample_names = "ctrl_1",
+#'         index_dir = index_dir,
+#'         out_dir = out_dir,
+#'         n_gibbs = 2,
+#'         "--threads 2"
+#'     )
+#'     list.files(out_dir)
 #' }
 salmonQuant <- function(
     fq1,

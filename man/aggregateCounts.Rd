@@ -42,13 +42,13 @@ members
 of the aggregated group, or the locus length if te_level is "locus".
 }
 \examples{
-\dontrun{
-se <- importQuants("quants", species = "Hs")
+bfc <- exampleCache(build = TRUE)
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
 
 # Aggregate transcripts to genes, keep TE loci intact
-aggregated_locus <- aggregateCounts(se, species = "Hs", te_level = "locus")
+locus <- aggregateCounts(se, "Hs", te_level = "locus", cache = bfc)
 
 # Aggregate transcripts to genes, TEs to subfamily
-aggregated_sub <- aggregateCounts(se, species = "Hs", te_level = "subfamily")
-}
+subfamily <- aggregateCounts(se, "Hs", te_level = "subfamily", cache = bfc)
+subfamily
 }

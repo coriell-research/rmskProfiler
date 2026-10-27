@@ -56,6 +56,12 @@
 #' @return SummarizedExperiment
 #' @export
 #'
+#' @examples
+#' # Import the example quants using the annotation built from the example data
+#' bfc <- exampleCache(build = TRUE)
+#' se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
+#' se
+#' head(SummarizedExperiment::rowData(se)[, c("gene_name", "Hash", "N_Loci")])
 importQuants <- function(
     quant_dir,
     species = c("Hs", "Mm"),

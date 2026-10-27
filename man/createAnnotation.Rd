@@ -40,7 +40,15 @@ features they overlap. Overlap annotations are generated with respect to the
 downloaded gencode GTF file.
 }
 \examples{
-\dontrun{
-createAnnotation(species = "Hs")
-}
+# Build the annotation for the example data
+bfc <- exampleCache()
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
+extractUniqueSeqs(species = "Hs", cache = bfc)
+createAnnotation(species = "Hs", cache = bfc)
+
+rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))
+rd[!is.na(rd$Hash), c("Subfamily", "N_Loci", "hasIntronic")]
 }

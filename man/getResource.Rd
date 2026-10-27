@@ -41,11 +41,12 @@ Returns the local path to a downloaded or generated resource so that it can
 be used outside of rmskProfiler.
 }
 \examples{
-\dontrun{
-# Path to the GENCODE GTF used to build the index
-getResource("gtf", species = "Hs")
+bfc <- exampleCache(build = TRUE)
+
+# Path to the GTF used to build the index
+getResource("gtf", species = "Hs", cache = bfc)
 
 # Read in the TE and transcript annotations
-rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs"))
-}
+rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))
+head(rd)
 }

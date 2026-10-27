@@ -15,8 +15,13 @@ Roxygen: list(markdown = TRUE)
 Depends: 
     R (>= 4.6.0)
 Suggests: 
+    BiocStyle,
+    devtools,
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+VignetteBuilder: knitr
 biocViews: Software, RNASeq, Transcriptomics, GeneExpression, Sequencing,
     Annotation, Alignment
 SystemRequirements: Salmon (>= 1.10.0)

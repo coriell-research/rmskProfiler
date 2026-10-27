@@ -218,9 +218,17 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' createAnnotation(species = "Hs")
-#' }
+#' # Build the annotation for the example data
+#' bfc <- exampleCache()
+#' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+#'     package = "rmskProfiler"
+#' ))
+#' rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
+#' extractUniqueSeqs(species = "Hs", cache = bfc)
+#' createAnnotation(species = "Hs", cache = bfc)
+#'
+#' rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))
+#' rd[!is.na(rd$Hash), c("Subfamily", "N_Loci", "hasIntronic")]
 createAnnotation <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,
@@ -325,8 +333,8 @@ createAnnotation <- function(
     tx <- methods::as(tx, "GRangesList")
     rmsk_grl <- c(tx, grl)
 
-    # Strip redundant metadata
-    unlisted_rmsk <- unlist(rmsk_grl)
+    # Strip redundant metadata and names
+    unlisted_rmsk <- unlist(rmsk_grl, use.names = FALSE)
     GenomicRanges::mcols(unlisted_rmsk) <- NULL
     rmsk_grl <- BiocGenerics::relist(unlisted_rmsk, rmsk_grl)
 

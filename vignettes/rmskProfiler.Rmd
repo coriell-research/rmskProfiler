@@ -1,0 +1,264 @@
+---
+title: "Locus-level TE quantification with rmskProfiler"
+author:
+  - name: Gennaro Calendo
+    affiliation: Coriell Institute for Medical Research
+    email: gcalendo@coriell.org
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+package: rmskProfiler
+output:
+  BiocStyle::html_document:
+    toc: true
+    toc_float: true
+vignette: >
+  %\VignetteIndexEntry{Locus-level TE quantification with rmskProfiler}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+# Introduction
+
+Transposable elements (TEs) make up nearly half of the human genome, but most
+of their copies are similar enough that short reads cannot be assigned to them
+unambiguously. `r Biocpkg("rmskProfiler")` quantifies TEs at the level of
+individual loci from RNA-seq data by:
+
+1. building a [Salmon](https://salmon.readthedocs.io) index from GENCODE
+   transcripts, the unique sequences of RepeatMasker TE loci, and the genome as
+   a decoy,
+2. quantifying reads against this index with Gibbs sampling, and
+3. importing the quantifications as a `SummarizedExperiment` with the
+   overdispersion caused by multi-mapping reads removed, annotated with the
+   genomic features each TE locus overlaps.
+
+TE loci with identical sequences cannot be told apart by any read, so they are
+collapsed into a single target named by the SHA1 hash of the sequence. The
+annotation records all the loci (and their RepeatMasker classifications) that
+share each hash.
+
+# Installation
+
+```{r install, eval = FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+BiocManager::install("rmskProfiler")
+```
+
+Building the index and quantifying reads requires a recent version of
+[Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
+on your `PATH`. Importing and analysing quantifications does not.
+
+# Overview of the workflow
+
+The full workflow for human samples looks like:
+
+```{r workflow, eval = FALSE}
+library(rmskProfiler)
+
+# Download GENCODE v48, build the annotations, and create the Salmon index
+generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
+
+# Quantify reads with Gibbs sampling. Any workflow can be used as long as
+# Salmon is run with --numGibbsSamples
+salmonQuant(
+    fq1 = c("sample1.R1.fq.gz", "sample2.R1.fq.gz"),
+    fq2 = c("sample1.R2.fq.gz", "sample2.R2.fq.gz"),
+    sample_names = c("sample1", "sample2"),
+    index_dir = "hg38-salmon_index",
+    out_dir = "quants",
+    n_gibbs = 30,
+    "--gcBias",
+    "--seqBias",
+    "--threads 12"
+)
+
+# Import the transcript and TE locus counts
+se <- importQuants("quants", species = "Hs")
+```
+
+`generateIndex()` runs the following steps, which can also be run on their
+own:
+
+- `downloadResources()` downloads the GENCODE genome, transcripts, and GTF.
+- `rmskToBed()` filters the UCSC RepeatMasker annotations from
+  `r Biocpkg("AnnotationHub")`. By default, records shorter than 32 bp and
+  those with classes "Simple_repeat", "Low_complexity", "Satellite", "RNA",
+  "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown" are removed.
+- `extractUniqueSeqs()` extracts the sequence of each TE locus from the genome
+  and collapses identical sequences.
+- `createAnnotation()` annotates each unique sequence with the exons, introns,
+  UTRs, and promoters its loci overlap.
+- `createGentrome()` writes the gentrome and decoys and builds the Salmon
+  index.
+
+Downloaded and generated files are stored with `r Biocpkg("BiocFileCache")`
+(see [Managing cached resources](#managing-cached-resources)).
+
+# A worked example
+
+The package includes example data for a 1 Mb region of hg38 chr22
+(chr22:37,000,000-37,999,999): the GENCODE v48 annotations and transcripts of
+the genes in the region, the RepeatMasker records in it, and Salmon quants of 6
+simulated samples (3 "ctrl" and 3 "trt"). `exampleCache()` creates a temporary
+cache containing the example data in place of the GENCODE downloads, so every
+function can be run on it by passing the cache to the `cache` argument.
+
+## Building the annotations
+
+```{r load}
+library(rmskProfiler)
+library(SummarizedExperiment)
+```
+
+```{r build}
+bfc <- exampleCache()
+rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
+    package = "rmskProfiler"
+))
+rmsk
+
+generateIndex(
+    index_dir = tempfile("index"),
+    species = "Hs",
+    check_integrity = FALSE,
+    create_index = FALSE,
+    cache = bfc,
+    rmsk = rmsk
+)
+```
+
+With `create_index = TRUE` (the default) the Salmon index is also built in
+`index_dir`. All other files are now in the cache:
+
+```{r list}
+listResources(cache = bfc)
+```
+
+The duplicate information maps each unique sequence to the TE loci sharing it:
+
+```{r dupinfo}
+info <- readRDS(
+    getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
+)
+head(info)
+table(table(info$Hash))
+```
+
+## Importing quants
+
+`importQuants()` imports Salmon quants with Gibbs samples using a version of
+`edgeR::catchSalmon()`. Each count is divided by the overdispersion estimated
+from the Gibbs samples, which reflects the uncertainty from reads mapping to
+more than one target. The `counts` assay contains these scaled counts, which
+are suitable for differential expression analysis with
+`r Biocpkg("edgeR")` or `r Biocpkg("limma")`. The `orig` assay contains the
+original counts and `tpms` the TPMs.
+
+```{r import}
+se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
+se
+```
+
+The `rowData` contains the annotation of transcripts and TEs. TE rows are named
+by their hash and record their classification, the number of loci with that
+sequence, and indicators for the features they overlap on the same strand
+(e.g. `hasExonic`) or on either strand (e.g. `hasUnstrandedExonic`). The
+`Ranges` column contains a `GRangesList` of the loci of each TE and the exons
+of each transcript.
+
+```{r rowdata}
+rd <- rowData(se)
+te <- rd[!is.na(rd$Hash), ]
+head(te[, c("Subfamily", "Family", "Class", "N_Loci", "hasIntronic")])
+te$Ranges[[1]]
+```
+
+## Filtering and aggregating
+
+For many analyses it is useful to only keep TE loci with a single location in
+the genome that do not overlap exons or UTRs on either strand, and to sum
+counts to the gene and TE subfamily level:
+
+```{r aggregate}
+keep_te <- subset(
+    rd,
+    !is.na(Hash) &
+        !hasUnstrandedExonic &
+        !hasUnstranded3UTR &
+        !hasUnstranded5UTR &
+        N_Loci == 1,
+    select = "Hash",
+    drop = TRUE
+)
+keep_tx <- subset(
+    rd,
+    !is.na(transcript_id) & gene_type == "protein_coding",
+    select = "transcript_id",
+    drop = TRUE
+)
+filtered <- se[rownames(se) %in% c(keep_tx, keep_te), ]
+
+aggregated <- aggregateCounts(
+    filtered,
+    species = "Hs",
+    te_level = "subfamily",
+    cache = bfc
+)
+aggregated
+head(rowData(aggregated))
+```
+
+## Read-through transcription
+
+Many intronic TEs and TEs just downstream of genes are covered by reads from
+the host gene's pre-mRNA rather than being transcribed from their own
+promoters. The experimental `estimateReadThrough()` estimates the expected
+read-through for each TE from its host's expression and models each TE's
+counts as a mixture of read-through and autonomous expression. Here the
+autonomous component is allowed to differ between the groups:
+
+```{r readthrough}
+group <- factor(sub("_.*", "", colnames(se)))
+rt <- estimateReadThrough(se, group = group)
+head(rt[order(rt$padj_autonomous), c(
+    "Hash", "rt_fraction", "padj_readthrough", "padj_autonomous"
+)])
+```
+
+TEs whose counts are mostly explained by read-through can be removed before
+downstream analysis:
+
+```{r drop-readthrough}
+drop <- rt$Hash[which(rt$padj_readthrough < 0.05 & rt$rt_fraction > 0.8)]
+se_autonomous <- se[!rownames(se) %in% drop, ]
+dim(se_autonomous)
+```
+
+# Managing cached resources
+
+By default, files are stored in the rmskProfiler cache at
+`tools::R_user_dir("rmskProfiler", which = "cache")`. A different cache can be
+used by passing a path or a `BiocFileCache` object to the `cache` argument of
+any function. Files that depend on the `exclude` and `min_len` settings are
+stored separately for each combination of settings, so if you build the index
+with non-default settings, pass the same values to `importQuants()`.
+
+```{r cache}
+# Path to a cached file, e.g. to use it outside of rmskProfiler
+getResource("gtf", species = "Hs", cache = bfc)
+
+# Remove the files generated for the default build
+removeResources(species = "Hs", cache = bfc)
+listResources(cache = bfc)
+```
+
+# Session information
+
+```{r session}
+sessionInfo()
+```

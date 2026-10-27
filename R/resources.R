@@ -28,10 +28,9 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' listResources()
-#' listResources(species = "Hs")
-#' }
+#' bfc <- exampleCache(build = TRUE)
+#' listResources(cache = bfc)
+#' listResources(species = "Hs", cache = bfc)
 listResources <- function(species = NULL, cache = NULL) {
     if (!is.null(species)) {
         species <- match.arg(species, c("Hs", "Mm"))
@@ -129,13 +128,14 @@ listResources <- function(species = NULL, cache = NULL) {
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' # Path to the GENCODE GTF used to build the index
-#' getResource("gtf", species = "Hs")
+#' bfc <- exampleCache(build = TRUE)
+#'
+#' # Path to the GTF used to build the index
+#' getResource("gtf", species = "Hs", cache = bfc)
 #'
 #' # Read in the TE and transcript annotations
-#' rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs"))
-#' }
+#' rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))
+#' head(rd)
 getResource <- function(
     resource,
     species = c("Hs", "Mm"),
@@ -189,13 +189,14 @@ getResource <- function(
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' # Remove files generated with non-default settings
-#' removeResources(species = "Hs", min_len = 50)
+#' bfc <- exampleCache(build = TRUE)
 #'
-#' # Remove everything for the default build, including downloads
-#' removeResources(species = "Hs", downloads = TRUE)
-#' }
+#' # Remove the files generated for the default build
+#' removeResources(species = "Hs", cache = bfc)
+#'
+#' # Remove everything, including downloads
+#' removeResources(species = "Hs", downloads = TRUE, cache = bfc)
+#' listResources(cache = bfc)
 removeResources <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,
