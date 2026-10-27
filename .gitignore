@@ -8,3 +8,5 @@
 **/__pycache__/
 *.Rproj
 inst/doc
+vignettes/*.html
+vignettes/*_files/
