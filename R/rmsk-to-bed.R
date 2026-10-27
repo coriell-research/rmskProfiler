@@ -1,10 +1,10 @@
-#' Extract the contents of the RepeatMasker out file into BED format
+#' Filter the UCSC RepeatMasker annotations
 #'
 #' This function queries AnnotationHub for UCSC RepeatMasker annotations and
 #' removes all records shorter than \code{min_len}, records whose repClass is
 #' in \code{exclude}, and records not located in standard chromosomes. The
-#' remaining ranges are then saved to a BED file ("rmsk.bed") in the
-#' rmskProfiler cache for downstream processing.
+#' remaining records are returned as a GRanges, which can be passed to
+#' \code{extractUniqueSeqs()}.
 #'
 #' @details
 #' The RepeatMasker annotations used are:
@@ -15,38 +15,44 @@
 #' Other RepeatMasker annotations, or a subset of them, can be used instead by
 #' passing them as a GRanges to \code{rmsk}.
 #'
+#' The records can be written to a BED file with
+#' \code{rtracklayer::export.bed()}.
+#'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) to
-#' exclude from the resulting BED file. Default "Simple_repeat",
-#' "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
-#' "tRNA", and "Unknown".
+#' exclude. Default "Simple_repeat", "Low_complexity", "Satellite", "RNA",
+#' "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
 #' @param min_len Minimum sequence length of a record. Default 32. Records
-#' shorter than this length are excluded from the resulting BED file.
-#' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
-#' Default NULL uses the rmskProfiler cache at
-#' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
+#' shorter than this length are excluded.
 #' @param rmsk NULL (default) to use the AnnotationHub RepeatMasker annotations
 #' for \code{species}, or a GRanges of RepeatMasker records with metadata
 #' columns repName, repFamily, and repClass.
-#' @return Invisibly \code{NULL}. Called for its side effect of writing the
-#' filtered RepeatMasker records (rmsk.bed) to the cache.
+#' @return GRanges of the filtered RepeatMasker records with an additional
+#' metadata column, name, of the form "repName:repFamily:repClass".
 #' @export
 #'
 #' @examples
 #' # Use the RepeatMasker records shipped with the example data. With
 #' # rmsk = NULL, the full UCSC RepeatMasker annotations are retrieved from
 #' # AnnotationHub.
-#' bfc <- exampleCache()
 #' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 #'     package = "rmskProfiler"
 #' ))
-#' rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-#' listResources(cache = bfc)
+#' filtered <- rmskToBed(species = "Hs", rmsk = rmsk)
+#' filtered
+#'
+#' # Keep only LINEs and SINEs of at least 100 bp
+#' classes <- unique(rmsk$repClass)
+#' rmskToBed(
+#'     species = "Hs",
+#'     exclude = setdiff(classes, c("LINE", "SINE")),
+#'     min_len = 100,
+#'     rmsk = rmsk
+#' )
 rmskToBed <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,
     min_len = 32,
-    cache = NULL,
     rmsk = NULL
 ) {
     species <- match.arg(species)
@@ -76,9 +82,5 @@ rmskToBed <- function(
     gr <- gr[!(gr$repClass %in% exclude) & GenomicRanges::width(gr) >= min_len]
     gr$name <- paste(gr$repName, gr$repFamily, gr$repClass, sep = ":")
 
-    bfc <- .getCache(cache)
-    outfile <- .newResource(bfc, species, "rmsk.bed", ".bed", exclude, min_len)
-    rtracklayer::export.bed(gr, outfile)
-
-    return(invisible(NULL))
+    return(gr)
 }

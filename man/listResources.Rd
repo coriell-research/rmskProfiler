@@ -18,7 +18,8 @@ Default NULL uses the rmskProfiler cache at
 data.frame with columns species, type, build, exclude, min_len,
 genome, resource, size_mb, created, and path. Values in the resource column
 can be passed to \code{getResource()}, except for the "genome" and
-"transcripts" downloads of earlier versions.
+"transcripts" downloads and the "rmsk.bed" and "rmsk-unique.fa.gz" builds of
+earlier versions.
 }
 \description{
 Lists all of the downloaded and generated resources that rmskProfiler has

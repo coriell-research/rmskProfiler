@@ -114,17 +114,20 @@ own:
 
 - `downloadResources()` downloads the GENCODE GTF (v48 for human, M25 for
   mouse).
-- `rmskToBed()` filters the UCSC RepeatMasker annotations from
-  `r Biocpkg("AnnotationHub")`. By default, records shorter than 32 bp and
-  those with classes "Simple_repeat", "Low_complexity", "Satellite", "RNA",
-  "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown" are removed.
-- `extractUniqueSeqs()` extracts the sequence of each TE locus from the genome
-  and collapses identical sequences.
+- `extractUniqueSeqs()` filters the UCSC RepeatMasker annotations from
+  `r Biocpkg("AnnotationHub")` with `rmskToBed()`, extracts the sequence of
+  each TE locus from the genome, and collapses identical sequences. By
+  default, records shorter than 32 bp and those with classes "Simple_repeat",
+  "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
+  "tRNA", and "Unknown" are removed. `rmskToBed()` can also be called on its
+  own to inspect the filtered records.
 - `createAnnotation()` annotates each unique sequence with the exons, introns,
   UTRs, and promoters its loci overlap.
-- `createGentrome()` extracts the transcript sequences from the genome using
-  the exons in the GTF, writes the gentrome and decoys, and builds the Salmon
-  index.
+- `createGentrome()` extracts the transcript and unique TE sequences from the
+  genome, writes the gentrome and decoys, and builds the Salmon index. The
+  gentrome is written to a temporary file next to `index_dir` (~5.5 GB for
+  human) and removed once the index is built. With `create_index = FALSE` it
+  is instead saved to the cache so that the index can be built outside of R.
 
 The genome sequence is taken from `r Biocpkg("BSgenome.Hsapiens.UCSC.hg38")`
 or `r Biocpkg("BSgenome.Mmusculus.UCSC.mm10")`, whose chromosome names match
@@ -373,11 +376,9 @@ The cache holds three types of resources, as reported in the `type` column of
 |---|---|---|---|---|
 | `gtf` | download | `downloadResources()` | GENCODE annotation GTF | 65 MB |
 | `annotation.txdb` | annotation | `createAnnotation()` | TxDb created from the GTF, re-used by `aggregateCounts()` | 200 MB |
-| `rmsk.bed` | build | `rmskToBed()` | Filtered RepeatMasker records | 200 MB |
-| `rmsk-unique.fa.gz` | build | `extractUniqueSeqs()` | Unique TE sequences, named by their SHA1 hash | 540 MB |
 | `rmsk-duplicateInfo.rds` | build | `extractUniqueSeqs()` | Table mapping each hash to its TE loci | 150 MB |
 | `rmsk-rowData.rds` | build | `createAnnotation()` | Transcript and TE annotations used as the `rowData` by `importQuants()` | 500 MB |
-| `rmsk-gentrome.fa.gz` | build | `createGentrome()` | Transcripts, unique TEs, and genome used to build the Salmon index | 1.5 GB |
+| `rmsk-gentrome.fa.gz` | build | `createGentrome(create_index = FALSE)` | Transcripts, unique TEs, and genome for building the Salmon index outside of R. Not saved when the index is built | 1.5 GB |
 | `decoys.txt` | build | `createGentrome()` | Names of the decoy (genome) sequences | < 1 KB |
 
 The genome is not stored in the cache. It is provided by the BSgenome package
@@ -386,7 +387,9 @@ genome the TE and gentrome sequences were extracted from. Earlier versions of
 rmskProfiler also downloaded the GENCODE genome and transcript sequences. These
 are listed as `genome` and `transcripts` downloads if they are still in the
 cache, are no longer used, and are removed with
-`removeResources(downloads = TRUE)`.
+`removeResources(downloads = TRUE)`. Likewise, the `rmsk.bed` and
+`rmsk-unique.fa.gz` build files of earlier versions are no longer created and
+are removed with `removeResources()`.
 
 Downloads and the TxDb only depend on the species. Build resources also depend
 on the `exclude` and `min_len` settings and are stored separately for each

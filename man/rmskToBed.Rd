@@ -2,13 +2,12 @@
 % Please edit documentation in R/rmsk-to-bed.R
 \name{rmskToBed}
 \alias{rmskToBed}
-\title{Extract the contents of the RepeatMasker out file into BED format}
+\title{Filter the UCSC RepeatMasker annotations}
 \usage{
 rmskToBed(
   species = c("Hs", "Mm"),
   exclude = .DEFAULT_EXCLUDE,
   min_len = 32,
-  cache = NULL,
   rmsk = NULL
 )
 }
@@ -16,31 +15,26 @@ rmskToBed(
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
 \item{exclude}{A character vector specifying which elements (repClass) to
-exclude from the resulting BED file. Default "Simple_repeat",
-"Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
-"tRNA", and "Unknown".}
+exclude. Default "Simple_repeat", "Low_complexity", "Satellite", "RNA",
+"rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
-shorter than this length are excluded from the resulting BED file.}
-
-\item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
-Default NULL uses the rmskProfiler cache at
-\code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
+shorter than this length are excluded.}
 
 \item{rmsk}{NULL (default) to use the AnnotationHub RepeatMasker annotations
 for \code{species}, or a GRanges of RepeatMasker records with metadata
 columns repName, repFamily, and repClass.}
 }
 \value{
-Invisibly \code{NULL}. Called for its side effect of writing the
-filtered RepeatMasker records (rmsk.bed) to the cache.
+GRanges of the filtered RepeatMasker records with an additional
+metadata column, name, of the form "repName:repFamily:repClass".
 }
 \description{
 This function queries AnnotationHub for UCSC RepeatMasker annotations and
 removes all records shorter than \code{min_len}, records whose repClass is
 in \code{exclude}, and records not located in standard chromosomes. The
-remaining ranges are then saved to a BED file ("rmsk.bed") in the
-rmskProfiler cache for downstream processing.
+remaining records are returned as a GRanges, which can be passed to
+\code{extractUniqueSeqs()}.
 }
 \details{
 The RepeatMasker annotations used are:
@@ -50,15 +44,26 @@ AH99012 : UCSC RepeatMasker annotations (Apr2021) for Mouse (mm10)
 
 Other RepeatMasker annotations, or a subset of them, can be used instead by
 passing them as a GRanges to \code{rmsk}.
+
+The records can be written to a BED file with
+\code{rtracklayer::export.bed()}.
 }
 \examples{
 # Use the RepeatMasker records shipped with the example data. With
 # rmsk = NULL, the full UCSC RepeatMasker annotations are retrieved from
 # AnnotationHub.
-bfc <- exampleCache()
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
-rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-listResources(cache = bfc)
+filtered <- rmskToBed(species = "Hs", rmsk = rmsk)
+filtered
+
+# Keep only LINEs and SINEs of at least 100 bp
+classes <- unique(rmsk$repClass)
+rmskToBed(
+    species = "Hs",
+    exclude = setdiff(classes, c("LINE", "SINE")),
+    min_len = 100,
+    rmsk = rmsk
+)
 }

@@ -14,10 +14,10 @@ getResource(
 }
 \arguments{
 \item{resource}{Name of the resource. One of "gtf" for the GENCODE GTF,
-"annotation.txdb" for the TxDb, or one of "rmsk.bed",
-"rmsk-duplicateInfo.rds", "rmsk-unique.fa.gz", "rmsk-rowData.rds",
-"rmsk-gentrome.fa.gz", or "decoys.txt" for files generated for a specific
-build.}
+"annotation.txdb" for the TxDb, or one of "rmsk-duplicateInfo.rds",
+"rmsk-rowData.rds", "rmsk-gentrome.fa.gz", or "decoys.txt" for files
+generated for a specific build. "rmsk-gentrome.fa.gz" is only saved by
+\code{createGentrome(create_index = FALSE)}.}
 
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 

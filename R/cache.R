@@ -128,13 +128,19 @@
 #' Files generated for each combination of species and exclude/min_len settings
 #' @keywords internal
 .BUILD_FILES <- c(
-    "rmsk.bed",
     "rmsk-duplicateInfo.rds",
-    "rmsk-unique.fa.gz",
     "rmsk-rowData.rds",
     "rmsk-gentrome.fa.gz",
     "decoys.txt"
 )
+
+
+#' Build files created by earlier versions of rmskProfiler
+#'
+#' These are no longer created or used but are listed by \code{listResources()}
+#' and removed by \code{removeResources()}.
+#' @keywords internal
+.LEGACY_BUILD_FILES <- c("rmsk.bed", "rmsk-unique.fa.gz")
 
 
 #' Name of the BiocFileCache metadata table holding build information
@@ -146,7 +152,7 @@
 #'
 #' @param species Either "Hs" or "Mm"
 #' @param resource "gtf" for the GENCODE GTF, "annotation.txdb", or one of the
-#' files in \code{.BUILD_FILES}
+#' files in \code{.BUILD_FILES} or \code{.LEGACY_BUILD_FILES}
 #' @param exclude,min_len Settings used to build the resource. Required for
 #' files in \code{.BUILD_FILES}, ignored otherwise.
 #'
@@ -157,7 +163,7 @@
     if (resource %in% gencode$type) {
         return(.rname(species, gencode[resource, "file"]))
     }
-    if (resource %in% .BUILD_FILES) {
+    if (resource %in% c(.BUILD_FILES, .LEGACY_BUILD_FILES)) {
         stopifnot(!is.null(exclude), !is.null(min_len))
         return(.rname(species, resource, .settingsKey(exclude, min_len)))
     }

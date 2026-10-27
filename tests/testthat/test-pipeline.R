@@ -20,11 +20,15 @@ test_that("the example build contains annotations for transcripts and TEs", {
     expect_true(any(!is.na(rd$Hash)))
     expect_identical(rownames(rd)[!is.na(rd$Hash)], rd$Hash[!is.na(rd$Hash)])
 
-    # Every unique sequence in the fasta is annotated
-    fa <- Biostrings::readDNAStringSet(
-        getResource("rmsk-unique.fa.gz", species = "Hs", cache = bfc)
+    # Every unique sequence is annotated
+    info <- readRDS(
+        getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
     )
-    expect_setequal(names(fa), rd$Hash[!is.na(rd$Hash)])
+    expect_setequal(unique(info$Hash), rd$Hash[!is.na(rd$Hash)])
+    expect_false(any(
+        c("rmsk.bed", "rmsk-unique.fa.gz") %in%
+            listResources(cache = bfc)$resource
+    ))
 })
 
 test_that("createGentrome() writes the gentrome and decoys", {
@@ -46,12 +50,12 @@ test_that("createGentrome() writes the gentrome and decoys", {
         "fixtures",
         "transcripts-chr22.fa.gz"
     ))
-    uniq <- Biostrings::readDNAStringSet(
-        getResource("rmsk-unique.fa.gz", species = "Hs", cache = bfc)
+    info <- readRDS(
+        getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
     )
     expect_identical(
         names(gentrome),
-        c(sub("\\|.*", "", names(tx)), names(uniq), "chr22")
+        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chr22")
     )
     expect_identical(
         as.character(gentrome[seq_along(tx)]),
@@ -63,6 +67,25 @@ test_that("createGentrome() writes the gentrome and decoys", {
         ],
         .getGenome("Hs", exampleGenome())$label
     )
+})
+
+test_that("createGentrome() builds the index from a temporary gentrome", {
+    skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
+    bfc <- suppressMessages(exampleCache(build = TRUE))
+    parent <- tempfile("index-parent")
+    index_dir <- file.path(parent, "index")
+    suppressMessages(createGentrome(
+        species = "Hs",
+        index_dir = index_dir,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
+    expect_true(file.exists(file.path(index_dir, "info.json")))
+    # The gentrome is removed and not saved to the cache
+    expect_identical(list.files(parent), "index")
+    res <- listResources(cache = bfc)$resource
+    expect_true("decoys.txt" %in% res)
+    expect_false("rmsk-gentrome.fa.gz" %in% res)
 })
 
 test_that("createGentrome() warns if the TEs come from a different genome", {

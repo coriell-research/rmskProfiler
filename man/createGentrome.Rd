@@ -23,13 +23,12 @@ created.
 Only used if \code{create_index = TRUE}.}
 
 \item{exclude}{A character vector specifying which elements (repClass) were
-excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
-"Unknown".}
+excluded by \code{extractUniqueSeqs()}. Default "Simple_repeat",
+"Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
+"tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record used by
-\code{rmskToBed()}.
-Default 32.}
+\code{extractUniqueSeqs()}. Default 32.}
 
 \item{create_index}{Create salmon index after generating resources? Default
 TRUE.
@@ -49,22 +48,29 @@ file. The sequence names must match the RepeatMasker records and GTF
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of writing the
-gentrome fasta and decoys file to the cache and, if
-\code{create_index = TRUE}, creating the Salmon index in \code{index_dir}.
+decoys file to the cache and either creating the Salmon index in
+\code{index_dir} (\code{create_index = TRUE}) or writing the gentrome fasta
+to the cache (\code{create_index = FALSE}).
 }
 \description{
 This function creates the gentrome (transcripts + unique rmsk sequences +
 decoy) fasta and (optionally) the Salmon index. If index generation is
-desired then the function assumes that Salmon is on your PATH. This function
-will save a gentrome fasta file and decoys.txt file to the rmskProfiler
-cache and (optionally) create a Salmon index from these files in
-\code{index_dir}.
+desired then the function assumes that Salmon is on your PATH.
 }
 \details{
 The transcript sequences are extracted from the genome using the exons of
 each transcript in the GENCODE GTF. These are identical to the GENCODE
-transcript sequences. The primary chromosomes of the genome (chr1-22, X,
-and Y) are used as the decoys.
+transcript sequences. The unique RepeatMasker sequences are extracted from
+the genome using the duplicate information created by
+\code{extractUniqueSeqs()}. The primary chromosomes of the genome (chr1-22,
+X, and Y) are used as the decoys and their names are saved to decoys.txt in
+the rmskProfiler cache.
+
+With \code{create_index = TRUE}, the gentrome is written uncompressed to a
+temporary file next to \code{index_dir}, which needs ~5.5 GB of free space
+for human, and removed once the index is built. With
+\code{create_index = FALSE}, the gentrome is saved to the rmskProfiler cache
+as rmsk-gentrome.fa.gz so that the index can be built outside of R.
 }
 \examples{
 # Create the gentrome and decoys for the example data
@@ -75,9 +81,10 @@ createGentrome(
     cache = bfc,
     genome = exampleGenome()
 )
+getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
 getResource("decoys.txt", species = "Hs", cache = bfc)
 
-# Also create the Salmon index if Salmon is available
+# Create the Salmon index instead if Salmon is available
 if (nzchar(Sys.which("salmon"))) {
     index_dir <- tempfile("index")
     createGentrome(

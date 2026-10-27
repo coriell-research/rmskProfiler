@@ -11,9 +11,9 @@
 #'
 #' \describe{
 #'   \item{\code{downloadResources()}}{Downloads the GENCODE GTF}
-#'   \item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
-#'   \item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
-#'   sequences from the genome}
+#'   \item{\code{extractUniqueSeqs()}}{Filters the RepeatMasker records with
+#'   \code{rmskToBed()}, extracts their sequences from the genome, and finds
+#'   the loci with identical sequences}
 #'   \item{\code{createAnnotation()}}{Creates annotations of all TE loci with
 #'   respect to annotations in GTF}
 #'   \item{\code{createGentrome()}}{Creates the files needed for decoy-aware
@@ -102,21 +102,14 @@ generateIndex <- function(
         check_integrity = check_integrity,
         cache = bfc
     )
-    message("Converting rmsk ranges to BED ------------------------------")
-    rmskToBed(
-        species = species,
-        exclude = exclude,
-        min_len = min_len,
-        cache = bfc,
-        rmsk = rmsk
-    )
     message("Extracting unique rmsk sequences from genome ---------------")
     extractUniqueSeqs(
         species = species,
         exclude = exclude,
         min_len = min_len,
         cache = bfc,
-        genome = genome
+        genome = genome,
+        rmsk = rmsk
     )
     message("Annotating unique sequences with genomic features ----------")
     createAnnotation(

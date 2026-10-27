@@ -15,13 +15,12 @@ createAnnotation(
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
 \item{exclude}{A character vector specifying which elements (repClass) were
-excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
-"Unknown".}
+excluded by \code{extractUniqueSeqs()}. Default "Simple_repeat",
+"Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
+"tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record used by
-\code{rmskToBed()}.
-Default 32.}
+\code{extractUniqueSeqs()}. Default 32.}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
@@ -45,8 +44,12 @@ bfc <- exampleCache()
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
-rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-extractUniqueSeqs(species = "Hs", cache = bfc, genome = exampleGenome())
+extractUniqueSeqs(
+    species = "Hs",
+    cache = bfc,
+    genome = exampleGenome(),
+    rmsk = rmsk
+)
 createAnnotation(species = "Hs", cache = bfc)
 
 rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))

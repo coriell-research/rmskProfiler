@@ -29,7 +29,8 @@
 #' @return data.frame with columns species, type, build, exclude, min_len,
 #' genome, resource, size_mb, created, and path. Values in the resource column
 #' can be passed to \code{getResource()}, except for the "genome" and
-#' "transcripts" downloads of earlier versions.
+#' "transcripts" downloads and the "rmsk.bed" and "rmsk-unique.fa.gz" builds of
+#' earlier versions.
 #' @export
 #'
 #' @examples
@@ -118,10 +119,10 @@ listResources <- function(species = NULL, cache = NULL) {
 #' be used outside of rmskProfiler.
 #'
 #' @param resource Name of the resource. One of "gtf" for the GENCODE GTF,
-#' "annotation.txdb" for the TxDb, or one of "rmsk.bed",
-#' "rmsk-duplicateInfo.rds", "rmsk-unique.fa.gz", "rmsk-rowData.rds",
-#' "rmsk-gentrome.fa.gz", or "decoys.txt" for files generated for a specific
-#' build.
+#' "annotation.txdb" for the TxDb, or one of "rmsk-duplicateInfo.rds",
+#' "rmsk-rowData.rds", "rmsk-gentrome.fa.gz", or "decoys.txt" for files
+#' generated for a specific build. "rmsk-gentrome.fa.gz" is only saved by
+#' \code{createGentrome(create_index = FALSE)}.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
 #' excluded when building the resource. Only used for build resources. Default
@@ -164,6 +165,14 @@ getResource <- function(
             call. = FALSE
         )
     }
+    if (resource %in% .LEGACY_BUILD_FILES) {
+        stop(
+            resource,
+            " is no longer created or used. Use removeResources() to remove ",
+            "the files created by earlier versions.",
+            call. = FALSE
+        )
+    }
     resource <- match.arg(
         resource,
         c("gtf", "annotation.txdb", .BUILD_FILES)
@@ -189,7 +198,9 @@ getResource <- function(
 #' Remove resources from the rmskProfiler cache
 #'
 #' Removes all files generated for a build (a combination of species,
-#' \code{exclude}, and \code{min_len} settings) from the cache. Optionally, the
+#' \code{exclude}, and \code{min_len} settings) from the cache, including the
+#' "rmsk.bed" and "rmsk-unique.fa.gz" files created by earlier versions of
+#' rmskProfiler. Optionally, the
 #' GENCODE downloads and the TxDb created from them can also be removed,
 #' including the GENCODE genome and transcript sequences downloaded by earlier
 #' versions of rmskProfiler. The
@@ -230,7 +241,7 @@ removeResources <- function(
     species <- match.arg(species)
     bfc <- .getCache(cache)
 
-    resources <- .BUILD_FILES
+    resources <- c(.BUILD_FILES, .LEGACY_BUILD_FILES)
     if (isTRUE(downloads)) {
         resources <- c(
             resources,

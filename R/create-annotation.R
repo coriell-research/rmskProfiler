@@ -202,12 +202,11 @@
 #'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
-#' excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
-#' "Unknown".
+#' excluded by \code{extractUniqueSeqs()}. Default "Simple_repeat",
+#' "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
+#' "tRNA", and "Unknown".
 #' @param min_len Minimum sequence length of a record used by
-#' \code{rmskToBed()}.
-#' Default 32.
+#' \code{extractUniqueSeqs()}. Default 32.
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
@@ -223,8 +222,12 @@
 #' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 #'     package = "rmskProfiler"
 #' ))
-#' rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-#' extractUniqueSeqs(species = "Hs", cache = bfc, genome = exampleGenome())
+#' extractUniqueSeqs(
+#'     species = "Hs",
+#'     cache = bfc,
+#'     genome = exampleGenome(),
+#'     rmsk = rmsk
+#' )
 #' createAnnotation(species = "Hs", cache = bfc)
 #'
 #' rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))
@@ -321,8 +324,12 @@ createAnnotation <- function(
     by_hash[is.na(overlapping_features), overlapping_features := ""]
 
     message("Reading in transcript annotations...")
-    gtf <- rtracklayer::import(gtf_file)
-    tx <- gtf[gtf$type == "transcript", ]
+    tx <- rtracklayer::import(
+        gtf_file,
+        format = "gtf",
+        feature.type = "transcript",
+        colnames = c("transcript_id", "gene_id", "gene_name", "gene_type")
+    )
     tx_dt <- data.table::as.data.table(data.frame(tx))[, .(
         transcript_id,
         gene_id,
