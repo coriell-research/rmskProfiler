@@ -67,10 +67,13 @@ X, and Y) are used as the decoys and their names are saved to decoys.txt in
 the rmskProfiler cache.
 
 With \code{create_index = TRUE}, the gentrome is written uncompressed to a
-temporary file next to \code{index_dir}, which needs ~5.5 GB of free space
-for human, and removed once the index is built. With
-\code{create_index = FALSE}, the gentrome is saved to the rmskProfiler cache
-as rmsk-gentrome.fa.gz so that the index can be built outside of R.
+temporary file next to \code{index_dir} (or in \code{tempdir()} if the
+parent directory of \code{index_dir} is not writable), which needs ~5.5 GB
+of free space for human, and removed once the index is built. A gentrome
+saved to the cache by an earlier build is removed, since it would no longer
+match the index. With \code{create_index = FALSE}, the gentrome is saved to
+the rmskProfiler cache as rmsk-gentrome.fa.gz so that the index can be
+built outside of R.
 }
 \examples{
 # Create the gentrome and decoys for the example data

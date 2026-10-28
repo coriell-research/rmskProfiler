@@ -16,12 +16,13 @@
   transcript files downloaded by earlier versions.
 * Index generation writes fewer intermediate files, which saves ~8 minutes and
   ~2.3 GB of cache for human. `rmskToBed()` returns the filtered RepeatMasker
-  records instead of writing rmsk.bed, and `extractUniqueSeqs()` takes them
-  with its new `rmsk` argument. rmsk-unique.fa.gz is no longer saved:
+  records instead of writing rmsk.bed, and `extractUniqueSeqs()` takes
+  RepeatMasker records with its new `rmsk` argument and filters them itself. rmsk-unique.fa.gz is no longer saved:
   `createGentrome()` extracts the unique TE sequences from the genome using
   rmsk-duplicateInfo.rds. When the index is built, the gentrome is written
-  uncompressed to a temporary file and removed afterwards, and it is only saved
-  to the cache with `create_index = FALSE`. `createAnnotation()` imports only
+  uncompressed to a temporary file and removed afterwards, along with any
+  gentrome cached by an earlier build. It is only saved to the cache with
+  `create_index = FALSE`. `createAnnotation()` imports only
   the transcript records of the GTF. The gentrome and Salmon index are
   unchanged.
 * Downloaded and generated files are managed with BiocFileCache. Use

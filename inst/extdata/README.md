@@ -7,7 +7,7 @@ them.
 
 | File | Description | Source |
 |---|---|---|
-| `genome-chr22.fa.gz` | chr22 from the start of the chromosome to the end of the region, with every base before the region replaced by N | `BSgenome.Hsapiens.UCSC.hg38` (identical to GENCODE release 48, `GRCh38.primary_assembly.genome.fa.gz`) |
+| `genome-chr22.fa.gz` | chr22 from the start of the chromosome to the end of the region, with every base before the region replaced by N | GENCODE release 48, `GRCh38.primary_assembly.genome.fa.gz` (identical to chr22 of `BSgenome.Hsapiens.UCSC.hg38`, which `make-example-data.R` now uses) |
 | `gencode-chr22.gtf.gz` | Annotations of the genes contained in the region | GENCODE release 48, `gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz` |
 | `rmsk-chr22.rds` | GRanges of the RepeatMasker records contained in the region | AnnotationHub AH111333, UCSC RepeatMasker annotations (Oct 2022) for hg38 |
 | `quants/` | Salmon quants with 10 Gibbs samples for 6 simulated samples (`ctrl_1`-`ctrl_3`, `trt_1`-`trt_3`) against the rmskProfiler index built from the files above | Simulated |

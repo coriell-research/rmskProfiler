@@ -193,12 +193,16 @@
 
 #' Generate annotation resources for annotating TE loci and genes
 #'
-#' This function produces multiple annotation files used to annotate downstream
-#' counts generated after quantification with Salmon. It creates a GRangesList
-#' object for each hash and a tab-delimited file containing annotation
-#' information for each hash with indicator values for the types of genic
-#' features they overlap. Overlap annotations are generated with respect to the
-#' downloaded gencode GTF file.
+#' This function creates the annotation used as the rowData by
+#' \code{importQuants()} and saves it to the rmskProfiler cache as
+#' rmsk-rowData.rds. It is a DataFrame with one row per transcript, with the
+#' transcript and gene IDs, gene names, and gene types from the GENCODE GTF, and
+#' one row per unique TE sequence (hash), with its RepeatMasker
+#' classification, the number of loci, and indicator columns for the genomic
+#' features (exons, introns, UTRs, promoters) its loci overlap. The Ranges
+#' column is a GRangesList of the exons of each transcript and the loci of each
+#' hash. The TxDb created from the GTF is also saved to the cache
+#' (annotation.txdb) if it is not there already.
 #'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
@@ -351,13 +355,21 @@ createAnnotation <- function(
     rownames(rd) <- c(tx_dt$transcript_id, by_hash$Hash)
     rd$Ranges <- rmsk_grl[rownames(rd)]
 
+    # The hashes depend on the genome the duplicate information was created from
     rd_file <- .newResource(
         bfc,
         species,
         "rmsk-rowData.rds",
         ".rds",
         exclude,
-        min_len
+        min_len,
+        genome = .resourceGenome(
+            bfc,
+            species,
+            "rmsk-duplicateInfo.rds",
+            exclude,
+            min_len
+        )
     )
     message("Writing out rowData to: ", rd_file)
     saveRDS(rd, rd_file)

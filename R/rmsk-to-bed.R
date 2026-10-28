@@ -3,8 +3,10 @@
 #' This function queries AnnotationHub for UCSC RepeatMasker annotations and
 #' removes all records shorter than \code{min_len}, records whose repClass is
 #' in \code{exclude}, and records not located in standard chromosomes. The
-#' remaining records are returned as a GRanges, which can be passed to
-#' \code{extractUniqueSeqs()}.
+#' remaining records are returned as a GRanges. \code{extractUniqueSeqs()}
+#' calls this function with its own \code{exclude} and \code{min_len}, so use
+#' it on its own to inspect the records that a build with these settings will
+#' include.
 #'
 #' @details
 #' The RepeatMasker annotations used are:

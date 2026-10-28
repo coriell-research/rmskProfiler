@@ -15,7 +15,7 @@
 #'  \item{build}{Files generated for a specific combination of \code{exclude}
 #'  and \code{min_len} settings. The \code{build} column contains a short key
 #'  identifying these settings. The \code{genome} column contains the genome
-#'  the TE and gentrome sequences were extracted from.}
+#'  the build files were created from.}
 #' }
 #'
 #' The Salmon index is not stored in the cache and is not listed.
@@ -183,6 +183,12 @@ getResource <- function(
         "Run downloadResources() first."
     } else if (resource == "annotation.txdb") {
         "Run createAnnotation() first."
+    } else if (resource == "rmsk-gentrome.fa.gz") {
+        paste(
+            "The gentrome is only saved by createGentrome(create_index =",
+            "FALSE). Check that exclude and min_len match the values used to",
+            "build it. Use listResources() to see the available builds."
+        )
     } else {
         paste(
             "Check that exclude and min_len match the values used to build",

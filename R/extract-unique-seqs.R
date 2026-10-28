@@ -121,9 +121,14 @@
 #' (e.g. "chr1").
 #' @param rmsk NULL (default) to use the AnnotationHub RepeatMasker annotations
 #' for \code{species}, or a GRanges of RepeatMasker records with metadata
-#' columns repName, repFamily, and repClass, such as the GRanges returned by
-#' \code{rmskToBed()}. The records are filtered with \code{rmskToBed()} using
-#' \code{exclude} and \code{min_len}.
+#' columns repName, repFamily, and repClass, e.g. a subset of the records for
+#' some loci. The records are filtered with \code{rmskToBed()} using
+#' \code{exclude} and \code{min_len}, which identify the build in the cache
+#' and must be passed again to \code{createAnnotation()},
+#' \code{createGentrome()}, and \code{importQuants()}. Filter by class and
+#' length with \code{exclude} and \code{min_len} rather than by passing
+#' records already filtered with \code{rmskToBed()} using other settings, so
+#' that the build is stored under the settings used.
 #'
 #' @return Invisibly \code{NULL}. Called for its side effect of writing the
 #' duplicate information (rmsk-duplicateInfo.rds) to the cache.

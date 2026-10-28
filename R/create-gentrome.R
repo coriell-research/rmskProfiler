@@ -13,10 +13,13 @@
 #' the rmskProfiler cache.
 #'
 #' With \code{create_index = TRUE}, the gentrome is written uncompressed to a
-#' temporary file next to \code{index_dir}, which needs ~5.5 GB of free space
-#' for human, and removed once the index is built. With
-#' \code{create_index = FALSE}, the gentrome is saved to the rmskProfiler cache
-#' as rmsk-gentrome.fa.gz so that the index can be built outside of R.
+#' temporary file next to \code{index_dir} (or in \code{tempdir()} if the
+#' parent directory of \code{index_dir} is not writable), which needs ~5.5 GB
+#' of free space for human, and removed once the index is built. A gentrome
+#' saved to the cache by an earlier build is removed, since it would no longer
+#' match the index. With \code{create_index = FALSE}, the gentrome is saved to
+#' the rmskProfiler cache as rmsk-gentrome.fa.gz so that the index can be
+#' built outside of R.
 #'
 #' @inheritParams extractUniqueSeqs
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
@@ -153,13 +156,18 @@ createGentrome <- function(
     writeLines(decoys, decoy_file)
 
     if (isTRUE(create_index)) {
+        # A gentrome cached by an earlier build would no longer match the
+        # index and annotation
+        .removeResource(
+            bfc,
+            .resourceRname(species, "rmsk-gentrome.fa.gz", exclude, min_len)
+        )
+
         # Salmon only reads the gentrome once, so write it uncompressed (much
-        # faster than gzip) next to the index and remove it afterwards
-        index_parent <- dirname(normalizePath(index_dir, mustWork = FALSE))
-        dir.create(index_parent, recursive = TRUE, showWarnings = FALSE)
+        # faster than gzip) and remove it afterwards
         gentrome_fa <- tempfile(
             "rmsk-gentrome",
-            tmpdir = index_parent,
+            tmpdir = .gentromeDir(index_dir),
             fileext = ".fa"
         )
         on.exit(unlink(gentrome_fa), add = TRUE)
@@ -219,6 +227,26 @@ createGentrome <- function(
     }
 
     return(invisible(NULL))
+}
+
+
+#' Directory to write the temporary gentrome to
+#'
+#' The parent directory of the index is used if it is writable, since it needs
+#' to have space for the index anyway, otherwise the R temporary directory.
+#'
+#' @param index_dir Path to the directory where the Salmon index will be
+#' created
+#'
+#' @return Path to a writable directory
+#' @keywords internal
+.gentromeDir <- function(index_dir) {
+    index_parent <- dirname(normalizePath(index_dir, mustWork = FALSE))
+    dir.create(index_parent, recursive = TRUE, showWarnings = FALSE)
+    if (dir.exists(index_parent) && file.access(index_parent, 2L) == 0L) {
+        return(index_parent)
+    }
+    tempdir()
 }
 
 

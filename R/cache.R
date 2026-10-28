@@ -233,7 +233,7 @@
 #'
 #' @inheritParams .resourceRname
 #' @param bfc BiocFileCache
-#' @param ext File extension of the resource, e.g. ".bed"
+#' @param ext File extension of the resource, e.g. ".rds"
 #' @param genome Label of the genome the resource was built from, or NULL
 #'
 #' @return Path to the cached file
@@ -257,6 +257,25 @@
     .recordResource(bfc, names(path), species, exclude, min_len, genome)
 
     unname(path)
+}
+
+
+#' Remove a resource from the cache if it exists
+#'
+#' @param bfc BiocFileCache
+#' @param rname Name of the resource
+#'
+#' @return TRUE/FALSE, whether a resource was removed
+#' @keywords internal
+.removeResource <- function(bfc, rname) {
+    hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+    if (nrow(hit) == 0L) {
+        return(invisible(FALSE))
+    }
+    message("Removing ", rname, " from the cache")
+    BiocFileCache::bfcremove(bfc, hit$rid)
+    .writeMeta(bfc, .readMeta(bfc))
+    invisible(TRUE)
 }
 
 

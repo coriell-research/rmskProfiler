@@ -33,7 +33,8 @@ library(rmskProfiler)
 #    extracts the transcript and unique RepeatMasker TE sequences from
 #    BSgenome.Hsapiens.UCSC.hg38, annotates the TEs, and builds a Salmon index
 #    of transcripts + TEs with the genome as a decoy. Files are kept in the
-#    rmskProfiler cache, the index is written to "hg38-salmon_index".
+#    rmskProfiler cache, the index is written to "hg38-salmon_index". Building
+#    it needs ~5.5 GB of temporary space next to the index for the gentrome.
 generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
 
 # 2. Quantify reads with Salmon using Gibbs sampling. This can also be done
@@ -183,8 +184,8 @@ generateIndex(
 )
 ```
 
-With `create_index = TRUE` (the default) the Salmon index is also built in
-`index_dir`. All other files (see
+With `create_index = TRUE` (the default) the Salmon index is built in
+`index_dir` and the gentrome is not saved to the cache. All other files (see
 [Managing cached resources](#managing-cached-resources)) are now in the cache:
 
 ```{r list}
@@ -377,13 +378,13 @@ The cache holds three types of resources, as reported in the `type` column of
 | `gtf` | download | `downloadResources()` | GENCODE annotation GTF | 65 MB |
 | `annotation.txdb` | annotation | `createAnnotation()` | TxDb created from the GTF, re-used by `aggregateCounts()` | 200 MB |
 | `rmsk-duplicateInfo.rds` | build | `extractUniqueSeqs()` | Table mapping each hash to its TE loci | 150 MB |
-| `rmsk-rowData.rds` | build | `createAnnotation()` | Transcript and TE annotations used as the `rowData` by `importQuants()` | 500 MB |
-| `rmsk-gentrome.fa.gz` | build | `createGentrome(create_index = FALSE)` | Transcripts, unique TEs, and genome for building the Salmon index outside of R. Not saved when the index is built | 1.5 GB |
+| `rmsk-rowData.rds` | build | `createAnnotation()` | Transcript and TE annotations used as the `rowData` by `importQuants()` | 400 MB |
+| `rmsk-gentrome.fa.gz` | build | `createGentrome(create_index = FALSE)` | Transcripts, unique TEs, and genome for building the Salmon index outside of R. Not saved, and removed if present, when the index is built | 1.5 GB |
 | `decoys.txt` | build | `createGentrome()` | Names of the decoy (genome) sequences | < 1 KB |
 
 The genome is not stored in the cache. It is provided by the BSgenome package
 for the species, and the `genome` column of `listResources()` records which
-genome the TE and gentrome sequences were extracted from. Earlier versions of
+genome each build file was created from. Earlier versions of
 rmskProfiler also downloaded the GENCODE genome and transcript sequences. These
 are listed as `genome` and `transcripts` downloads if they are still in the
 cache, are no longer used, and are removed with

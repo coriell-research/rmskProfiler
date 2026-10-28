@@ -31,12 +31,16 @@ Invisibly \code{NULL}. Called for its side effect of writing the
 annotation (rmsk-rowData.rds) to the cache.
 }
 \description{
-This function produces multiple annotation files used to annotate downstream
-counts generated after quantification with Salmon. It creates a GRangesList
-object for each hash and a tab-delimited file containing annotation
-information for each hash with indicator values for the types of genic
-features they overlap. Overlap annotations are generated with respect to the
-downloaded gencode GTF file.
+This function creates the annotation used as the rowData by
+\code{importQuants()} and saves it to the rmskProfiler cache as
+rmsk-rowData.rds. It is a DataFrame with one row per transcript, with the
+transcript and gene IDs, gene names, and gene types from the GENCODE GTF, and
+one row per unique TE sequence (hash), with its RepeatMasker
+classification, the number of loci, and indicator columns for the genomic
+features (exons, introns, UTRs, promoters) its loci overlap. The Ranges
+column is a GRangesList of the exons of each transcript and the loci of each
+hash. The TxDb created from the GTF is also saved to the cache
+(annotation.txdb) if it is not there already.
 }
 \examples{
 # Build the annotation for the example data

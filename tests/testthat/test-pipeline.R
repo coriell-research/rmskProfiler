@@ -61,17 +61,24 @@ test_that("createGentrome() writes the gentrome and decoys", {
         as.character(gentrome[seq_along(tx)]),
         stats::setNames(as.character(tx), sub("\\|.*", "", names(tx)))
     )
-    expect_identical(
-        listResources(cache = bfc)$genome[
-            listResources(cache = bfc)$resource == "rmsk-gentrome.fa.gz"
-        ],
-        .getGenome("Hs", exampleGenome())$label
-    )
+    # Every build file records the genome it was created from
+    res <- listResources(cache = bfc)
+    expect_true(all(
+        res$genome[res$type == "build"] ==
+            .getGenome("Hs", exampleGenome())$label
+    ))
 })
 
 test_that("createGentrome() builds the index from a temporary gentrome", {
     skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
     bfc <- suppressMessages(exampleCache(build = TRUE))
+    # A gentrome cached by an earlier build is removed
+    suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
     parent <- tempfile("index-parent")
     index_dir <- file.path(parent, "index")
     suppressMessages(createGentrome(
@@ -86,6 +93,22 @@ test_that("createGentrome() builds the index from a temporary gentrome", {
     res <- listResources(cache = bfc)$resource
     expect_true("decoys.txt" %in% res)
     expect_false("rmsk-gentrome.fa.gz" %in% res)
+})
+
+test_that("the temporary gentrome is written next to the index if possible", {
+    parent <- tempfile("index-parent")
+    expect_identical(
+        .gentromeDir(file.path(parent, "index")),
+        normalizePath(parent)
+    )
+
+    skip_on_os("windows")
+    skip_if(identical(Sys.info()[["user"]], "root"), "root can write anywhere")
+    read_only <- tempfile("read-only")
+    dir.create(read_only)
+    Sys.chmod(read_only, "555")
+    on.exit(Sys.chmod(read_only, "755"), add = TRUE)
+    expect_identical(.gentromeDir(file.path(read_only, "index")), tempdir())
 })
 
 test_that("createGentrome() warns if the TEs come from a different genome", {

@@ -37,7 +37,7 @@ be removed with \code{removeResources(downloads = TRUE)}.}
 \item{build}{Files generated for a specific combination of \code{exclude}
 and \code{min_len} settings. The \code{build} column contains a short key
 identifying these settings. The \code{genome} column contains the genome
-the TE and gentrome sequences were extracted from.}
+the build files were created from.}
 }
 
 The Salmon index is not stored in the cache and is not listed.

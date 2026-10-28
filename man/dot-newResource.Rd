@@ -22,7 +22,7 @@
 \item{resource}{"gtf" for the GENCODE GTF, "annotation.txdb", or one of the
 files in \code{.BUILD_FILES} or \code{.LEGACY_BUILD_FILES}}
 
-\item{ext}{File extension of the resource, e.g. ".bed"}
+\item{ext}{File extension of the resource, e.g. ".rds"}
 
 \item{exclude, min_len}{Settings used to build the resource. Required for
 files in \code{.BUILD_FILES}, ignored otherwise.}
