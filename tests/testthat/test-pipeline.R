@@ -32,7 +32,7 @@ test_that("the example build contains annotations for transcripts and TEs", {
 })
 
 test_that("createGentrome() writes the gentrome and decoys", {
-    local_chr22_decoy()
+    local_small_decoy()
     bfc <- builtCache()
     suppressMessages(createGentrome(
         species = "Hs",
@@ -40,7 +40,7 @@ test_that("createGentrome() writes the gentrome and decoys", {
         cache = bfc
     ))
     decoys <- readLines(getResource("decoys.txt", species = "Hs", cache = bfc))
-    expect_identical(decoys, "chr22")
+    expect_identical(decoys, "chrM")
 
     # Transcripts in GTF order, then the unique TE sequences, then the decoys
     gentrome <- Biostrings::readDNAStringSet(
@@ -55,7 +55,7 @@ test_that("createGentrome() writes the gentrome and decoys", {
     )
     expect_identical(
         names(gentrome),
-        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chr22")
+        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chrM")
     )
     expect_identical(
         as.character(gentrome[seq_along(tx)]),
@@ -70,7 +70,7 @@ test_that("createGentrome() writes the gentrome and decoys", {
 
 test_that("createGentrome() builds the index from a temporary gentrome", {
     skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
-    local_chr22_decoy()
+    local_small_decoy()
     bfc <- suppressMessages(exampleCache(build = TRUE))
     # A gentrome cached by an earlier build is removed
     suppressMessages(createGentrome(
@@ -110,7 +110,7 @@ test_that("the temporary gentrome is written next to the index if possible", {
 })
 
 test_that("createGentrome() warns if the TEs come from a different genome", {
-    local_chr22_decoy()
+    local_small_decoy()
     bfc <- suppressMessages(exampleCache(build = TRUE))
 
     # The genome the TEs were extracted from does not warn

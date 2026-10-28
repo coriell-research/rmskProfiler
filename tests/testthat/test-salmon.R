@@ -32,7 +32,7 @@ test_that("functions that run Salmon fail before doing any work without it", {
 })
 
 test_that("Salmon is not required when the index is not created", {
-    local_chr22_decoy()
+    local_small_decoy()
     bfc <- exampleCache()
     rmsk <- readRDS(system.file(
         "extdata",
