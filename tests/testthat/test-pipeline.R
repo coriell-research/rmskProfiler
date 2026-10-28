@@ -32,12 +32,12 @@ test_that("the example build contains annotations for transcripts and TEs", {
 })
 
 test_that("createGentrome() writes the gentrome and decoys", {
+    local_chr22_decoy()
     bfc <- builtCache()
     suppressMessages(createGentrome(
         species = "Hs",
         create_index = FALSE,
-        cache = bfc,
-        genome = exampleGenome()
+        cache = bfc
     ))
     decoys <- readLines(getResource("decoys.txt", species = "Hs", cache = bfc))
     expect_identical(decoys, "chr22")
@@ -64,28 +64,26 @@ test_that("createGentrome() writes the gentrome and decoys", {
     # Every build file records the genome it was created from
     res <- listResources(cache = bfc)
     expect_true(all(
-        res$genome[res$type == "build"] ==
-            .getGenome("Hs", exampleGenome())$label
+        res$genome[res$type == "build"] == .genomeLabel(.getGenome("Hs"))
     ))
 })
 
 test_that("createGentrome() builds the index from a temporary gentrome", {
     skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
+    local_chr22_decoy()
     bfc <- suppressMessages(exampleCache(build = TRUE))
     # A gentrome cached by an earlier build is removed
     suppressMessages(createGentrome(
         species = "Hs",
         create_index = FALSE,
-        cache = bfc,
-        genome = exampleGenome()
+        cache = bfc
     ))
     parent <- tempfile("index-parent")
     index_dir <- file.path(parent, "index")
     suppressMessages(createGentrome(
         species = "Hs",
         index_dir = index_dir,
-        cache = bfc,
-        genome = exampleGenome()
+        cache = bfc
     ))
     expect_true(file.exists(file.path(index_dir, "info.json")))
     # The gentrome is removed and not saved to the cache
@@ -112,24 +110,34 @@ test_that("the temporary gentrome is written next to the index if possible", {
 })
 
 test_that("createGentrome() warns if the TEs come from a different genome", {
-    bfc <- builtCache()
-    genome <- Biostrings::readDNAStringSet(exampleGenome())
+    local_chr22_decoy()
+    bfc <- suppressMessages(exampleCache(build = TRUE))
 
-    # The same genome given as a DNAStringSet does not warn
+    # The genome the TEs were extracted from does not warn
     expect_no_warning(suppressMessages(createGentrome(
         species = "Hs",
         create_index = FALSE,
-        cache = bfc,
-        genome = genome
+        cache = bfc
     )))
 
-    other <- c(genome, Biostrings::DNAStringSet(c(chrZ = "ACGT")))
+    # A different version of the BSgenome warns
+    rid <- names(.findResource(
+        bfc,
+        .resourceRname("Hs", "rmsk-duplicateInfo.rds", .DEFAULT_EXCLUDE, 32)
+    ))
+    .recordResource(
+        bfc,
+        rid,
+        "Hs",
+        .DEFAULT_EXCLUDE,
+        32,
+        genome = "BSgenome.Hsapiens.UCSC.hg38 0.0.0"
+    )
     expect_warning(
         suppressMessages(createGentrome(
             species = "Hs",
             create_index = FALSE,
-            cache = bfc,
-            genome = other
+            cache = bfc
         )),
         "different genome"
     )

@@ -10,8 +10,7 @@ exampleCache(build = FALSE)
 \item{build}{TRUE/FALSE. If TRUE, also run \code{extractUniqueSeqs()} and
 \code{createAnnotation()} on the example RepeatMasker records with the
 default settings so that the cache contains everything needed by
-\code{importQuants()}. The sequences are extracted from
-\code{exampleGenome()}. Default FALSE.}
+\code{importQuants()}. Default FALSE.}
 }
 \value{
 BiocFileCache
@@ -21,15 +20,13 @@ Creates a new BiocFileCache in a temporary directory containing the example
 GTF shipped with rmskProfiler in place of the GENCODE download. The example
 data are a ~1 Mb region of hg38 chr22 with the GENCODE v48 annotations of the
 genes in that region. The cache can be passed to the \code{cache} argument of
-any rmskProfiler function with \code{species = "Hs"}. Pass
-\code{exampleGenome()} to the \code{genome} argument of functions that
-extract sequences.
+any rmskProfiler function with \code{species = "Hs"}.
 }
 \details{
 The example files are found in \code{system.file("extdata", package =
 "rmskProfiler")}. The UCSC RepeatMasker records for the region are in
 "rmsk-chr22.rds" and can be passed to the \code{rmsk} argument of
-\code{rmskToBed()}, \code{extractUniqueSeqs()}, or \code{generateIndex()}.
+\code{filterRmsk()}, \code{extractUniqueSeqs()}, or \code{generateIndex()}.
 Salmon quants for 6 simulated samples quantified against the index built
 from the example data are returned by \code{exampleQuants()}. See
 "inst/scripts/" for how these files were created.

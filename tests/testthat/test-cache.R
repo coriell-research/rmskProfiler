@@ -30,13 +30,13 @@ test_that("exampleCache() contains the example GTF", {
     )
 })
 
-test_that("rmskToBed() validates rmsk", {
+test_that("filterRmsk() validates rmsk", {
     expect_error(
-        rmskToBed(species = "Hs", rmsk = data.frame()),
+        filterRmsk(species = "Hs", rmsk = data.frame()),
         "rmsk must be a GRanges"
     )
     expect_error(
-        rmskToBed(
+        filterRmsk(
             species = "Hs",
             rmsk = GenomicRanges::GRanges("chr22:1-100")
         ),
@@ -62,11 +62,13 @@ test_that("removeResources() removes build files and optionally downloads", {
 
 test_that("genome and transcript downloads of earlier versions are removed", {
     bfc <- exampleCache()
+    old_file <- tempfile()
+    writeLines("old", old_file)
     for (file in .legacyDownloads("Hs")) {
         BiocFileCache::bfcadd(
             bfc,
             .rname("Hs", file),
-            fpath = exampleGenome(),
+            fpath = old_file,
             action = "copy"
         )
     }
@@ -96,11 +98,13 @@ test_that("caches without a genome column in the metadata can be read", {
 
 test_that("build files of earlier versions are listed and removed", {
     bfc <- suppressMessages(exampleCache(build = TRUE))
+    old_file <- tempfile()
+    writeLines("old", old_file)
     for (file in .LEGACY_BUILD_FILES) {
         BiocFileCache::bfcadd(
             bfc,
             .resourceRname("Hs", file, .DEFAULT_EXCLUDE, 32),
-            fpath = exampleGenome(),
+            fpath = old_file,
             action = "copy"
         )
     }

@@ -12,7 +12,7 @@
 #' \describe{
 #'   \item{\code{downloadResources()}}{Downloads the GENCODE GTF}
 #'   \item{\code{extractUniqueSeqs()}}{Filters the RepeatMasker records with
-#'   \code{rmskToBed()}, extracts their sequences from the genome, and finds
+#'   \code{filterRmsk()}, extracts their sequences from the genome, and finds
 #'   the loci with identical sequences}
 #'   \item{\code{createAnnotation()}}{Creates annotations of all TE loci with
 #'   respect to annotations in GTF}
@@ -22,11 +22,9 @@
 #'
 #' The genome sequence is taken from the BSgenome package for the species,
 #' BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
-#' (GRCm38), which must be installed, unless another genome is given with
-#' \code{genome}. The transcript sequences are extracted from the genome using
-#' the GENCODE GTF.
+#' (GRCm38). The transcript sequences are extracted from the genome using the
+#' GENCODE GTF.
 #'
-#' @inheritParams extractUniqueSeqs
 #' @param index_dir Directory in which to create the Salmon index. The build
 #' resources are saved to the rmskProfiler cache, see \code{listResources()}.
 #' While the index is built, the gentrome is written to a temporary file next
@@ -61,22 +59,28 @@
 #' @export
 #'
 #' @examples
-#' # Run the whole pipeline on the example data. With the default cache,
-#' # generateIndex("hg38-salmon_index", species = "Hs") builds the full index.
+#' # The example cache contains the example GTF and the RepeatMasker records
+#' # of the example region
 #' bfc <- exampleCache()
 #' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 #'     package = "rmskProfiler"
 #' ))
+#'
+#' \dontrun{
+#' # Run the whole pipeline on the example data. The decoys are all of the
+#' # primary chromosomes of the genome, so this requires Salmon and takes ~1 h
 #' generateIndex(
 #'     index_dir = tempfile("index"),
 #'     species = "Hs",
 #'     check_integrity = FALSE,
-#'     create_index = nzchar(Sys.which("salmon")),
 #'     cache = bfc,
-#'     rmsk = rmsk,
-#'     genome = exampleGenome()
+#'     rmsk = rmsk
 #' )
 #' listResources(cache = bfc)
+#'
+#' # Build the full human index with the default cache
+#' generateIndex("hg38-salmon_index", species = "Hs")
+#' }
 generateIndex <- function(
     index_dir,
     species = c("Hs", "Mm"),
@@ -86,8 +90,7 @@ generateIndex <- function(
     create_index = TRUE,
     threads = 1,
     cache = NULL,
-    rmsk = NULL,
-    genome = NULL
+    rmsk = NULL
 ) {
     species <- match.arg(species)
     if (isTRUE(create_index)) {
@@ -97,8 +100,6 @@ generateIndex <- function(
         .checkSalmon("Or set create_index = FALSE to skip building the index.")
     }
     bfc <- .getCache(cache)
-    # Fail before downloading anything if the genome is not available
-    genome <- .getGenome(species, genome)
 
     message("Downloading the GTF ----------------------------------------")
     downloadResources(
@@ -112,7 +113,6 @@ generateIndex <- function(
         exclude = exclude,
         min_len = min_len,
         cache = bfc,
-        genome = genome,
         rmsk = rmsk
     )
     message("Annotating unique sequences with genomic features ----------")
@@ -130,8 +130,7 @@ generateIndex <- function(
         min_len = min_len,
         create_index = create_index,
         threads = threads,
-        cache = bfc,
-        genome = genome
+        cache = bfc
     )
 
     return(invisible(NULL))

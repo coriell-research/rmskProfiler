@@ -1,8 +1,8 @@
 #' Extract unique RepeatMasker sequences and their loci from the genome
 #'
 #' @param rmsk GRanges of filtered RepeatMasker records returned by
-#' \code{rmskToBed()}
-#' @param genome Genome returned by \code{.getGenome()}
+#' \code{filterRmsk()}
+#' @param genome BSgenome returned by \code{.getGenome()}
 #' @param chunk_size Number of sequences hashed at a time
 #'
 #' @return list with elements \code{seqs}, a DNAStringSet of unique sequences
@@ -11,6 +11,9 @@
 #' @import data.table
 #' @keywords internal
 .extractUniqueRecords <- function(rmsk, genome, chunk_size = 1e5) {
+    # Columns used with data.table non-standard evaluation
+    . <- end <- Hash <- RepName <- seqnames <- start <- NULL
+
     # One row per record as in a BED file: 0-based start and "." for records
     # without a strand
     strand <- as.character(GenomicRanges::strand(rmsk))
@@ -23,7 +26,7 @@
     )
 
     # Like bedtools getfasta, skip records not contained in the genome
-    chrom_len <- .genomeLengths(genome)[bed$seqnames]
+    chrom_len <- GenomeInfoDb::seqlengths(genome)[bed$seqnames]
     in_bounds <- !is.na(chrom_len) & bed$end <= chrom_len
     if (!all(in_bounds)) {
         warning(
@@ -36,7 +39,7 @@
 
     # Unstranded records are extracted from the plus strand
     message("Extracting RepeatMasker sequences from the genome...")
-    seqs <- .genomeSeqs(
+    seqs <- Biostrings::getSeq(
         genome,
         GenomicRanges::GRanges(
             bed$seqnames,
@@ -74,13 +77,13 @@
 #'
 #' @param info data.table of duplicate information created by
 #' \code{.extractUniqueRecords()}
-#' @param genome Genome returned by \code{.getGenome()}
+#' @param genome BSgenome returned by \code{.getGenome()}
 #'
 #' @return DNAStringSet of unique sequences named by their SHA1 hash
 #' @keywords internal
 .uniqueSeqs <- function(info, genome) {
     first <- info[!duplicated(info$Hash)]
-    seqs <- .genomeSeqs(
+    seqs <- Biostrings::getSeq(
         genome,
         GenomicRanges::GRanges(
             first$seqnames,
@@ -96,7 +99,7 @@
 #' Find the unique RepeatMasker sequences and their loci
 #'
 #' This function will extract the sequences of the RepeatMasker records
-#' returned by \code{rmskToBed()} from the genome, hash them, and save a
+#' returned by \code{filterRmsk()} from the genome, hash them, and save a
 #' data.table, rmsk-duplicateInfo.rds, to the rmskProfiler cache which maps the
 #' SHA1 hash of each sequence to the RepeatMasker loci with that sequence. Loci
 #' with identical sequences share a hash and are quantified as a single target.
@@ -105,7 +108,7 @@
 #'
 #' The sequences are extracted from the BSgenome package for the species,
 #' BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
-#' (GRCm38), unless another genome is given with \code{genome}.
+#' (GRCm38).
 #'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) to
@@ -115,19 +118,15 @@
 #' @param cache NULL, a path to a cache directory, or a BiocFileCache object.
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
-#' @param genome NULL (default) to use the BSgenome package for the species, or
-#' a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
-#' file. The sequence names must match the RepeatMasker records and GTF
-#' (e.g. "chr1").
 #' @param rmsk NULL (default) to use the AnnotationHub RepeatMasker annotations
 #' for \code{species}, or a GRanges of RepeatMasker records with metadata
 #' columns repName, repFamily, and repClass, e.g. a subset of the records for
-#' some loci. The records are filtered with \code{rmskToBed()} using
+#' some loci. The records are filtered with \code{filterRmsk()} using
 #' \code{exclude} and \code{min_len}, which identify the build in the cache
 #' and must be passed again to \code{createAnnotation()},
 #' \code{createGentrome()}, and \code{importQuants()}. Filter by class and
 #' length with \code{exclude} and \code{min_len} rather than by passing
-#' records already filtered with \code{rmskToBed()} using other settings, so
+#' records already filtered with \code{filterRmsk()} using other settings, so
 #' that the build is stored under the settings used.
 #'
 #' @return Invisibly \code{NULL}. Called for its side effect of writing the
@@ -142,7 +141,6 @@
 #' extractUniqueSeqs(
 #'     species = "Hs",
 #'     cache = bfc,
-#'     genome = exampleGenome(),
 #'     rmsk = rmsk
 #' )
 #'
@@ -156,22 +154,21 @@ extractUniqueSeqs <- function(
     exclude = .DEFAULT_EXCLUDE,
     min_len = 32,
     cache = NULL,
-    genome = NULL,
     rmsk = NULL
 ) {
     species <- match.arg(species)
 
     bfc <- .getCache(cache)
-    genome <- .getGenome(species, genome)
+    genome <- .getGenome(species)
     message("Filtering RepeatMasker records...")
-    rmsk <- rmskToBed(
+    rmsk <- filterRmsk(
         species = species,
         exclude = exclude,
         min_len = min_len,
         rmsk = rmsk
     )
 
-    message("Using genome: ", genome$label)
+    message("Using genome: ", .genomeLabel(genome))
     res <- .extractUniqueRecords(rmsk, genome)
 
     out_info <- .newResource(
@@ -181,7 +178,7 @@ extractUniqueSeqs <- function(
         ".rds",
         exclude,
         min_len,
-        genome = genome$label
+        genome = .genomeLabel(genome)
     )
     message("Writing duplicate information to: ", out_info)
     saveRDS(res$info, out_info)

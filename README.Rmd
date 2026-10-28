@@ -48,13 +48,6 @@ Building the index and quantifying reads requires a recent version of
 [Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
 on your `PATH`. Importing and analysing quantifications does not.
 
-Building the index also requires the BSgenome package of the genome sequence:
-
-``` r
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38") # human
-BiocManager::install("BSgenome.Mmusculus.UCSC.mm10") # mouse
-```
-
 ## Quick start
 
 The whole workflow for human RNA-seq samples takes three steps, plus an

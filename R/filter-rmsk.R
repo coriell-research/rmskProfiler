@@ -40,18 +40,18 @@
 #' rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 #'     package = "rmskProfiler"
 #' ))
-#' filtered <- rmskToBed(species = "Hs", rmsk = rmsk)
+#' filtered <- filterRmsk(species = "Hs", rmsk = rmsk)
 #' filtered
 #'
 #' # Keep only LINEs and SINEs of at least 100 bp
 #' classes <- unique(rmsk$repClass)
-#' rmskToBed(
+#' filterRmsk(
 #'     species = "Hs",
 #'     exclude = setdiff(classes, c("LINE", "SINE")),
 #'     min_len = 100,
 #'     rmsk = rmsk
 #' )
-rmskToBed <- function(
+filterRmsk <- function(
     species = c("Hs", "Mm"),
     exclude = .DEFAULT_EXCLUDE,
     min_len = 32,

@@ -43,31 +43,29 @@ pass additional arguments as character strings with the desired Salmon flags.
 See the example below for how to do this.
 }
 \examples{
-# Quantify example reads against the index built from the example data.
-# Salmon must be available on your PATH.
-if (nzchar(Sys.which("salmon"))) {
-    bfc <- exampleCache(build = TRUE)
-    index_dir <- tempfile("index")
-    createGentrome(
-        species = "Hs",
-        index_dir = index_dir,
-        cache = bfc,
-        genome = exampleGenome()
-    )
+# Example reads simulated from the example region
+fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
+list.files(fq_dir)
 
-    fq_dir <- system.file("extdata", "fastq", package = "rmskProfiler")
-    out_dir <- tempfile("quants")
+\dontrun{
+# Quantify the example reads against the index built from the example data.
+# Salmon must be available on your PATH. The decoys are all of the primary
+# chromosomes of the genome, so building the index takes ~1 h
+bfc <- exampleCache(build = TRUE)
+index_dir <- tempfile("index")
+createGentrome(species = "Hs", index_dir = index_dir, cache = bfc)
 
-    # Additional arguments are passed to Salmon as character strings
-    salmonQuant(
-        fq1 = file.path(fq_dir, "ctrl_1_R1.fq.gz"),
-        fq2 = file.path(fq_dir, "ctrl_1_R2.fq.gz"),
-        sample_names = "ctrl_1",
-        index_dir = index_dir,
-        out_dir = out_dir,
-        n_gibbs = 2,
-        "--threads 2"
-    )
-    list.files(out_dir)
+# Additional arguments are passed to Salmon as character strings
+out_dir <- tempfile("quants")
+salmonQuant(
+    fq1 = file.path(fq_dir, "ctrl_1_R1.fq.gz"),
+    fq2 = file.path(fq_dir, "ctrl_1_R2.fq.gz"),
+    sample_names = "ctrl_1",
+    index_dir = index_dir,
+    out_dir = out_dir,
+    n_gibbs = 2,
+    "--threads 2"
+)
+list.files(out_dir)
 }
 }
