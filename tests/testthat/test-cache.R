@@ -8,38 +8,36 @@ test_that("settings keys do not depend on the order of exclude", {
 
 test_that("resource names identify species and build settings", {
     expect_identical(
-        .resourceRname("Hs", "genome"),
-        "rmskProfiler:Hs:GRCh38.primary_assembly.genome.fa.gz"
+        .resourceRname("Hs", "gtf"),
+        "rmskProfiler:Hs:gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
     )
     expect_identical(
-        .resourceRname("Mm", "rmsk.bed", "Satellite", 32),
-        paste0("rmskProfiler:Mm:", .settingsKey("Satellite", 32), ":rmsk.bed")
+        .resourceRname("Mm", "decoys.txt", "Satellite", 32),
+        paste0("rmskProfiler:Mm:", .settingsKey("Satellite", 32), ":decoys.txt")
     )
-    expect_error(.resourceRname("Hs", "rmsk.bed"))
+    expect_error(.resourceRname("Hs", "decoys.txt"))
 })
 
-test_that("exampleCache() contains the example downloads", {
+test_that("exampleCache() contains the example GTF", {
     bfc <- exampleCache()
     res <- listResources(cache = bfc)
-    expect_setequal(res$resource, c("genome", "gtf", "transcripts"))
+    expect_identical(res$resource, "gtf")
     expect_true(all(res$type == "download"))
     expect_true(file.exists(getResource("gtf", species = "Hs", cache = bfc)))
     expect_error(
-        getResource("rmsk.bed", species = "Hs", cache = bfc),
+        getResource("decoys.txt", species = "Hs", cache = bfc),
         "not found in cache"
     )
 })
 
 test_that("rmskToBed() validates rmsk", {
-    bfc <- exampleCache()
     expect_error(
-        rmskToBed(species = "Hs", cache = bfc, rmsk = data.frame()),
+        rmskToBed(species = "Hs", rmsk = data.frame()),
         "rmsk must be a GRanges"
     )
     expect_error(
         rmskToBed(
             species = "Hs",
-            cache = bfc,
             rmsk = GenomicRanges::GRanges("chr22:1-100")
         ),
         "repName, repFamily, and repClass"
@@ -54,13 +52,68 @@ test_that("removeResources() removes build files and optionally downloads", {
 
     suppressMessages(removeResources(species = "Hs", cache = bfc))
     res <- listResources(cache = bfc)
-    expect_setequal(
-        res$resource,
-        c("genome", "gtf", "transcripts", "annotation.txdb")
+    expect_setequal(res$resource, c("gtf", "annotation.txdb"))
+
+    suppressMessages(
+        removeResources(species = "Hs", downloads = TRUE, cache = bfc)
+    )
+    expect_identical(nrow(listResources(cache = bfc)), 0L)
+})
+
+test_that("genome and transcript downloads of earlier versions are removed", {
+    bfc <- exampleCache()
+    for (file in .legacyDownloads("Hs")) {
+        BiocFileCache::bfcadd(
+            bfc,
+            .rname("Hs", file),
+            fpath = exampleGenome(),
+            action = "copy"
+        )
+    }
+    res <- listResources(cache = bfc)
+    expect_setequal(res$resource, c("gtf", "transcripts", "genome"))
+    expect_true(all(res$type == "download"))
+
+    expect_error(
+        getResource("genome", species = "Hs", cache = bfc),
+        "no longer downloaded.*removeResources\\(downloads = TRUE\\)"
     )
 
     suppressMessages(
         removeResources(species = "Hs", downloads = TRUE, cache = bfc)
     )
     expect_identical(nrow(listResources(cache = bfc)), 0L)
+})
+
+test_that("caches without a genome column in the metadata can be read", {
+    bfc <- exampleCache()
+    meta <- .readMeta(bfc)
+    BiocFileCache::bfcmeta(bfc, .META_TABLE, overwrite = TRUE) <-
+        meta[, setdiff(names(meta), "genome")]
+    expect_identical(.readMeta(bfc)$genome, NA_character_)
+    expect_true(is.na(listResources(cache = bfc)$genome))
+})
+
+test_that("build files of earlier versions are listed and removed", {
+    bfc <- suppressMessages(exampleCache(build = TRUE))
+    for (file in .LEGACY_BUILD_FILES) {
+        BiocFileCache::bfcadd(
+            bfc,
+            .resourceRname("Hs", file, .DEFAULT_EXCLUDE, 32),
+            fpath = exampleGenome(),
+            action = "copy"
+        )
+    }
+    res <- listResources(cache = bfc)
+    expect_true(all(.LEGACY_BUILD_FILES %in% res$resource))
+    expect_error(
+        getResource("rmsk.bed", species = "Hs", cache = bfc),
+        "no longer created or used"
+    )
+
+    suppressMessages(removeResources(species = "Hs", cache = bfc))
+    expect_setequal(
+        listResources(cache = bfc)$resource,
+        c("gtf", "annotation.txdb")
+    )
 })

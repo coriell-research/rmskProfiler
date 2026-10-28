@@ -10,7 +10,8 @@
 \item{bfc}{BiocFileCache}
 }
 \value{
-data.frame with columns rid, species, build, exclude, and min_len
+data.frame with columns rid, species, build, exclude, min_len, and
+genome
 }
 \description{
 Rows for resources that are no longer in the cache are dropped.

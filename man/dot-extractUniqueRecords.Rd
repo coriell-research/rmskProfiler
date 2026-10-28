@@ -4,12 +4,13 @@
 \alias{.extractUniqueRecords}
 \title{Extract unique RepeatMasker sequences and their loci from the genome}
 \usage{
-.extractUniqueRecords(rmsk_bed, genome_fa, chunk_size = 1e+05)
+.extractUniqueRecords(rmsk, genome, chunk_size = 1e+05)
 }
 \arguments{
-\item{rmsk_bed}{Path to the BED file created by \code{rmskToBed()}}
+\item{rmsk}{GRanges of filtered RepeatMasker records returned by
+\code{rmskToBed()}}
 
-\item{genome_fa}{Path to the (gzipped) genome fasta file}
+\item{genome}{Genome returned by \code{.getGenome()}}
 
 \item{chunk_size}{Number of sequences hashed at a time}
 }

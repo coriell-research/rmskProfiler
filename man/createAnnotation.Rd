@@ -15,13 +15,12 @@ createAnnotation(
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)}
 
 \item{exclude}{A character vector specifying which elements (repClass) were
-excluded by \code{rmskToBed()}. Default "Simple_repeat", "Low_complexity",
-"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
-"Unknown".}
+excluded by \code{extractUniqueSeqs()}. Default "Simple_repeat",
+"Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
+"tRNA", and "Unknown".}
 
 \item{min_len}{Minimum sequence length of a record used by
-\code{rmskToBed()}.
-Default 32.}
+\code{extractUniqueSeqs()}. Default 32.}
 
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
@@ -32,12 +31,16 @@ Invisibly \code{NULL}. Called for its side effect of writing the
 annotation (rmsk-rowData.rds) to the cache.
 }
 \description{
-This function produces multiple annotation files used to annotate downstream
-counts generated after quantification with Salmon. It creates a GRangesList
-object for each hash and a tab-delimited file containing annotation
-information for each hash with indicator values for the types of genic
-features they overlap. Overlap annotations are generated with respect to the
-downloaded gencode GTF file.
+This function creates the annotation used as the rowData by
+\code{importQuants()} and saves it to the rmskProfiler cache as
+rmsk-rowData.rds. It is a DataFrame with one row per transcript, with the
+transcript and gene IDs, gene names, and gene types from the GENCODE GTF, and
+one row per unique TE sequence (hash), with its RepeatMasker
+classification, the number of loci, and indicator columns for the genomic
+features (exons, introns, UTRs, promoters) its loci overlap. The Ranges
+column is a GRangesList of the exons of each transcript and the loci of each
+hash. The TxDb created from the GTF is also saved to the cache
+(annotation.txdb) if it is not there already.
 }
 \examples{
 # Build the annotation for the example data
@@ -45,8 +48,12 @@ bfc <- exampleCache()
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
-rmskToBed(species = "Hs", cache = bfc, rmsk = rmsk)
-extractUniqueSeqs(species = "Hs", cache = bfc)
+extractUniqueSeqs(
+    species = "Hs",
+    cache = bfc,
+    genome = exampleGenome(),
+    rmsk = rmsk
+)
 createAnnotation(species = "Hs", cache = bfc)
 
 rd <- readRDS(getResource("rmsk-rowData.rds", species = "Hs", cache = bfc))

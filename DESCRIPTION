@@ -17,6 +17,8 @@ Depends:
     R (>= 4.6.0)
 Suggests: 
     BiocStyle,
+    BSgenome.Hsapiens.UCSC.hg38,
+    BSgenome.Mmusculus.UCSC.mm10,
     devtools,
     knitr,
     rmarkdown,
@@ -37,11 +39,12 @@ Imports:
     GenomeInfoDb,
     GenomicFeatures,
     GenomicRanges,
+    IRanges,
     jsonlite,
     methods,
+    Rsamtools,
     rtracklayer,
     S4Vectors,
-    ShortRead,
     stats,
     stringi,
     SummarizedExperiment,

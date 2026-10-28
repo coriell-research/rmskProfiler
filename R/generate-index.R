@@ -10,30 +10,38 @@
 #' functions:
 #'
 #' \describe{
-#'   \item{\code{downloadResources()}}{Downloads all necessary files for
-#'   downstream processing}
-#'   \item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
-#'   \item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
-#'   sequences from the genome}
+#'   \item{\code{downloadResources()}}{Downloads the GENCODE GTF}
+#'   \item{\code{extractUniqueSeqs()}}{Filters the RepeatMasker records with
+#'   \code{rmskToBed()}, extracts their sequences from the genome, and finds
+#'   the loci with identical sequences}
 #'   \item{\code{createAnnotation()}}{Creates annotations of all TE loci with
 #'   respect to annotations in GTF}
 #'   \item{\code{createGentrome()}}{Creates the files needed for decoy-aware
 #'   Salmon index and calls 'Salmon index'}
 #' }
 #'
-#' @param index_dir Directory in which to create the Salmon index. All other
-#' resources are saved to the rmskProfiler cache.
+#' The genome sequence is taken from the BSgenome package for the species,
+#' BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+#' (GRCm38), which must be installed, unless another genome is given with
+#' \code{genome}. The transcript sequences are extracted from the genome using
+#' the GENCODE GTF.
+#'
+#' @inheritParams extractUniqueSeqs
+#' @param index_dir Directory in which to create the Salmon index. The build
+#' resources are saved to the rmskProfiler cache, see \code{listResources()}.
+#' While the index is built, the gentrome is written to a temporary file next
+#' to \code{index_dir}, which needs ~5.5 GB of free space for human.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
 #' which
 #' species to download resources for
-#' @param check_integrity TRUE/FALSE, if TRUE check the md5sums of the GENCODE
-#' files after downloading
+#' @param check_integrity TRUE/FALSE, if TRUE check the md5sum of the GENCODE
+#' GTF after downloading
 #' @param exclude A character vector specifying which elements (repClass) to
-#' exclude from the
-#' resulting BED file. Default "Simple_repeat", "Low_complexity", "Satellite",
-#' "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".
+#' exclude from the index. Default "Simple_repeat", "Low_complexity",
+#' "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+#' "Unknown".
 #' @param min_len Minimum sequence length of a record. Default 32. Records
-#' shorter than this length are excluded from the resulting BED file and index.
+#' shorter than this length are excluded from the index.
 #' @param create_index TRUE/FALSE Create salmon index after generating
 #' resources? Default TRUE.
 #' This assumes that "salmon" is available on your PATH
@@ -43,11 +51,13 @@
 #' Default NULL uses the rmskProfiler cache at
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #' @param rmsk NULL (default) or a GRanges of RepeatMasker records passed to
-#' \code{rmskToBed()}.
+#' \code{extractUniqueSeqs()}. Filter the records with \code{exclude} and
+#' \code{min_len} rather than beforehand, see \code{extractUniqueSeqs()}.
 #'
-#' @return Invisibly \code{NULL}. Called for its side effect of creating all
-#' resources in the cache and, if \code{create_index = TRUE}, the Salmon index
-#' in \code{index_dir}.
+#' @return Invisibly \code{NULL}. Called for its side effect of creating the
+#' build resources in the cache and either the Salmon index in
+#' \code{index_dir} (\code{create_index = TRUE}) or the gentrome in the cache
+#' (\code{create_index = FALSE}).
 #' @export
 #'
 #' @examples
@@ -63,7 +73,8 @@
 #'     check_integrity = FALSE,
 #'     create_index = nzchar(Sys.which("salmon")),
 #'     cache = bfc,
-#'     rmsk = rmsk
+#'     rmsk = rmsk,
+#'     genome = exampleGenome()
 #' )
 #' listResources(cache = bfc)
 generateIndex <- function(
@@ -75,7 +86,8 @@ generateIndex <- function(
     create_index = TRUE,
     threads = 1,
     cache = NULL,
-    rmsk = NULL
+    rmsk = NULL,
+    genome = NULL
 ) {
     species <- match.arg(species)
     if (isTRUE(create_index)) {
@@ -85,27 +97,23 @@ generateIndex <- function(
         .checkSalmon("Or set create_index = FALSE to skip building the index.")
     }
     bfc <- .getCache(cache)
+    # Fail before downloading anything if the genome is not available
+    genome <- .getGenome(species, genome)
 
-    message("Downloading resources --------------------------------------")
+    message("Downloading the GTF ----------------------------------------")
     downloadResources(
         species = species,
         check_integrity = check_integrity,
         cache = bfc
-    )
-    message("Converting rmsk ranges to BED ------------------------------")
-    rmskToBed(
-        species = species,
-        exclude = exclude,
-        min_len = min_len,
-        cache = bfc,
-        rmsk = rmsk
     )
     message("Extracting unique rmsk sequences from genome ---------------")
     extractUniqueSeqs(
         species = species,
         exclude = exclude,
         min_len = min_len,
-        cache = bfc
+        cache = bfc,
+        genome = genome,
+        rmsk = rmsk
     )
     message("Annotating unique sequences with genomic features ----------")
     createAnnotation(
@@ -122,7 +130,8 @@ generateIndex <- function(
         min_len = min_len,
         create_index = create_index,
         threads = threads,
-        cache = bfc
+        cache = bfc,
+        genome = genome
     )
 
     return(invisible(NULL))

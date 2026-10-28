@@ -7,11 +7,15 @@
 #' Resources are one of three types:
 #'
 #' \describe{
-#'  \item{download}{GENCODE files downloaded by \code{downloadResources()}}
+#'  \item{download}{The GENCODE GTF downloaded by \code{downloadResources()}.
+#'  GENCODE genome and transcript sequences downloaded by earlier versions of
+#'  rmskProfiler are also listed as downloads. They are no longer used and can
+#'  be removed with \code{removeResources(downloads = TRUE)}.}
 #'  \item{annotation}{The TxDb created from the GENCODE GTF}
 #'  \item{build}{Files generated for a specific combination of \code{exclude}
 #'  and \code{min_len} settings. The \code{build} column contains a short key
-#'  identifying these settings.}
+#'  identifying these settings. The \code{genome} column contains the genome
+#'  the build files were created from.}
 #' }
 #'
 #' The Salmon index is not stored in the cache and is not listed.
@@ -23,8 +27,10 @@
 #' \code{tools::R_user_dir("rmskProfiler", which = "cache")}.
 #'
 #' @return data.frame with columns species, type, build, exclude, min_len,
-#' resource, size_mb, created, and path. Values in the resource column can be
-#' passed to \code{getResource()}.
+#' genome, resource, size_mb, created, and path. Values in the resource column
+#' can be passed to \code{getResource()}, except for the "genome" and
+#' "transcripts" downloads and the "rmsk.bed" and "rmsk-unique.fa.gz" builds of
+#' earlier versions.
 #' @export
 #'
 #' @examples
@@ -53,12 +59,15 @@ listResources <- function(species = NULL, cache = NULL) {
     )
     file <- vapply(parts, function(x) x[length(x)], character(1))
 
-    gencode <- rbind(.gencodeResources("Hs"), .gencodeResources("Mm"))
-    is_download <- file %in% gencode$file
+    downloads <- unlist(lapply(c("Hs", "Mm"), function(sp) {
+        gtf <- .gencodeResources(sp)
+        c(stats::setNames(gtf$file, gtf$type), .legacyDownloads(sp))
+    }))
+    is_download <- file %in% downloads
     info$resource <- file
-    info$resource[is_download] <- gencode$type[match(
+    info$resource[is_download] <- names(downloads)[match(
         file[is_download],
-        gencode$file
+        downloads
     )]
     info$type <- ifelse(
         is_download,
@@ -69,7 +78,7 @@ listResources <- function(species = NULL, cache = NULL) {
     meta <- .readMeta(bfc)
     info <- merge(
         info,
-        meta[, c("rid", "exclude", "min_len")],
+        meta[, c("rid", "exclude", "min_len", "genome")],
         by = "rid",
         all.x = TRUE
     )
@@ -93,6 +102,7 @@ listResources <- function(species = NULL, cache = NULL) {
         build = info$build,
         exclude = info$exclude,
         min_len = info$min_len,
+        genome = info$genome,
         resource = info$resource,
         size_mb = info$size_mb,
         created = info$create_time,
@@ -108,11 +118,11 @@ listResources <- function(species = NULL, cache = NULL) {
 #' Returns the local path to a downloaded or generated resource so that it can
 #' be used outside of rmskProfiler.
 #'
-#' @param resource Name of the resource. One of "gtf", "transcripts", or
-#' "genome" for the GENCODE downloads, "annotation.txdb" for the TxDb, or one of
-#' "rmsk.bed", "rmsk-duplicateInfo.rds", "rmsk-unique.fa.gz",
+#' @param resource Name of the resource. One of "gtf" for the GENCODE GTF,
+#' "annotation.txdb" for the TxDb, or one of "rmsk-duplicateInfo.rds",
 #' "rmsk-rowData.rds", "rmsk-gentrome.fa.gz", or "decoys.txt" for files
-#' generated for a specific build.
+#' generated for a specific build. "rmsk-gentrome.fa.gz" is only saved by
+#' \code{createGentrome(create_index = FALSE)}.
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param exclude A character vector specifying which elements (repClass) were
 #' excluded when building the resource. Only used for build resources. Default
@@ -143,16 +153,42 @@ getResource <- function(
     min_len = 32,
     cache = NULL
 ) {
+    if (resource %in% c("genome", "transcripts")) {
+        stop(
+            "The GENCODE ",
+            resource,
+            " sequences are no longer downloaded or used. The genome is ",
+            "provided by the BSgenome package for the species and the ",
+            "transcript sequences are extracted from it. Use ",
+            "removeResources(downloads = TRUE) to remove files downloaded by ",
+            "earlier versions.",
+            call. = FALSE
+        )
+    }
+    if (resource %in% .LEGACY_BUILD_FILES) {
+        stop(
+            resource,
+            " is no longer created or used. Use removeResources() to remove ",
+            "the files created by earlier versions.",
+            call. = FALSE
+        )
+    }
     resource <- match.arg(
         resource,
-        c("gtf", "transcripts", "genome", "annotation.txdb", .BUILD_FILES)
+        c("gtf", "annotation.txdb", .BUILD_FILES)
     )
     species <- match.arg(species)
 
-    hint <- if (resource %in% c("gtf", "transcripts", "genome")) {
+    hint <- if (resource == "gtf") {
         "Run downloadResources() first."
     } else if (resource == "annotation.txdb") {
         "Run createAnnotation() first."
+    } else if (resource == "rmsk-gentrome.fa.gz") {
+        paste(
+            "The gentrome is only saved by createGentrome(create_index =",
+            "FALSE). Check that exclude and min_len match the values used to",
+            "build it. Use listResources() to see the available builds."
+        )
     } else {
         paste(
             "Check that exclude and min_len match the values used to build",
@@ -168,8 +204,12 @@ getResource <- function(
 #' Remove resources from the rmskProfiler cache
 #'
 #' Removes all files generated for a build (a combination of species,
-#' \code{exclude}, and \code{min_len} settings) from the cache. Optionally, the
-#' GENCODE downloads and the TxDb created from them can also be removed. The
+#' \code{exclude}, and \code{min_len} settings) from the cache, including the
+#' "rmsk.bed" and "rmsk-unique.fa.gz" files created by earlier versions of
+#' rmskProfiler. Optionally, the
+#' GENCODE downloads and the TxDb created from them can also be removed,
+#' including the GENCODE genome and transcript sequences downloaded by earlier
+#' versions of rmskProfiler. The
 #' Salmon index is not stored in the cache and is not removed.
 #'
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
@@ -207,7 +247,7 @@ removeResources <- function(
     species <- match.arg(species)
     bfc <- .getCache(cache)
 
-    resources <- .BUILD_FILES
+    resources <- c(.BUILD_FILES, .LEGACY_BUILD_FILES)
     if (isTRUE(downloads)) {
         resources <- c(
             resources,
@@ -224,6 +264,9 @@ removeResources <- function(
         min_len = min_len,
         USE.NAMES = FALSE
     )
+    if (isTRUE(downloads)) {
+        rnames <- c(rnames, .rname(species, .legacyDownloads(species)))
+    }
 
     info <- BiocFileCache::bfcinfo(bfc)
     hits <- info$rname %in% rnames

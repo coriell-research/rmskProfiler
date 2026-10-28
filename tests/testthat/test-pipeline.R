@@ -20,20 +20,119 @@ test_that("the example build contains annotations for transcripts and TEs", {
     expect_true(any(!is.na(rd$Hash)))
     expect_identical(rownames(rd)[!is.na(rd$Hash)], rd$Hash[!is.na(rd$Hash)])
 
-    # Every unique sequence in the fasta is annotated
-    fa <- Biostrings::readDNAStringSet(
-        getResource("rmsk-unique.fa.gz", species = "Hs", cache = bfc)
+    # Every unique sequence is annotated
+    info <- readRDS(
+        getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
     )
-    expect_setequal(names(fa), rd$Hash[!is.na(rd$Hash)])
+    expect_setequal(unique(info$Hash), rd$Hash[!is.na(rd$Hash)])
+    expect_false(any(
+        c("rmsk.bed", "rmsk-unique.fa.gz") %in%
+            listResources(cache = bfc)$resource
+    ))
 })
 
 test_that("createGentrome() writes the gentrome and decoys", {
     bfc <- builtCache()
-    suppressMessages(
-        createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
-    )
+    suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
     decoys <- readLines(getResource("decoys.txt", species = "Hs", cache = bfc))
     expect_identical(decoys, "chr22")
+
+    # Transcripts in GTF order, then the unique TE sequences, then the decoys
+    gentrome <- Biostrings::readDNAStringSet(
+        getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
+    )
+    tx <- Biostrings::readDNAStringSet(test_path(
+        "fixtures",
+        "transcripts-chr22.fa.gz"
+    ))
+    info <- readRDS(
+        getResource("rmsk-duplicateInfo.rds", species = "Hs", cache = bfc)
+    )
+    expect_identical(
+        names(gentrome),
+        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chr22")
+    )
+    expect_identical(
+        as.character(gentrome[seq_along(tx)]),
+        stats::setNames(as.character(tx), sub("\\|.*", "", names(tx)))
+    )
+    # Every build file records the genome it was created from
+    res <- listResources(cache = bfc)
+    expect_true(all(
+        res$genome[res$type == "build"] ==
+            .getGenome("Hs", exampleGenome())$label
+    ))
+})
+
+test_that("createGentrome() builds the index from a temporary gentrome", {
+    skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
+    bfc <- suppressMessages(exampleCache(build = TRUE))
+    # A gentrome cached by an earlier build is removed
+    suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
+    parent <- tempfile("index-parent")
+    index_dir <- file.path(parent, "index")
+    suppressMessages(createGentrome(
+        species = "Hs",
+        index_dir = index_dir,
+        cache = bfc,
+        genome = exampleGenome()
+    ))
+    expect_true(file.exists(file.path(index_dir, "info.json")))
+    # The gentrome is removed and not saved to the cache
+    expect_identical(list.files(parent), "index")
+    res <- listResources(cache = bfc)$resource
+    expect_true("decoys.txt" %in% res)
+    expect_false("rmsk-gentrome.fa.gz" %in% res)
+})
+
+test_that("the temporary gentrome is written next to the index if possible", {
+    parent <- tempfile("index-parent")
+    expect_identical(
+        .gentromeDir(file.path(parent, "index")),
+        normalizePath(parent)
+    )
+
+    skip_on_os("windows")
+    skip_if(identical(Sys.info()[["user"]], "root"), "root can write anywhere")
+    read_only <- tempfile("read-only")
+    dir.create(read_only)
+    Sys.chmod(read_only, "555")
+    on.exit(Sys.chmod(read_only, "755"), add = TRUE)
+    expect_identical(.gentromeDir(file.path(read_only, "index")), tempdir())
+})
+
+test_that("createGentrome() warns if the TEs come from a different genome", {
+    bfc <- builtCache()
+    genome <- Biostrings::readDNAStringSet(exampleGenome())
+
+    # The same genome given as a DNAStringSet does not warn
+    expect_no_warning(suppressMessages(createGentrome(
+        species = "Hs",
+        create_index = FALSE,
+        cache = bfc,
+        genome = genome
+    )))
+
+    other <- c(genome, Biostrings::DNAStringSet(c(chrZ = "ACGT")))
+    expect_warning(
+        suppressMessages(createGentrome(
+            species = "Hs",
+            create_index = FALSE,
+            cache = bfc,
+            genome = other
+        )),
+        "different genome"
+    )
 })
 
 test_that("importQuants() returns a SummarizedExperiment", {

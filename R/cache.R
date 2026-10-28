@@ -35,6 +35,9 @@
 
 #' GENCODE resources for a given species
 #'
+#' The genome and transcript sequences are not downloaded. They come from the
+#' BSgenome package for the species, see \code{.getGenome()}.
+#'
 #' @param species Either "Hs" or "Mm"
 #'
 #' @return data.frame with columns type, url, file, and md5
@@ -46,40 +49,48 @@
             "https://ftp.ebi.ac.uk/pub/databases/gencode/",
             "Gencode_human/release_48/"
         )
-        files <- c(
-            "gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz",
-            "gencode.v48.transcripts.fa.gz",
-            "GRCh38.primary_assembly.genome.fa.gz"
-        )
-        md5sums <- c(
-            "f7ffc813464f52e428c116bc3b83dce1",
-            "e4a4d396cca5dd6d0889248b9e93b42a",
-            "42e38e8dd5027dd2ae8aeb8f3a990d07"
-        )
+        file <- "gencode.v48.chr_patch_hapl_scaff.annotation.gtf.gz"
+        md5sum <- "f7ffc813464f52e428c116bc3b83dce1"
     } else {
         base_url <- paste0(
             "https://ftp.ebi.ac.uk/pub/databases/gencode/",
             "Gencode_mouse/release_M25/"
         )
-        files <- c(
-            "gencode.vM25.annotation.gtf.gz",
-            "gencode.vM25.transcripts.fa.gz",
-            "GRCm38.primary_assembly.genome.fa.gz"
-        )
-        md5sums <- c(
-            "0c38fc4ccbc731a2708fc91e7f1c2efd",
-            "a821c0dde39c48b9d2c4b48d36b0180c",
-            "3bc591be24b77f710b6ba5d41022fc5a"
-        )
+        file <- "gencode.vM25.annotation.gtf.gz"
+        md5sum <- "0c38fc4ccbc731a2708fc91e7f1c2efd"
     }
 
     data.frame(
-        type = c("gtf", "transcripts", "genome"),
-        url = paste0(base_url, files),
-        file = files,
-        md5 = md5sums,
-        row.names = c("gtf", "transcripts", "genome")
+        type = "gtf",
+        url = paste0(base_url, file),
+        file = file,
+        md5 = md5sum,
+        row.names = "gtf"
     )
+}
+
+
+#' GENCODE files downloaded by earlier versions of rmskProfiler
+#'
+#' These are no longer used but are listed by \code{listResources()} and
+#' removed by \code{removeResources(downloads = TRUE)}.
+#'
+#' @param species Either "Hs" or "Mm"
+#'
+#' @return Named character vector of file names
+#' @keywords internal
+.legacyDownloads <- function(species) {
+    if (species == "Hs") {
+        c(
+            transcripts = "gencode.v48.transcripts.fa.gz",
+            genome = "GRCh38.primary_assembly.genome.fa.gz"
+        )
+    } else {
+        c(
+            transcripts = "gencode.vM25.transcripts.fa.gz",
+            genome = "GRCm38.primary_assembly.genome.fa.gz"
+        )
+    }
 }
 
 
@@ -117,13 +128,19 @@
 #' Files generated for each combination of species and exclude/min_len settings
 #' @keywords internal
 .BUILD_FILES <- c(
-    "rmsk.bed",
     "rmsk-duplicateInfo.rds",
-    "rmsk-unique.fa.gz",
     "rmsk-rowData.rds",
     "rmsk-gentrome.fa.gz",
     "decoys.txt"
 )
+
+
+#' Build files created by earlier versions of rmskProfiler
+#'
+#' These are no longer created or used but are listed by \code{listResources()}
+#' and removed by \code{removeResources()}.
+#' @keywords internal
+.LEGACY_BUILD_FILES <- c("rmsk.bed", "rmsk-unique.fa.gz")
 
 
 #' Name of the BiocFileCache metadata table holding build information
@@ -134,8 +151,8 @@
 #' Name of a cached resource
 #'
 #' @param species Either "Hs" or "Mm"
-#' @param resource One of "gtf", "transcripts", or "genome" for GENCODE
-#' downloads, "annotation.txdb", or one of the files in \code{.BUILD_FILES}
+#' @param resource "gtf" for the GENCODE GTF, "annotation.txdb", or one of the
+#' files in \code{.BUILD_FILES} or \code{.LEGACY_BUILD_FILES}
 #' @param exclude,min_len Settings used to build the resource. Required for
 #' files in \code{.BUILD_FILES}, ignored otherwise.
 #'
@@ -146,7 +163,7 @@
     if (resource %in% gencode$type) {
         return(.rname(species, gencode[resource, "file"]))
     }
-    if (resource %in% .BUILD_FILES) {
+    if (resource %in% c(.BUILD_FILES, .LEGACY_BUILD_FILES)) {
         stopifnot(!is.null(exclude), !is.null(min_len))
         return(.rname(species, resource, .settingsKey(exclude, min_len)))
     }
@@ -216,7 +233,8 @@
 #'
 #' @inheritParams .resourceRname
 #' @param bfc BiocFileCache
-#' @param ext File extension of the resource, e.g. ".bed"
+#' @param ext File extension of the resource, e.g. ".rds"
+#' @param genome Label of the genome the resource was built from, or NULL
 #'
 #' @return Path to the cached file
 #' @keywords internal
@@ -226,7 +244,8 @@
     resource,
     ext,
     exclude = NULL,
-    min_len = NULL
+    min_len = NULL,
+    genome = NULL
 ) {
     rname <- .resourceRname(species, resource, exclude, min_len)
     hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
@@ -235,9 +254,49 @@
     } else {
         path <- BiocFileCache::bfcnew(bfc, rname, ext = ext)
     }
-    .recordResource(bfc, names(path), species, exclude, min_len)
+    .recordResource(bfc, names(path), species, exclude, min_len, genome)
 
     unname(path)
+}
+
+
+#' Remove a resource from the cache if it exists
+#'
+#' @param bfc BiocFileCache
+#' @param rname Name of the resource
+#'
+#' @return TRUE/FALSE, whether a resource was removed
+#' @keywords internal
+.removeResource <- function(bfc, rname) {
+    hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+    if (nrow(hit) == 0L) {
+        return(invisible(FALSE))
+    }
+    message("Removing ", rname, " from the cache")
+    BiocFileCache::bfcremove(bfc, hit$rid)
+    .writeMeta(bfc, .readMeta(bfc))
+    invisible(TRUE)
+}
+
+
+#' Get the label of the genome a cached resource was built from
+#'
+#' @inheritParams .resourceRname
+#' @param bfc BiocFileCache
+#'
+#' @return character(1), NA if no genome was recorded for the resource
+#' @keywords internal
+.resourceGenome <- function(
+    bfc,
+    species,
+    resource,
+    exclude = NULL,
+    min_len = NULL
+) {
+    rname <- .resourceRname(species, resource, exclude, min_len)
+    hit <- BiocFileCache::bfcquery(bfc, rname, field = "rname", exact = TRUE)
+    meta <- .readMeta(bfc)
+    meta$genome[match(hit$rid[1L], meta$rid)]
 }
 
 
@@ -247,7 +306,8 @@
 #'
 #' @param bfc BiocFileCache
 #'
-#' @return data.frame with columns rid, species, build, exclude, and min_len
+#' @return data.frame with columns rid, species, build, exclude, min_len, and
+#' genome
 #' @keywords internal
 .readMeta <- function(bfc) {
     empty <- data.frame(
@@ -255,12 +315,17 @@
         species = character(),
         build = character(),
         exclude = character(),
-        min_len = integer()
+        min_len = integer(),
+        genome = character()
     )
     if (!.META_TABLE %in% BiocFileCache::bfcmetalist(bfc)) {
         return(empty)
     }
     meta <- BiocFileCache::bfcmeta(bfc, .META_TABLE)
+    # Caches created by earlier versions have no genome column
+    if (!"genome" %in% names(meta)) {
+        meta$genome <- rep(NA_character_, nrow(meta))
+    }
     meta[meta$rid %in% BiocFileCache::bfcrid(bfc), names(empty)]
 }
 
@@ -274,10 +339,19 @@
 #' @param species Either "Hs" or "Mm"
 #' @param exclude,min_len Settings used to build the resource, or NULL for
 #' resources that do not depend on them
+#' @param genome Label of the genome the resource was built from, or NULL for
+#' resources that do not depend on it
 #'
 #' @return NULL
 #' @keywords internal
-.recordResource <- function(bfc, rid, species, exclude = NULL, min_len = NULL) {
+.recordResource <- function(
+    bfc,
+    rid,
+    species,
+    exclude = NULL,
+    min_len = NULL,
+    genome = NULL
+) {
     has_settings <- !is.null(exclude) && !is.null(min_len)
     record <- data.frame(
         rid = rid,
@@ -292,7 +366,8 @@
         } else {
             NA_character_
         },
-        min_len = if (has_settings) as.integer(min_len) else NA_integer_
+        min_len = if (has_settings) as.integer(min_len) else NA_integer_,
+        genome = if (is.null(genome)) NA_character_ else genome
     )
     meta <- .readMeta(bfc)
     .writeMeta(bfc, rbind(meta[meta$rid != rid, ], record))

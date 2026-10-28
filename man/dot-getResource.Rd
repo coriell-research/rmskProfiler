@@ -11,8 +11,8 @@
 
 \item{species}{Either "Hs" or "Mm"}
 
-\item{resource}{One of "gtf", "transcripts", or "genome" for GENCODE
-downloads, "annotation.txdb", or one of the files in \code{.BUILD_FILES}}
+\item{resource}{"gtf" for the GENCODE GTF, "annotation.txdb", or one of the
+files in \code{.BUILD_FILES} or \code{.LEGACY_BUILD_FILES}}
 
 \item{exclude, min_len}{Settings used to build the resource. Required for
 files in \code{.BUILD_FILES}, ignored otherwise.}

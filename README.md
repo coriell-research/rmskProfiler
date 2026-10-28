@@ -37,6 +37,14 @@ Building the index and quantifying reads requires a recent version of
 [Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
 on your `PATH`. Importing and analysing quantifications does not.
 
+Building the index also requires the BSgenome package of the genome
+sequence:
+
+``` r
+BiocManager::install("BSgenome.Hsapiens.UCSC.hg38") # human
+BiocManager::install("BSgenome.Mmusculus.UCSC.mm10") # mouse
+```
+
 ## Quick start
 
 The whole workflow for human RNA-seq samples takes three steps, plus an
@@ -45,10 +53,12 @@ optional fourth:
 ``` r
 library(rmskProfiler)
 
-# 1. Build the index (once per species). This downloads GENCODE v48, extracts
-#    the unique RepeatMasker TE sequences, annotates them, and builds a Salmon
-#    index of transcripts + TEs with the genome as a decoy. Files are kept in
-#    the rmskProfiler cache, the index is written to "hg38-salmon_index".
+# 1. Build the index (once per species). This downloads the GENCODE v48 GTF,
+#    extracts the transcript and unique RepeatMasker TE sequences from
+#    BSgenome.Hsapiens.UCSC.hg38, annotates the TEs, and builds a Salmon index
+#    of transcripts + TEs with the genome as a decoy. Files are kept in the
+#    rmskProfiler cache, the index is written to "hg38-salmon_index". Building
+#    it needs ~5.5 GB of temporary space next to the index for the gentrome.
 generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
 
 # 2. Quantify reads with Salmon using Gibbs sampling. This can also be done

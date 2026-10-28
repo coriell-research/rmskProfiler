@@ -13,6 +13,7 @@
 data.frame with columns type, url, file, and md5
 }
 \description{
-GENCODE resources for a given species
+The genome and transcript sequences are not downloaded. They come from the
+BSgenome package for the species, see \code{.getGenome()}.
 }
 \keyword{internal}

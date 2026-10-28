@@ -13,27 +13,30 @@ generateIndex(
   create_index = TRUE,
   threads = 1,
   cache = NULL,
-  rmsk = NULL
+  rmsk = NULL,
+  genome = NULL
 )
 }
 \arguments{
-\item{index_dir}{Directory in which to create the Salmon index. All other
-resources are saved to the rmskProfiler cache.}
+\item{index_dir}{Directory in which to create the Salmon index. The build
+resources are saved to the rmskProfiler cache, see \code{listResources()}.
+While the index is built, the gentrome is written to a temporary file next
+to \code{index_dir}, which needs ~5.5 GB of free space for human.}
 
 \item{species}{Either "Hs" (Homo sapiens) or "Mm" (Mus musculus) designating
 which
 species to download resources for}
 
-\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sums of the GENCODE
-files after downloading}
+\item{check_integrity}{TRUE/FALSE, if TRUE check the md5sum of the GENCODE
+GTF after downloading}
 
 \item{exclude}{A character vector specifying which elements (repClass) to
-exclude from the
-resulting BED file. Default "Simple_repeat", "Low_complexity", "Satellite",
-"RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and "Unknown".}
+exclude from the index. Default "Simple_repeat", "Low_complexity",
+"Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA", "tRNA", and
+"Unknown".}
 
 \item{min_len}{Minimum sequence length of a record. Default 32. Records
-shorter than this length are excluded from the resulting BED file and index.}
+shorter than this length are excluded from the index.}
 
 \item{create_index}{TRUE/FALSE Create salmon index after generating
 resources? Default TRUE.
@@ -47,12 +50,19 @@ Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 
 \item{rmsk}{NULL (default) or a GRanges of RepeatMasker records passed to
-\code{rmskToBed()}.}
+\code{extractUniqueSeqs()}. Filter the records with \code{exclude} and
+\code{min_len} rather than beforehand, see \code{extractUniqueSeqs()}.}
+
+\item{genome}{NULL (default) to use the BSgenome package for the species, or
+a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
+file. The sequence names must match the RepeatMasker records and GTF
+(e.g. "chr1").}
 }
 \value{
-Invisibly \code{NULL}. Called for its side effect of creating all
-resources in the cache and, if \code{create_index = TRUE}, the Salmon index
-in \code{index_dir}.
+Invisibly \code{NULL}. Called for its side effect of creating the
+build resources in the cache and either the Salmon index in
+\code{index_dir} (\code{create_index = TRUE}) or the gentrome in the cache
+(\code{create_index = FALSE}).
 }
 \description{
 This function is a wrapper around several other functions for downloading and
@@ -65,16 +75,21 @@ RepeatMasker elements + a genomic decoy. It does so by calling the following
 functions:
 
 \describe{
-\item{\code{downloadResources()}}{Downloads all necessary files for
-downstream processing}
-\item{\code{rmskToBed()}}{Extracts and filters RepeatMasker to BED file}
-\item{\code{extractUniqueSeqs()}}{Extracts all unique RepeatMasker
-sequences from the genome}
+\item{\code{downloadResources()}}{Downloads the GENCODE GTF}
+\item{\code{extractUniqueSeqs()}}{Filters the RepeatMasker records with
+\code{rmskToBed()}, extracts their sequences from the genome, and finds
+the loci with identical sequences}
 \item{\code{createAnnotation()}}{Creates annotations of all TE loci with
 respect to annotations in GTF}
 \item{\code{createGentrome()}}{Creates the files needed for decoy-aware
 Salmon index and calls 'Salmon index'}
 }
+
+The genome sequence is taken from the BSgenome package for the species,
+BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
+(GRCm38), which must be installed, unless another genome is given with
+\code{genome}. The transcript sequences are extracted from the genome using
+the GENCODE GTF.
 }
 \examples{
 # Run the whole pipeline on the example data. With the default cache,
@@ -89,7 +104,8 @@ generateIndex(
     check_integrity = FALSE,
     create_index = nzchar(Sys.which("salmon")),
     cache = bfc,
-    rmsk = rmsk
+    rmsk = rmsk,
+    genome = exampleGenome()
 )
 listResources(cache = bfc)
 }
