@@ -32,7 +32,7 @@ test_that("the example build contains annotations for transcripts and TEs", {
 })
 
 test_that("createGentrome() writes the gentrome and decoys", {
-    local_small_decoy()
+    local_chr22_decoy()
     bfc <- builtCache()
     suppressMessages(createGentrome(
         species = "Hs",
@@ -40,7 +40,7 @@ test_that("createGentrome() writes the gentrome and decoys", {
         cache = bfc
     ))
     decoys <- readLines(getResource("decoys.txt", species = "Hs", cache = bfc))
-    expect_identical(decoys, "chrM")
+    expect_identical(decoys, "chr22")
 
     # Transcripts in GTF order, then the unique TE sequences, then the decoys
     gentrome <- Biostrings::readDNAStringSet(
@@ -55,7 +55,7 @@ test_that("createGentrome() writes the gentrome and decoys", {
     )
     expect_identical(
         names(gentrome),
-        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chrM")
+        c(sub("\\|.*", "", names(tx)), unique(info$Hash), "chr22")
     )
     expect_identical(
         as.character(gentrome[seq_along(tx)]),
@@ -68,29 +68,69 @@ test_that("createGentrome() writes the gentrome and decoys", {
     ))
 })
 
-test_that("createGentrome() builds the index from a temporary gentrome", {
-    skip_if(!nzchar(Sys.which("salmon")), "Salmon is not available")
-    local_small_decoy()
+test_that("createGentrome() gives Salmon the same gentrome uncompressed", {
+    local_chr22_decoy()
     bfc <- suppressMessages(exampleCache(build = TRUE))
-    # A gentrome cached by an earlier build is removed
     suppressMessages(createGentrome(
         species = "Hs",
         create_index = FALSE,
         cache = bfc
     ))
+    cached <- Biostrings::readDNAStringSet(
+        getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
+    )
+
+    # Record what Salmon is given instead of running it
+    salmon <- new.env()
+    local_mocked_bindings(
+        .checkSalmon = function(...) invisible(NULL),
+        .salmonIndex = function(gentrome_fa, decoy_file, index_dir, threads) {
+            salmon$gentrome_fa <- gentrome_fa
+            salmon$gzipped <- identical(
+                readBin(gentrome_fa, "raw", 2L),
+                as.raw(c(0x1f, 0x8b))
+            )
+            salmon$gentrome <- Biostrings::readDNAStringSet(gentrome_fa)
+            salmon$decoys <- readLines(decoy_file)
+            salmon$index_dir <- index_dir
+            salmon$threads <- threads
+            0L
+        }
+    )
     parent <- tempfile("index-parent")
     index_dir <- file.path(parent, "index")
     suppressMessages(createGentrome(
         species = "Hs",
         index_dir = index_dir,
+        threads = 3,
         cache = bfc
     ))
-    expect_true(file.exists(file.path(index_dir, "info.json")))
-    # The gentrome is removed and not saved to the cache
-    expect_identical(list.files(parent), "index")
+
+    expect_false(salmon$gzipped)
+    expect_identical(salmon$gentrome, cached)
+    expect_identical(salmon$decoys, "chr22")
+    expect_identical(salmon$index_dir, index_dir)
+    expect_identical(salmon$threads, 3)
+    # The gentrome is written next to the index and removed afterwards
+    expect_identical(
+        dirname(salmon$gentrome_fa),
+        normalizePath(parent)
+    )
+    expect_false(file.exists(salmon$gentrome_fa))
+    # The cached gentrome no longer matches the index and is removed
     res <- listResources(cache = bfc)$resource
-    expect_true("decoys.txt" %in% res)
     expect_false("rmsk-gentrome.fa.gz" %in% res)
+    expect_true("decoys.txt" %in% res)
+
+    local_mocked_bindings(.salmonIndex = function(...) 1L)
+    expect_error(
+        suppressMessages(createGentrome(
+            species = "Hs",
+            index_dir = index_dir,
+            cache = bfc
+        )),
+        "Salmon index generation failed with exit status 1"
+    )
 })
 
 test_that("the temporary gentrome is written next to the index if possible", {
@@ -110,7 +150,7 @@ test_that("the temporary gentrome is written next to the index if possible", {
 })
 
 test_that("createGentrome() warns if the TEs come from a different genome", {
-    local_small_decoy()
+    local_chr22_decoy()
     bfc <- suppressMessages(exampleCache(build = TRUE))
 
     # The genome the TEs were extracted from does not warn
@@ -234,4 +274,99 @@ test_that("estimateReadThrough() fits the example data", {
     expect_true(all(rt$Hash %in% rownames(se)))
     expect_identical(ncol(attr(rt, "readthrough")), ncol(se))
     expect_identical(ncol(attr(rt, "design")), 2L)
+})
+
+test_that("importQuants() reads the Salmon counts and scales them", {
+    se <- exampleSE()
+    quant <- utils::read.delim(
+        file.path(exampleQuants(), "ctrl_1", "quant.sf"),
+        row.names = 1
+    )
+    expect_equal(
+        SummarizedExperiment::assay(se, "orig")[, "ctrl_1"],
+        stats::setNames(quant[rownames(se), "NumReads"], rownames(se))
+    )
+    expect_equal(
+        SummarizedExperiment::assay(se, "tpms")[, "ctrl_1"],
+        stats::setNames(quant[rownames(se), "TPM"], rownames(se))
+    )
+    # Counts are divided by the overdispersion of each target
+    overdispersion <- S4Vectors::metadata(se)$annotation[
+        rownames(se),
+        "Overdispersion"
+    ]
+    expect_equal(
+        SummarizedExperiment::assay(se, "counts"),
+        SummarizedExperiment::assay(se, "orig") / overdispersion
+    )
+
+    rd <- readRDS(getResource(
+        "rmsk-rowData.rds",
+        species = "Hs",
+        cache = builtCache()
+    ))
+    expect_identical(SummarizedExperiment::rowData(se), rd[rownames(se), ])
+
+    # Without removing all zero rows, every target is kept
+    all_rows <- suppressMessages(importQuants(
+        exampleQuants(),
+        species = "Hs",
+        remove_zeros = FALSE,
+        cache = builtCache()
+    ))
+    expect_setequal(rownames(all_rows), rownames(quant))
+})
+
+test_that("aggregateCounts() sums counts and lengths of each feature", {
+    se <- exampleSE()
+    rd <- SummarizedExperiment::rowData(se)
+    counts <- SummarizedExperiment::assay(se, "counts")
+    agg <- suppressMessages(
+        aggregateCounts(se, "Hs", te_level = "subfamily", cache = builtCache())
+    )
+    agg_counts <- SummarizedExperiment::assay(agg, "counts")
+    agg_rd <- SummarizedExperiment::rowData(agg)
+
+    # A gene is the sum of its transcripts, and its length the width of its
+    # reduced exons
+    tx_per_gene <- table(rd$gene_id)
+    gene <- names(tx_per_gene)[tx_per_gene > 1L][1]
+    in_gene <- which(rd$gene_id == gene)
+    expect_equal(agg_counts[gene, ], colSums(counts[in_gene, ]))
+    expect_identical(agg_rd[gene, "Freq"], length(in_gene))
+    expect_identical(agg_rd[gene, "gene_name"], unique(rd$gene_name[in_gene]))
+    gtf <- rtracklayer::import(system.file(
+        "extdata",
+        "gencode-chr22.gtf.gz",
+        package = "rmskProfiler"
+    ))
+    exons <- gtf[gtf$type == "exon" & gtf$gene_id == gene]
+    expect_equal(
+        agg_rd[gene, "feature_length"],
+        sum(GenomicRanges::width(GenomicRanges::reduce(exons)))
+    )
+
+    # A subfamily is the sum of its unique sequences, and its length the total
+    # width of their loci
+    is_te <- !is.na(rd$Hash)
+    key <- paste(rd$Subfamily, rd$Family, rd$Class, sep = ":")
+    hashes_per_key <- table(key[is_te])
+    subfamily <- names(hashes_per_key)[hashes_per_key > 1L][1]
+    in_subfamily <- which(is_te & key == subfamily)
+    expect_equal(agg_counts[subfamily, ], colSums(counts[in_subfamily, ]))
+    expect_identical(agg_rd[subfamily, "Freq"], length(in_subfamily))
+    expect_equal(
+        agg_rd[subfamily, "feature_length"],
+        sum(GenomicRanges::width(unlist(rd$Ranges[in_subfamily])))
+    )
+
+    # At the locus level the TEs are not aggregated
+    by_locus <- suppressMessages(
+        aggregateCounts(se, "Hs", te_level = "locus", cache = builtCache())
+    )
+    te_hashes <- rownames(se)[is_te]
+    expect_equal(
+        SummarizedExperiment::assay(by_locus, "counts")[te_hashes, ],
+        counts[te_hashes, ]
+    )
 })

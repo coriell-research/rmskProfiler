@@ -190,24 +190,7 @@ createGentrome <- function(
 
     if (isTRUE(create_index)) {
         message("Creating salmon index...")
-        status <- system2(
-            "salmon",
-            args = c(
-                "index",
-                "-t",
-                shQuote(gentrome_fa),
-                "-d",
-                shQuote(decoy_file),
-                "-p",
-                threads,
-                "-k",
-                31,
-                "-i",
-                shQuote(index_dir),
-                "--gencode",
-                "--no-clip"
-            )
-        )
+        status <- .salmonIndex(gentrome_fa, decoy_file, index_dir, threads)
         if (status != 0L) {
             stop(
                 "Salmon index generation failed with exit status ",
@@ -219,6 +202,37 @@ createGentrome <- function(
     }
 
     return(invisible(NULL))
+}
+
+
+#' Build a decoy-aware Salmon index
+#'
+#' @param gentrome_fa Path to the gentrome fasta
+#' @param decoy_file Path to the file with the names of the decoy sequences
+#' @param index_dir Path to the directory where the index is created
+#' @param threads Number of threads
+#'
+#' @return Exit status of \code{salmon index}
+#' @keywords internal
+.salmonIndex <- function(gentrome_fa, decoy_file, index_dir, threads) {
+    system2(
+        "salmon",
+        args = c(
+            "index",
+            "-t",
+            shQuote(gentrome_fa),
+            "-d",
+            shQuote(decoy_file),
+            "-p",
+            threads,
+            "-k",
+            31,
+            "-i",
+            shQuote(index_dir),
+            "--gencode",
+            "--no-clip"
+        )
+    )
 }
 
 

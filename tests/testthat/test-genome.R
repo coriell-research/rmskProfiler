@@ -87,3 +87,31 @@ test_that("transcripts on sequences missing from the genome are skipped", {
         "No transcripts found on the sequences of the genome"
     )
 })
+
+test_that("only transcripts on sequences missing from the genome are skipped", {
+    gtf <- rtracklayer::import(system.file(
+        "extdata",
+        "gencode-chr22.gtf.gz",
+        package = "rmskProfiler"
+    ))
+    # Move one gene to a scaffold that is not in the genome
+    moved_gene <- gtf$gene_id[1]
+    moved_tx <- unique(stats::na.omit(gtf$transcript_id[
+        gtf$gene_id == moved_gene
+    ]))
+    GenomeInfoDb::seqlevels(gtf) <- c("chr22", "XX000001.1")
+    GenomicRanges::seqnames(gtf)[gtf$gene_id == moved_gene] <- "XX000001.1"
+    txdb <- suppressWarnings(suppressMessages(
+        txdbmaker::makeTxDbFromGRanges(gtf)
+    ))
+
+    expect_message(
+        tx <- .transcriptSeqs(txdb, .getGenome("Hs")),
+        paste(
+            length(moved_tx),
+            "transcripts on sequences not in the genome were skipped"
+        )
+    )
+    all_tx <- AnnotationDbi::keys(txdb, "TXNAME")
+    expect_setequal(names(tx), setdiff(all_tx, moved_tx))
+})
