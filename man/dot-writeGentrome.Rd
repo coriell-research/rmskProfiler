@@ -11,7 +11,7 @@
 
 \item{seqs}{DNAStringSet of transcript and unique RepeatMasker sequences}
 
-\item{genome}{Genome returned by \code{.getGenome()}}
+\item{genome}{BSgenome returned by \code{.getGenome()}}
 
 \item{decoys}{Names of the decoy chromosomes}
 

@@ -16,3 +16,9 @@ exampleSE <- function() {
     }
     .example$se
 }
+
+# Use chr22 as the only decoy so that createGentrome() does not write every
+# primary chromosome of the genome
+local_chr22_decoy <- function(env = parent.frame()) {
+    local_mocked_bindings(.decoys = function(genome) "chr22", .env = env)
+}

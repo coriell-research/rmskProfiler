@@ -11,8 +11,7 @@ createGentrome(
   min_len = 32,
   create_index = TRUE,
   threads = 1,
-  cache = NULL,
-  genome = NULL
+  cache = NULL
 )
 }
 \arguments{
@@ -40,11 +39,6 @@ This assumes that "salmon" is available on your PATH}
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
-
-\item{genome}{NULL (default) to use the BSgenome package for the species, or
-a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
-file. The sequence names must match the RepeatMasker records and GTF
-(e.g. "chr1").}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of writing the
@@ -62,9 +56,11 @@ The transcript sequences are extracted from the genome using the exons of
 each transcript in the GENCODE GTF. These are identical to the GENCODE
 transcript sequences. The unique RepeatMasker sequences are extracted from
 the genome using the duplicate information created by
-\code{extractUniqueSeqs()}. The primary chromosomes of the genome (chr1-22,
-X, and Y) are used as the decoys and their names are saved to decoys.txt in
-the rmskProfiler cache.
+\code{extractUniqueSeqs()}. The genome is the BSgenome package for the
+species, BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or
+BSgenome.Mmusculus.UCSC.mm10 (GRCm38). Its primary chromosomes (e.g.
+chr1-22, X, and Y for human) are used as the decoys and their names are
+saved to decoys.txt in the rmskProfiler cache.
 
 With \code{create_index = TRUE}, the gentrome is written uncompressed to a
 temporary file next to \code{index_dir} (or in \code{tempdir()} if the
@@ -76,25 +72,18 @@ the rmskProfiler cache as rmsk-gentrome.fa.gz so that the index can be
 built outside of R.
 }
 \examples{
-# Create the gentrome and decoys for the example data
+# The example cache contains the TE annotations of the example data
 bfc <- exampleCache(build = TRUE)
-createGentrome(
-    species = "Hs",
-    create_index = FALSE,
-    cache = bfc,
-    genome = exampleGenome()
-)
+listResources(cache = bfc)
+
+\dontrun{
+# Write the gentrome and decoys to the cache. The decoys are all of the
+# primary chromosomes of the genome, so the gentrome takes ~1.5 GB for human
+createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
 getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
 getResource("decoys.txt", species = "Hs", cache = bfc)
 
-# Create the Salmon index instead if Salmon is available
-if (nzchar(Sys.which("salmon"))) {
-    index_dir <- tempfile("index")
-    createGentrome(
-        species = "Hs",
-        index_dir = index_dir,
-        cache = bfc,
-        genome = exampleGenome()
-    )
+# Create the Salmon index instead (requires Salmon on your PATH)
+createGentrome(species = "Hs", index_dir = "hg38-salmon_index", cache = bfc)
 }
 }

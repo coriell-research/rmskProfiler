@@ -32,6 +32,7 @@ test_that("functions that run Salmon fail before doing any work without it", {
 })
 
 test_that("Salmon is not required when the index is not created", {
+    local_chr22_decoy()
     bfc <- exampleCache()
     rmsk <- readRDS(system.file(
         "extdata",
@@ -43,8 +44,7 @@ test_that("Salmon is not required when the index is not created", {
         check_integrity = FALSE,
         create_index = FALSE,
         cache = bfc,
-        rmsk = rmsk,
-        genome = exampleGenome()
+        rmsk = rmsk
     ))))
     expect_true("decoys.txt" %in% listResources(cache = bfc)$resource)
 })

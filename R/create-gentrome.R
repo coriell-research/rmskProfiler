@@ -8,9 +8,11 @@
 #' each transcript in the GENCODE GTF. These are identical to the GENCODE
 #' transcript sequences. The unique RepeatMasker sequences are extracted from
 #' the genome using the duplicate information created by
-#' \code{extractUniqueSeqs()}. The primary chromosomes of the genome (chr1-22,
-#' X, and Y) are used as the decoys and their names are saved to decoys.txt in
-#' the rmskProfiler cache.
+#' \code{extractUniqueSeqs()}. The genome is the BSgenome package for the
+#' species, BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or
+#' BSgenome.Mmusculus.UCSC.mm10 (GRCm38). Its primary chromosomes (e.g.
+#' chr1-22, X, and Y for human) are used as the decoys and their names are
+#' saved to decoys.txt in the rmskProfiler cache.
 #'
 #' With \code{create_index = TRUE}, the gentrome is written uncompressed to a
 #' temporary file next to \code{index_dir} (or in \code{tempdir()} if the
@@ -21,7 +23,6 @@
 #' the rmskProfiler cache as rmsk-gentrome.fa.gz so that the index can be
 #' built outside of R.
 #'
-#' @inheritParams extractUniqueSeqs
 #' @param species Either "Hs" (Homo sapiens) or "Mm" (Mus musculus)
 #' @param index_dir Path to the directory where the Salmon index will be
 #' created.
@@ -48,26 +49,19 @@
 #' @export
 #'
 #' @examples
-#' # Create the gentrome and decoys for the example data
+#' # The example cache contains the TE annotations of the example data
 #' bfc <- exampleCache(build = TRUE)
-#' createGentrome(
-#'     species = "Hs",
-#'     create_index = FALSE,
-#'     cache = bfc,
-#'     genome = exampleGenome()
-#' )
+#' listResources(cache = bfc)
+#'
+#' \dontrun{
+#' # Write the gentrome and decoys to the cache. The decoys are all of the
+#' # primary chromosomes of the genome, so the gentrome takes ~1.5 GB for human
+#' createGentrome(species = "Hs", create_index = FALSE, cache = bfc)
 #' getResource("rmsk-gentrome.fa.gz", species = "Hs", cache = bfc)
 #' getResource("decoys.txt", species = "Hs", cache = bfc)
 #'
-#' # Create the Salmon index instead if Salmon is available
-#' if (nzchar(Sys.which("salmon"))) {
-#'     index_dir <- tempfile("index")
-#'     createGentrome(
-#'         species = "Hs",
-#'         index_dir = index_dir,
-#'         cache = bfc,
-#'         genome = exampleGenome()
-#'     )
+#' # Create the Salmon index instead (requires Salmon on your PATH)
+#' createGentrome(species = "Hs", index_dir = "hg38-salmon_index", cache = bfc)
 #' }
 createGentrome <- function(
     species = c("Hs", "Mm"),
@@ -76,8 +70,7 @@ createGentrome <- function(
     min_len = 32,
     create_index = TRUE,
     threads = 1,
-    cache = NULL,
-    genome = NULL
+    cache = NULL
 ) {
     species <- match.arg(species)
     if (isTRUE(create_index)) {
@@ -105,8 +98,9 @@ createGentrome <- function(
             "min_len first."
         )
     )
-    genome <- .getGenome(species, genome)
-    message("Using genome: ", genome$label)
+    genome <- .getGenome(species)
+    genome_label <- .genomeLabel(genome)
+    message("Using genome: ", genome_label)
     rmsk_genome <- .resourceGenome(
         bfc,
         species,
@@ -114,12 +108,12 @@ createGentrome <- function(
         exclude,
         min_len
     )
-    if (!is.na(rmsk_genome) && rmsk_genome != genome$label) {
+    if (!is.na(rmsk_genome) && rmsk_genome != genome_label) {
         warning(
             "The unique RepeatMasker sequences were found in a different ",
             "genome (",
             rmsk_genome,
-            "). Run extractUniqueSeqs() with the same genome first.",
+            "). Run extractUniqueSeqs() again with the installed genome.",
             call. = FALSE
         )
     }
@@ -140,9 +134,7 @@ createGentrome <- function(
     message("Extracting unique RepeatMasker sequences from the genome...")
     rmsk_seqs <- .uniqueSeqs(data.table::setDT(readRDS(info_rds)), genome)
 
-    chrom_len <- .genomeLengths(genome)
-    decoys <- grep(.PRIMARY_CHROMS, names(chrom_len), value = TRUE)
-    decoys <- setdiff(decoys, "chrM")
+    decoys <- .decoys(genome)
     decoy_file <- .newResource(
         bfc,
         species,
@@ -150,7 +142,7 @@ createGentrome <- function(
         ".txt",
         exclude,
         min_len,
-        genome = genome$label
+        genome = genome_label
     )
     message("Writing out decoys to ", decoy_file)
     writeLines(decoys, decoy_file)
@@ -179,7 +171,7 @@ createGentrome <- function(
             ".fa.gz",
             exclude,
             min_len,
-            genome = genome$label
+            genome = genome_label
         )
     }
     message(
@@ -198,24 +190,7 @@ createGentrome <- function(
 
     if (isTRUE(create_index)) {
         message("Creating salmon index...")
-        status <- system2(
-            "salmon",
-            args = c(
-                "index",
-                "-t",
-                shQuote(gentrome_fa),
-                "-d",
-                shQuote(decoy_file),
-                "-p",
-                threads,
-                "-k",
-                31,
-                "-i",
-                shQuote(index_dir),
-                "--gencode",
-                "--no-clip"
-            )
-        )
+        status <- .salmonIndex(gentrome_fa, decoy_file, index_dir, threads)
         if (status != 0L) {
             stop(
                 "Salmon index generation failed with exit status ",
@@ -227,6 +202,37 @@ createGentrome <- function(
     }
 
     return(invisible(NULL))
+}
+
+
+#' Build a decoy-aware Salmon index
+#'
+#' @param gentrome_fa Path to the gentrome fasta
+#' @param decoy_file Path to the file with the names of the decoy sequences
+#' @param index_dir Path to the directory where the index is created
+#' @param threads Number of threads
+#'
+#' @return Exit status of \code{salmon index}
+#' @keywords internal
+.salmonIndex <- function(gentrome_fa, decoy_file, index_dir, threads) {
+    system2(
+        "salmon",
+        args = c(
+            "index",
+            "-t",
+            shQuote(gentrome_fa),
+            "-d",
+            shQuote(decoy_file),
+            "-p",
+            threads,
+            "-k",
+            31,
+            "-i",
+            shQuote(index_dir),
+            "--gencode",
+            "--no-clip"
+        )
+    )
 }
 
 
@@ -257,7 +263,7 @@ createGentrome <- function(
 #'
 #' @param path Path of the fasta file
 #' @param seqs DNAStringSet of transcript and unique RepeatMasker sequences
-#' @param genome Genome returned by \code{.getGenome()}
+#' @param genome BSgenome returned by \code{.getGenome()}
 #' @param decoys Names of the decoy chromosomes
 #' @param compress TRUE/FALSE, gzip the fasta file?
 #'
@@ -265,9 +271,9 @@ createGentrome <- function(
 #' @keywords internal
 .writeGentrome <- function(path, seqs, genome, decoys, compress) {
     Biostrings::writeXStringSet(seqs, filepath = path, compress = compress)
-    chrom_len <- .genomeLengths(genome)
+    chrom_len <- GenomeInfoDb::seqlengths(genome)
     for (chrom in decoys) {
-        chrom_seq <- .genomeSeqs(
+        chrom_seq <- Biostrings::getSeq(
             genome,
             GenomicRanges::GRanges(
                 chrom,

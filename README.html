@@ -634,44 +634,40 @@ with:</p>
 <a href="https://salmon.readthedocs.io/en/latest/building.html#binary-releases">Salmon</a>
 on your <code>PATH</code>. Importing and analysing quantifications does
 not.</p>
-<p>Building the index also requires the BSgenome package of the genome
-sequence:</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>BiocManager<span class="sc">::</span><span class="fu">install</span>(<span class="st">&quot;BSgenome.Hsapiens.UCSC.hg38&quot;</span>) <span class="co"># human</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>BiocManager<span class="sc">::</span><span class="fu">install</span>(<span class="st">&quot;BSgenome.Mmusculus.UCSC.mm10&quot;</span>) <span class="co"># mouse</span></span></code></pre></div>
 <h2 id="quick-start">Quick start</h2>
 <p>The whole workflow for human RNA-seq samples takes three steps, plus
 an optional fourth:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(rmskProfiler)</span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co"># 1. Build the index (once per species). This downloads the GENCODE v48 GTF,</span></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#    extracts the transcript and unique RepeatMasker TE sequences from</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#    BSgenome.Hsapiens.UCSC.hg38, annotates the TEs, and builds a Salmon index</span></span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#    of transcripts + TEs with the genome as a decoy. Files are kept in the</span></span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#    rmskProfiler cache, the index is written to &quot;hg38-salmon_index&quot;. Building</span></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#    it needs ~5.5 GB of temporary space next to the index for the gentrome.</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="fu">generateIndex</span>(<span class="st">&quot;hg38-salmon_index&quot;</span>, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>, <span class="at">threads =</span> <span class="dv">12</span>)</span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co"># 2. Quantify reads with Salmon using Gibbs sampling. This can also be done</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#    outside of R, as long as Salmon is run with --numGibbsSamples</span></span>
-<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="fu">salmonQuant</span>(</span>
-<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>    <span class="at">fq1 =</span> <span class="fu">c</span>(<span class="st">&quot;sample1.R1.fq.gz&quot;</span>, <span class="st">&quot;sample2.R1.fq.gz&quot;</span>),</span>
-<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>    <span class="at">fq2 =</span> <span class="fu">c</span>(<span class="st">&quot;sample1.R2.fq.gz&quot;</span>, <span class="st">&quot;sample2.R2.fq.gz&quot;</span>),</span>
-<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>    <span class="at">sample_names =</span> <span class="fu">c</span>(<span class="st">&quot;sample1&quot;</span>, <span class="st">&quot;sample2&quot;</span>),</span>
-<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>    <span class="at">index_dir =</span> <span class="st">&quot;hg38-salmon_index&quot;</span>,</span>
-<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>    <span class="at">out_dir =</span> <span class="st">&quot;quants&quot;</span>,</span>
-<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>    <span class="at">n_gibbs =</span> <span class="dv">30</span>,</span>
-<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>    <span class="st">&quot;--threads 12&quot;</span></span>
-<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>)</span>
-<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a></span>
-<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a><span class="co"># 3. Import transcript and TE locus counts as an annotated</span></span>
-<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a><span class="co">#    SummarizedExperiment, with counts scaled for multi-mapping uncertainty</span></span>
-<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>se <span class="ot">&lt;-</span> <span class="fu">importQuants</span>(<span class="st">&quot;quants&quot;</span>, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>)</span>
-<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a></span>
-<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a><span class="co"># 4. (Optional) Sum transcripts to genes and TE loci to subfamilies</span></span>
-<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a>aggregated <span class="ot">&lt;-</span> <span class="fu">aggregateCounts</span>(se, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>, <span class="at">te_level =</span> <span class="st">&quot;subfamily&quot;</span>)</span>
-<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a></span>
-<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a><span class="co"># Inspect, locate, or remove the cached files</span></span>
-<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a><span class="fu">listResources</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(rmskProfiler)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># 1. Build the index (once per species). This downloads the GENCODE v48 GTF,</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#    extracts the transcript and unique RepeatMasker TE sequences from</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#    BSgenome.Hsapiens.UCSC.hg38, annotates the TEs, and builds a Salmon index</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#    of transcripts + TEs with the genome as a decoy. Files are kept in the</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#    rmskProfiler cache, the index is written to &quot;hg38-salmon_index&quot;. Building</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a><span class="co">#    it needs ~5.5 GB of temporary space next to the index for the gentrome.</span></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="fu">generateIndex</span>(<span class="st">&quot;hg38-salmon_index&quot;</span>, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>, <span class="at">threads =</span> <span class="dv">12</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a><span class="co"># 2. Quantify reads with Salmon using Gibbs sampling. This can also be done</span></span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a><span class="co">#    outside of R, as long as Salmon is run with --numGibbsSamples</span></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a><span class="fu">salmonQuant</span>(</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>    <span class="at">fq1 =</span> <span class="fu">c</span>(<span class="st">&quot;sample1.R1.fq.gz&quot;</span>, <span class="st">&quot;sample2.R1.fq.gz&quot;</span>),</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>    <span class="at">fq2 =</span> <span class="fu">c</span>(<span class="st">&quot;sample1.R2.fq.gz&quot;</span>, <span class="st">&quot;sample2.R2.fq.gz&quot;</span>),</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>    <span class="at">sample_names =</span> <span class="fu">c</span>(<span class="st">&quot;sample1&quot;</span>, <span class="st">&quot;sample2&quot;</span>),</span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>    <span class="at">index_dir =</span> <span class="st">&quot;hg38-salmon_index&quot;</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>    <span class="at">out_dir =</span> <span class="st">&quot;quants&quot;</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>    <span class="at">n_gibbs =</span> <span class="dv">30</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>    <span class="st">&quot;--threads 12&quot;</span></span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>)</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a><span class="co"># 3. Import transcript and TE locus counts as an annotated</span></span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a><span class="co">#    SummarizedExperiment, with counts scaled for multi-mapping uncertainty</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>se <span class="ot">&lt;-</span> <span class="fu">importQuants</span>(<span class="st">&quot;quants&quot;</span>, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>)</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co"># 4. (Optional) Sum transcripts to genes and TE loci to subfamilies</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>aggregated <span class="ot">&lt;-</span> <span class="fu">aggregateCounts</span>(se, <span class="at">species =</span> <span class="st">&quot;Hs&quot;</span>, <span class="at">te_level =</span> <span class="st">&quot;subfamily&quot;</span>)</span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a><span class="co"># Inspect, locate, or remove the cached files</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="fu">listResources</span>()</span></code></pre></div>
 <p>Aggregation is not required for differential expression analysis.
 Both <code>se</code> and <code>aggregated</code> are standard
 <code>SummarizedExperiment</code> objects that can be used directly with
@@ -698,12 +694,12 @@ them.</li>
 </ul>
 <p>Read the vignette source in <a href="vignettes/rmskProfiler.Rmd">vignettes/rmskProfiler.Rmd</a>, or
 install the package with its vignette and open it from R:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>    <span class="st">&quot;coriell-research/rmskProfiler&quot;</span>,</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>    <span class="at">dependencies =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>    <span class="at">build_vignettes =</span> <span class="cn">TRUE</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>)</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;rmskProfiler&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>    <span class="st">&quot;coriell-research/rmskProfiler&quot;</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>    <span class="at">dependencies =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>    <span class="at">build_vignettes =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="fu">vignette</span>(<span class="st">&quot;rmskProfiler&quot;</span>)</span></code></pre></div>
 
 </body>
 </html>

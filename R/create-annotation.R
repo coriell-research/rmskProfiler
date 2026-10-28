@@ -57,6 +57,10 @@
 #'
 #' @return List of hash vectors overlapping genomic features
 .getHashOverlaps <- function(x, txdb) {
+    # Columns used with data.table non-standard evaluation
+    . <- feature <- feature_id <- feature_label <- Hash <- NULL
+    q_strand <- query_idx <- s_strand <- strand_match <- subject_idx <- NULL
+
     message("Preparing reduced genomic features...")
 
     gr_exons <- unlist(GenomicFeatures::exonsBy(txdb, by = "gene"))
@@ -229,7 +233,6 @@
 #' extractUniqueSeqs(
 #'     species = "Hs",
 #'     cache = bfc,
-#'     genome = exampleGenome(),
 #'     rmsk = rmsk
 #' )
 #' createAnnotation(species = "Hs", cache = bfc)
@@ -242,6 +245,13 @@ createAnnotation <- function(
     min_len = 32,
     cache = NULL
 ) {
+    # Columns used with data.table non-standard evaluation
+    . <- Class <- Family <- Hash <- N_Loci <- RepName <- Subfamily <- NULL
+    gene_id <- gene_name <- gene_type <- transcript_id <- NULL
+    has3UTR <- has5UTR <- hasExonic <- hasIntronic <- NULL
+    hasUnstranded3UTR <- hasUnstranded5UTR <- NULL
+    hasUnstrandedExonic <- hasUnstrandedIntronic <- overlapping_features <- NULL
+
     species <- match.arg(species)
     bfc <- .getCache(cache)
     info_rds <- .getResource(

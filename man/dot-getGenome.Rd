@@ -2,26 +2,17 @@
 % Please edit documentation in R/genome.R
 \name{.getGenome}
 \alias{.getGenome}
-\title{Get the genome sequence used to build the index}
+\title{Get the BSgenome of a species}
 \usage{
-.getGenome(species, genome = NULL)
+.getGenome(species)
 }
 \arguments{
 \item{species}{Either "Hs" or "Mm"}
-
-\item{genome}{NULL to use the BSgenome package for the species, a BSgenome,
-a DNAStringSet, an Rsamtools FaFile, or a path to a (gzipped) FASTA file. A
-genome returned by this function is returned as is.}
 }
 \value{
-An object of class "rmskGenome", a list with elements \code{seqs},
-a BSgenome or FaFile supporting \code{Biostrings::getSeq()}, and
-\code{label}, a description of the genome recorded in the cache metadata.
-The label of a BSgenome is its package name and version. Other genomes are
-labelled "custom" followed by a key computed from their sequence names and
-lengths, so the same genome gets the same label whatever the input type.
+BSgenome.Hsapiens.UCSC.hg38 or BSgenome.Mmusculus.UCSC.mm10
 }
 \description{
-Get the genome sequence used to build the index
+Get the BSgenome of a species
 }
 \keyword{internal}

@@ -9,7 +9,7 @@
 \arguments{
 \item{txdb}{TxDb}
 
-\item{genome}{Genome returned by \code{.getGenome()}}
+\item{genome}{BSgenome returned by \code{.getGenome()}}
 
 \item{tx_order}{Optional character vector of transcript ids giving the
 order of the returned sequences. Transcripts not in \code{tx_order} are

@@ -9,7 +9,6 @@ extractUniqueSeqs(
   exclude = .DEFAULT_EXCLUDE,
   min_len = 32,
   cache = NULL,
-  genome = NULL,
   rmsk = NULL
 )
 }
@@ -26,20 +25,15 @@ exclude. Default "Simple_repeat", "Low_complexity", "Satellite", "RNA",
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
 
-\item{genome}{NULL (default) to use the BSgenome package for the species, or
-a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
-file. The sequence names must match the RepeatMasker records and GTF
-(e.g. "chr1").}
-
 \item{rmsk}{NULL (default) to use the AnnotationHub RepeatMasker annotations
 for \code{species}, or a GRanges of RepeatMasker records with metadata
 columns repName, repFamily, and repClass, e.g. a subset of the records for
-some loci. The records are filtered with \code{rmskToBed()} using
+some loci. The records are filtered with \code{filterRmsk()} using
 \code{exclude} and \code{min_len}, which identify the build in the cache
 and must be passed again to \code{createAnnotation()},
 \code{createGentrome()}, and \code{importQuants()}. Filter by class and
 length with \code{exclude} and \code{min_len} rather than by passing
-records already filtered with \code{rmskToBed()} using other settings, so
+records already filtered with \code{filterRmsk()} using other settings, so
 that the build is stored under the settings used.}
 }
 \value{
@@ -48,7 +42,7 @@ duplicate information (rmsk-duplicateInfo.rds) to the cache.
 }
 \description{
 This function will extract the sequences of the RepeatMasker records
-returned by \code{rmskToBed()} from the genome, hash them, and save a
+returned by \code{filterRmsk()} from the genome, hash them, and save a
 data.table, rmsk-duplicateInfo.rds, to the rmskProfiler cache which maps the
 SHA1 hash of each sequence to the RepeatMasker loci with that sequence. Loci
 with identical sequences share a hash and are quantified as a single target.
@@ -58,7 +52,7 @@ extracts them from the genome using the first locus of each hash.
 \details{
 The sequences are extracted from the BSgenome package for the species,
 BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
-(GRCm38), unless another genome is given with \code{genome}.
+(GRCm38).
 }
 \examples{
 bfc <- exampleCache()
@@ -68,7 +62,6 @@ rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 extractUniqueSeqs(
     species = "Hs",
     cache = bfc,
-    genome = exampleGenome(),
     rmsk = rmsk
 )
 

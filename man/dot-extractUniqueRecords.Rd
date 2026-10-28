@@ -8,9 +8,9 @@
 }
 \arguments{
 \item{rmsk}{GRanges of filtered RepeatMasker records returned by
-\code{rmskToBed()}}
+\code{filterRmsk()}}
 
-\item{genome}{Genome returned by \code{.getGenome()}}
+\item{genome}{BSgenome returned by \code{.getGenome()}}
 
 \item{chunk_size}{Number of sequences hashed at a time}
 }

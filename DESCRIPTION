@@ -17,8 +17,6 @@ Depends:
     R (>= 4.6.0)
 Suggests: 
     BiocStyle,
-    BSgenome.Hsapiens.UCSC.hg38,
-    BSgenome.Mmusculus.UCSC.mm10,
     devtools,
     knitr,
     rmarkdown,
@@ -34,6 +32,8 @@ Imports:
     BiocFileCache,
     BiocGenerics,
     Biostrings,
+    BSgenome.Hsapiens.UCSC.hg38,
+    BSgenome.Mmusculus.UCSC.mm10,
     data.table,
     digest,
     GenomeInfoDb,
@@ -42,7 +42,6 @@ Imports:
     IRanges,
     jsonlite,
     methods,
-    Rsamtools,
     rtracklayer,
     S4Vectors,
     stats,
@@ -50,4 +49,4 @@ Imports:
     SummarizedExperiment,
     txdbmaker,
     utils
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1

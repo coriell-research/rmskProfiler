@@ -27,22 +27,19 @@ out_dir <- file.path("inst", "extdata")
 region <- GRanges("chr22", IRanges(37e6, 38e6 - 1))
 
 # Genome ----------------------------------------------------------------------
-# chr22 up to the end of the region with every base before the region masked.
-# Coordinates are unchanged so the GTF and RepeatMasker records need no
-# shifting and the Ns compress to almost nothing
+# chr22 up to the end of the region with every base before the region masked,
+# used in place of the BSgenome to build the example index with chr22 as the
+# only decoy. Coordinates are unchanged so the GTF and RepeatMasker records need
+# no shifting
 message("Creating genome...")
-chr22 <- BSgenome.Hsapiens.UCSC.hg38::BSgenome.Hsapiens.UCSC.hg38[["chr22"]]
+genome <- .getGenome("Hs")
+genome_label <- .genomeLabel(genome)
+chr22 <- genome[["chr22"]]
 masked <- DNAStringSet(paste0(
     strrep("N", start(region) - 1L),
     as.character(subseq(chr22, start(region), end(region)))
 ))
 names(masked) <- "chr22"
-writeXStringSet(
-    masked,
-    file.path(out_dir, "genome-chr22.fa.gz"),
-    compress = TRUE,
-    width = 60
-)
 chr22 <- masked[[1]]
 
 # GTF -------------------------------------------------------------------------
@@ -64,11 +61,7 @@ txdb <- suppressWarnings(txdbmaker::makeTxDbFromGFF(
     format = "gtf"
 ))
 tx_ids <- unique(gtf$transcript_id[gtf$type == "transcript"])
-tx_seqs <- .transcriptSeqs(
-    txdb,
-    .getGenome("Hs", file.path(out_dir, "genome-chr22.fa.gz")),
-    tx_order = tx_ids
-)
+tx_seqs <- .transcriptSeqs(txdb, genome, tx_order = tx_ids)
 writeXStringSet(
     tx_seqs,
     file.path("tests", "testthat", "fixtures", "transcripts-chr22.fa.gz"),
@@ -89,14 +82,18 @@ work_dir <- tempfile("rmskProfiler-example-")
 dir.create(work_dir)
 index_dir <- file.path(work_dir, "index")
 bfc <- exampleCache()
-generateIndex(
-    index_dir = index_dir,
-    species = "Hs",
-    check_integrity = FALSE,
-    threads = 4,
-    cache = bfc,
-    rmsk = rmsk,
-    genome = exampleGenome()
+testthat::with_mocked_bindings(
+    generateIndex(
+        index_dir = index_dir,
+        species = "Hs",
+        check_integrity = FALSE,
+        threads = 4,
+        cache = bfc,
+        rmsk = rmsk
+    ),
+    .getGenome = function(species) masked,
+    .genomeLabel = function(genome) genome_label,
+    .package = "rmskProfiler"
 )
 
 # Simulate reads --------------------------------------------------------------

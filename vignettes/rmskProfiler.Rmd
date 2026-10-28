@@ -98,16 +98,6 @@ Building the index and quantifying reads requires a recent version of
 [Salmon](https://salmon.readthedocs.io/en/latest/building.html#binary-releases)
 on your `PATH`. Importing and analysing quantifications does not.
 
-Building the index also requires the `r Biocpkg("BSgenome")` package of the
-genome sequence for the species:
-
-```{r install-bsgenome, eval = FALSE}
-# Human (GRCh38)
-BiocManager::install("BSgenome.Hsapiens.UCSC.hg38")
-# Mouse (GRCm38)
-BiocManager::install("BSgenome.Mmusculus.UCSC.mm10")
-```
-
 # Index generation
 
 `generateIndex()` runs the following steps, which can also be run on their
@@ -116,11 +106,11 @@ own:
 - `downloadResources()` downloads the GENCODE GTF (v48 for human, M25 for
   mouse).
 - `extractUniqueSeqs()` filters the UCSC RepeatMasker annotations from
-  `r Biocpkg("AnnotationHub")` with `rmskToBed()`, extracts the sequence of
+  `r Biocpkg("AnnotationHub")` with `filterRmsk()`, extracts the sequence of
   each TE locus from the genome, and collapses identical sequences. By
   default, records shorter than 32 bp and those with classes "Simple_repeat",
   "Low_complexity", "Satellite", "RNA", "rRNA", "snRNA", "scRNA", "srpRNA",
-  "tRNA", and "Unknown" are removed. `rmskToBed()` can also be called on its
+  "tRNA", and "Unknown" are removed. `filterRmsk()` can also be called on its
   own to inspect the filtered records.
 - `createAnnotation()` annotates each unique sequence with the exons, introns,
   UTRs, and promoters its loci overlap.
@@ -131,13 +121,12 @@ own:
   is instead saved to the cache so that the index can be built outside of R.
 
 The genome sequence is taken from `r Biocpkg("BSgenome.Hsapiens.UCSC.hg38")`
-or `r Biocpkg("BSgenome.Mmusculus.UCSC.mm10")`, whose chromosome names match
-the GENCODE annotations and the UCSC RepeatMasker records. The transcript
-sequences extracted from it are identical to the GENCODE transcript sequences,
-so neither the genome nor the transcripts need to be downloaded. A different
-genome, e.g. a `BSgenome` object, a `DNAStringSet`, or the path to a FASTA
-file with the same chromosome names, can be passed to the `genome` argument of
-`generateIndex()`, `extractUniqueSeqs()`, and `createGentrome()`.
+or `r Biocpkg("BSgenome.Mmusculus.UCSC.mm10")`, which are installed with
+rmskProfiler and whose chromosome names match the GENCODE annotations and the
+UCSC RepeatMasker records. The transcript sequences extracted from it are
+identical to the GENCODE transcript sequences, so neither the genome nor the
+transcripts need to be downloaded. The primary chromosomes of the genome
+(chr1-22, X, and Y for human) are used as the decoys.
 
 Downloaded and generated files are stored with `r Biocpkg("BiocFileCache")`
 (see [Managing cached resources](#managing-cached-resources)).
@@ -146,12 +135,10 @@ Downloaded and generated files are stored with `r Biocpkg("BiocFileCache")`
 
 The package includes example data for a 1 Mb region of hg38 chr22
 (chr22:37,000,000-37,999,999): the GENCODE v48 annotations of the genes in the
-region, the genome sequence up to the end of the region, the RepeatMasker
-records in it, and Salmon quants of 6 simulated samples (3 "ctrl" and 3
-"trt"). `exampleCache()` creates a temporary cache containing the example GTF
-in place of the GENCODE download, so every function can be run on it by
-passing the cache to the `cache` argument. `exampleGenome()` returns the path
-to the example genome, which is used in place of the BSgenome package.
+region, the RepeatMasker records in it, and Salmon quants of 6 simulated
+samples (3 "ctrl" and 3 "trt"). `exampleCache()` creates a temporary cache
+containing the example GTF in place of the GENCODE download, so every function
+can be run on it by passing the cache to the `cache` argument.
 
 ## Building the annotations
 
@@ -161,7 +148,15 @@ library(SummarizedExperiment)
 ```
 
 A [Salmon](https://salmon.readthedocs.io) index and all relevant annotation
-files can be constructed with a call to `generateIndex()`.
+files can be constructed with a call to `generateIndex()`. Every primary
+chromosome of the genome is used as a decoy, so building the index takes about
+an hour and is not run here:
+
+```{r generate, eval = FALSE}
+generateIndex("hg38-salmon_index", species = "Hs", threads = 12)
+```
+
+Here, we run the steps that annotate the TEs of the example region:
 
 ```{r build}
 # Loads the example cache and files
@@ -173,20 +168,14 @@ rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
 
-generateIndex(
-    index_dir = tempfile("index"),
-    species = "Hs",
-    check_integrity = FALSE,
-    create_index = FALSE,
-    cache = bfc,
-    rmsk = rmsk,  # Set to NULL for normal use
-    genome = exampleGenome()  # Set to NULL for normal use
-)
+extractUniqueSeqs(species = "Hs", cache = bfc, rmsk = rmsk)
+createAnnotation(species = "Hs", cache = bfc)
 ```
 
-With `create_index = TRUE` (the default) the Salmon index is built in
-`index_dir` and the gentrome is not saved to the cache. All other files (see
-[Managing cached resources](#managing-cached-resources)) are now in the cache:
+`createGentrome()` would then write the decoys and build the Salmon index in
+`index_dir`. With `create_index = TRUE` (the default) the gentrome is not
+saved to the cache. The annotations needed to import the quants are now in
+the cache (see [Managing cached resources](#managing-cached-resources)):
 
 ```{r list}
 listResources(cache = bfc)

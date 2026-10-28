@@ -1,4 +1,4 @@
-# RepeatMasker records as returned by rmskToBed() from BED-style lines
+# RepeatMasker records as returned by filterRmsk() from BED-style lines
 bedToRecords <- function(bed_lines) {
     bed <- data.table::fread(
         text = bed_lines,
@@ -14,20 +14,16 @@ bedToRecords <- function(bed_lines) {
     gr
 }
 
-writeToyInputs <- function(bed_lines) {
-    genome_fa <- tempfile(fileext = ".fa")
+toyInputs <- function(bed_lines) {
     # 1-4 AAAA, 5-8 CCCC, 9-12 GGGG, 13-16 TTTT, 17-24 ACGTACGT, 25-32 AAAACCCC
-    Biostrings::writeXStringSet(
-        Biostrings::DNAStringSet(c(
-            "chrA 1" = "AAAACCCCGGGGTTTTACGTACGTAAAACCCC"
-        )),
-        genome_fa
-    )
-    list(bed = bedToRecords(bed_lines), genome = genome_fa)
+    genome <- Biostrings::DNAStringSet(c(
+        chrA = "AAAACCCCGGGGTTTTACGTACGTAAAACCCC"
+    ))
+    list(bed = bedToRecords(bed_lines), genome = genome)
 }
 
 test_that("sequences are hashed, reverse complemented, and deduplicated", {
-    files <- writeToyInputs(c(
+    files <- toyInputs(c(
         "chrA\t0\t8\tL1a:L1:LINE\t0\t+",
         "chrA\t8\t16\tAluY:Alu:SINE\t0\t-",
         "chrA\t16\t24\tMER1:hAT:DNA\t0\t+",
@@ -35,7 +31,7 @@ test_that("sequences are hashed, reverse complemented, and deduplicated", {
     ))
     res <- suppressMessages(.extractUniqueRecords(
         files$bed,
-        .getGenome("Hs", files$genome)
+        files$genome
     ))
     sha1 <- function(x) digest::digest(x, algo = "sha1", serialize = FALSE)
 
@@ -64,7 +60,7 @@ test_that("sequences are hashed, reverse complemented, and deduplicated", {
 })
 
 test_that("records outside of the genome are skipped with a warning", {
-    files <- writeToyInputs(c(
+    files <- toyInputs(c(
         "chrA\t0\t8\tL1a:L1:LINE\t0\t+",
         "chrA\t28\t40\tL1a:L1:LINE\t0\t+",
         "chrB\t0\t8\tL1a:L1:LINE\t0\t+"
@@ -72,7 +68,7 @@ test_that("records outside of the genome are skipped with a warning", {
     expect_warning(
         res <- suppressMessages(.extractUniqueRecords(
             files$bed,
-            .getGenome("Hs", files$genome)
+            files$genome
         )),
         "2 records not contained in the genome were skipped"
     )
@@ -81,19 +77,18 @@ test_that("records outside of the genome are skipped with a warning", {
 })
 
 test_that("unstranded records are extracted from the plus strand", {
-    files <- writeToyInputs(c(
+    files <- toyInputs(c(
         "chrA\t0\t8\tL1a:L1:LINE\t0\t.",
         "chrA\t8\t16\tAluY:Alu:SINE\t0\t-"
     ))
     res <- suppressMessages(
-        .extractUniqueRecords(files$bed, .getGenome("Hs", files$genome))
+        .extractUniqueRecords(files$bed, files$genome)
     )
     expect_identical(unname(as.character(res$seqs)), "AAAACCCC")
     expect_identical(res$info$strand, c(".", "-"))
 })
 
 test_that("unstranded records work with the BSgenome", {
-    skip_if_not_installed("BSgenome.Hsapiens.UCSC.hg38")
     bed <- bedToRecords(c(
         "chr22\t37000000\t37000010\tL1a:L1:LINE\t0\t.",
         "chr22\t37000000\t37000010\tL1a:L1:LINE\t0\t+",
@@ -105,13 +100,13 @@ test_that("unstranded records work with the BSgenome", {
 })
 
 test_that(".uniqueSeqs() rebuilds the unique sequences from the loci", {
-    files <- writeToyInputs(c(
+    files <- toyInputs(c(
         "chrA\t0\t8\tL1a:L1:LINE\t0\t+",
         "chrA\t8\t16\tAluY:Alu:SINE\t0\t-",
         "chrA\t16\t24\tMER1:hAT:DNA\t0\t.",
         "chrA\t24\t32\tL1a:L1:LINE\t0\t+"
     ))
-    genome <- .getGenome("Hs", files$genome)
+    genome <- files$genome
     res <- suppressMessages(.extractUniqueRecords(files$bed, genome))
     expect_identical(
         as.character(.uniqueSeqs(res$info, genome)),
@@ -119,13 +114,13 @@ test_that(".uniqueSeqs() rebuilds the unique sequences from the loci", {
     )
 })
 
-test_that("rmskToBed() filters and names the RepeatMasker records", {
+test_that("filterRmsk() filters and names the RepeatMasker records", {
     rmsk <- readRDS(system.file(
         "extdata",
         "rmsk-chr22.rds",
         package = "rmskProfiler"
     ))
-    gr <- rmskToBed(species = "Hs", rmsk = rmsk)
+    gr <- filterRmsk(species = "Hs", rmsk = rmsk)
     expect_s4_class(gr, "GRanges")
     expect_false(any(gr$repClass %in% .DEFAULT_EXCLUDE))
     expect_true(all(GenomicRanges::width(gr) >= 32))
@@ -134,7 +129,7 @@ test_that("rmskToBed() filters and names the RepeatMasker records", {
         paste(gr$repName, gr$repFamily, gr$repClass, sep = ":")
     )
     expect_identical(
-        rmskToBed(species = "Hs", min_len = 100, rmsk = gr),
+        filterRmsk(species = "Hs", min_len = 100, rmsk = gr),
         gr[GenomicRanges::width(gr) >= 100]
     )
 })

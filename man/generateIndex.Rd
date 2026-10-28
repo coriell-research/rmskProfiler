@@ -13,8 +13,7 @@ generateIndex(
   create_index = TRUE,
   threads = 1,
   cache = NULL,
-  rmsk = NULL,
-  genome = NULL
+  rmsk = NULL
 )
 }
 \arguments{
@@ -52,11 +51,6 @@ Default NULL uses the rmskProfiler cache at
 \item{rmsk}{NULL (default) or a GRanges of RepeatMasker records passed to
 \code{extractUniqueSeqs()}. Filter the records with \code{exclude} and
 \code{min_len} rather than beforehand, see \code{extractUniqueSeqs()}.}
-
-\item{genome}{NULL (default) to use the BSgenome package for the species, or
-a BSgenome, DNAStringSet, Rsamtools FaFile, or path to a (gzipped) FASTA
-file. The sequence names must match the RepeatMasker records and GTF
-(e.g. "chr1").}
 }
 \value{
 Invisibly \code{NULL}. Called for its side effect of creating the
@@ -77,7 +71,7 @@ functions:
 \describe{
 \item{\code{downloadResources()}}{Downloads the GENCODE GTF}
 \item{\code{extractUniqueSeqs()}}{Filters the RepeatMasker records with
-\code{rmskToBed()}, extracts their sequences from the genome, and finds
+\code{filterRmsk()}, extracts their sequences from the genome, and finds
 the loci with identical sequences}
 \item{\code{createAnnotation()}}{Creates annotations of all TE loci with
 respect to annotations in GTF}
@@ -87,25 +81,30 @@ Salmon index and calls 'Salmon index'}
 
 The genome sequence is taken from the BSgenome package for the species,
 BSgenome.Hsapiens.UCSC.hg38 (GRCh38) or BSgenome.Mmusculus.UCSC.mm10
-(GRCm38), which must be installed, unless another genome is given with
-\code{genome}. The transcript sequences are extracted from the genome using
-the GENCODE GTF.
+(GRCm38). The transcript sequences are extracted from the genome using the
+GENCODE GTF.
 }
 \examples{
-# Run the whole pipeline on the example data. With the default cache,
-# generateIndex("hg38-salmon_index", species = "Hs") builds the full index.
+# The example cache contains the example GTF and the RepeatMasker records
+# of the example region
 bfc <- exampleCache()
 rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
     package = "rmskProfiler"
 ))
+
+\dontrun{
+# Run the whole pipeline on the example data. The decoys are all of the
+# primary chromosomes of the genome, so this requires Salmon and takes ~1 h
 generateIndex(
     index_dir = tempfile("index"),
     species = "Hs",
     check_integrity = FALSE,
-    create_index = nzchar(Sys.which("salmon")),
     cache = bfc,
-    rmsk = rmsk,
-    genome = exampleGenome()
+    rmsk = rmsk
 )
 listResources(cache = bfc)
+
+# Build the full human index with the default cache
+generateIndex("hg38-salmon_index", species = "Hs")
+}
 }

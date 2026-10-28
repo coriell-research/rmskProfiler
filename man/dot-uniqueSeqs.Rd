@@ -10,7 +10,7 @@
 \item{info}{data.table of duplicate information created by
 \code{.extractUniqueRecords()}}
 
-\item{genome}{Genome returned by \code{.getGenome()}}
+\item{genome}{BSgenome returned by \code{.getGenome()}}
 }
 \value{
 DNAStringSet of unique sequences named by their SHA1 hash

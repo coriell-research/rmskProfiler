@@ -51,7 +51,6 @@ rmsk <- readRDS(system.file("extdata", "rmsk-chr22.rds",
 extractUniqueSeqs(
     species = "Hs",
     cache = bfc,
-    genome = exampleGenome(),
     rmsk = rmsk
 )
 createAnnotation(species = "Hs", cache = bfc)
