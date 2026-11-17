@@ -7,14 +7,22 @@
 #' the locations for each of the TE loci and transcipts.
 #'
 #' @details
-#' The SummarizedExperiment object contains three assays, 'counts', 'orig.' and
-#' 'tpms'.
+#' The SummarizedExperiment object contains four assays, 'counts', 'orig',
+#' 'tpms', and 'length'.
 #' The 'counts' assay contains the counts \emph{after} adjusting for over
 #' dispersion.
-#' This is the assay to be used for downstream differential expression analyses.
+#' This is the assay to be used for downstream differential expression analyses
+#' of transcripts and TE-loci.
 #' The 'orig' assay contains the counts before down-scaling. The 'tpms' assay
-#' contains TPM values from the Salmon quant files. The metadata slot
-#' contains the annotation data.frame returned from \code{catchSalmon()}. The
+#' contains TPM values and the 'length' assay the effective lengths from the
+#' Salmon quant files. The metadata slot
+#' contains the annotation data.frame returned from \code{catchSalmon()} and,
+#' in 'overdispersion', a list with the overdispersions of the features created
+#' by \code{aggregateCounts()} for each \code{te_level}. These are estimated
+#' from the Gibbs samples summed over the transcripts of each gene and the
+#' TE-loci of each TE feature, including targets later removed because they
+#' have no counts (they add nothing to the summed counts but still contribute
+#' to the read-to-target ambiguity). The
 #' rowData
 #' slot of the SummarizedExperiment contains columns with boolean values for
 #' each TE loci indicating whether or not that loci has an overlap with a given
@@ -114,23 +122,48 @@ importQuants <- function(
         )
     }
 
-    catch <- .catchSalmon2(paths, verbose = FALSE)
+    message("Reading in annotation information for transcripts and TE loci...")
+    rd <- readRDS(rdfile)
+
+    # Targets are in the same order in the quant.sf file of every sample
+    target_ids <- data.table::fread(
+        file.path(paths[1L], "quant.sf"),
+        sep = "\t",
+        select = c("Name" = "character"),
+        showProgress = FALSE
+    )$Name
+    rd_targets <- rd[target_ids, ]
+
+    drop_tx <- character()
+    if (isTRUE(std_chromosomes)) {
+        drop_tx <- .nonStandardTranscripts(rd_targets)
+    }
+
+    # Overdispersion of every feature that aggregateCounts() can create is
+    # estimated from the summed Gibbs samples while they are read in
+    groups <- lapply(.TE_LEVELS, function(level) {
+        id <- .featureId(rd_targets, level)
+        id[target_ids %in% drop_tx] <- NA_character_
+        id
+    })
+    names(groups) <- .TE_LEVELS
+
+    catch <- .catchSalmon2(paths, verbose = FALSE, groups = groups)
 
     se <- SummarizedExperiment::SummarizedExperiment(
         assays = list(
             counts = catch$counts / catch$annotation$Overdispersion,
             orig = catch$counts,
-            tpms = catch$tpm
+            tpms = catch$tpm,
+            length = catch$length
         ),
-        metadata = list(annotation = catch$annotation)
+        metadata = list(
+            annotation = catch$annotation,
+            overdispersion = catch$group.overdispersion
+        )
     )
     colnames(se) <- basename(colnames(se))
-
-    message("Reading in annotation information for transcripts and TE loci...")
-    rd <- readRDS(rdfile)
-    SummarizedExperiment::rowData(se) <- rd[
-        SummarizedExperiment::rownames(se),
-    ]
+    SummarizedExperiment::rowData(se) <- rd_targets
 
     if (isTRUE(remove_zeros)) {
         message("Removing any all zero rows...")
@@ -139,22 +172,30 @@ importQuants <- function(
 
     if (isTRUE(std_chromosomes)) {
         message("Dropping transcripts from non-standard chromosomes...")
-        std_chrom <- paste0("chr", c(seq_len(22L), "X", "Y"))
-
-        # Checking ranges only has to be done for transcript features
-        tx_ranges <- SummarizedExperiment::rowData(se)[
-            !is.na(SummarizedExperiment::rowData(se)$transcript_id),
-        ]$Ranges
-
-        # unlist works for tx but NOT all features since hashes have multiple
-        # chroms
-        tx_chroms <- unlist(S4Vectors::runValue(GenomicRanges::seqnames(
-            tx_ranges
-        )))
-        drop_tx <- names(tx_chroms)[which(!tx_chroms %in% std_chrom)]
         se <- se[setdiff(rownames(se), drop_tx), ]
     }
 
     message("Done.")
     return(se)
+}
+
+
+#' Transcripts with any range outside the standard chromosomes
+#'
+#' @param rd rowData of transcripts and TE hashes
+#'
+#' @return Character vector of transcript IDs
+#' @keywords internal
+.nonStandardTranscripts <- function(rd) {
+    std_chrom <- paste0("chr", c(seq_len(22L), "X", "Y"))
+
+    # Checking ranges only has to be done for transcript features
+    tx_ranges <- rd[!is.na(rd$transcript_id), ]$Ranges
+
+    # unlist works for tx but NOT all features since hashes have multiple
+    # chroms
+    tx_chroms <- unlist(S4Vectors::runValue(GenomicRanges::seqnames(
+        tx_ranges
+    )))
+    unique(names(tx_chroms)[which(!tx_chroms %in% std_chrom)])
 }

@@ -18,6 +18,7 @@ Depends:
 Suggests: 
     BiocStyle,
     devtools,
+    edgeR (>= 4.10.0),
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)

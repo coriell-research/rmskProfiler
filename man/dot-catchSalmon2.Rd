@@ -4,7 +4,7 @@
 \alias{.catchSalmon2}
 \title{Import transcript-level counts with offset}
 \usage{
-.catchSalmon2(paths, verbose = TRUE)
+.catchSalmon2(paths, verbose = TRUE, groups = NULL)
 }
 \arguments{
 \item{paths}{character vector giving paths to the sample-specific directories
@@ -13,6 +13,17 @@ Salmon. Each entry corresponds to one RNA-seq sample.}
 
 \item{verbose}{logical If TRUE, progress information will be sent to standard
 output as each sample is processed.}
+
+\item{groups}{NULL or a named list of character vectors, each giving the
+group of every target in the order of the quant.sf files. Targets with an
+NA group are left out of that grouping.}
+}
+\value{
+A list with the counts, TPMs, and effective lengths of each target,
+an annotation data.frame with the overdispersion of each target, the
+overdispersion prior, the resample type of each sample, and (when
+\code{groups} is given) a list with the overdispersion of each group for
+each grouping.
 }
 \description{
 Import transcript-level counts with offset
@@ -25,5 +36,11 @@ https://github.com/plbaldoni/TranscriptDE-code/blob/main/code/pkg/R/utils.R#L52
 and combined with existing catchSalmon code. I only used data.table::fread in
 place of readr so
 as to not add more dependencies.
+
+When \code{groups} is given, the Gibbs samples of the targets in each group
+are also summed and the overdispersion of each group is estimated from the
+summed samples, in the same way as for single targets. Read-to-target
+ambiguity between the members of a group cancels when they are summed,
+while ambiguity between groups does not.
 }
 \keyword{internal}

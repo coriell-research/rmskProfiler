@@ -1,5 +1,19 @@
 # rmskProfiler 0.99.0
 
+* `aggregateCounts()` gains a `counts_from_abundance` argument (`"no"`,
+  `"scaledTPM"`, or `"lengthScaledTPM"`) to generate gene counts from
+  abundances, as in tximport. The aggregated object now has the assays
+  `counts` (summed original counts, not divided by overdispersion),
+  `abundance`, and `length` (abundance weighted effective gene lengths; a
+  length that is the same in every sample for TEs, which are simple sums
+  with no length correction), so it can be passed to
+  `edgeR::DGEListFromTximeta()` or `edgeR::DGEListFromTximport()`. Its `rowData` gains `Overdispersion`, the
+  overdispersion of each aggregated feature estimated from summed Gibbs
+  samples, and `n_loci`.
+* `importQuants()` adds a `length` assay with Salmon's effective lengths and
+  estimates the overdispersion of genes and TE subfamilies, families, and
+  classes from the summed Gibbs samples, stored in
+  `metadata(se)$overdispersion`.
 * Initial commit with full R implementation and BiocFileCache resource management.
 * Unique RepeatMasker sequences are extracted in R (Biostrings, digest)
   instead of Python. The duplicate information is stored as

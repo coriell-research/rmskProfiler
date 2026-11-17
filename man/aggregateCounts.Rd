@@ -8,6 +8,7 @@ aggregateCounts(
   x,
   species = c("Hs", "Mm"),
   te_level = c("subfamily", "family", "class", "locus"),
+  counts_from_abundance = c("no", "scaledTPM", "lengthScaledTPM"),
   cache = NULL
 )
 }
@@ -21,6 +22,9 @@ the species used to generate the index.}
 "locus" keeps TE-loci independent, while others aggregate based on
 classification.}
 
+\item{counts_from_abundance}{One of "no" (default), "scaledTPM", or
+"lengthScaledTPM". How gene counts are computed. See Details.}
+
 \item{cache}{NULL, a path to a cache directory, or a BiocFileCache object.
 Default NULL uses the rmskProfiler cache at
 \code{tools::R_user_dir("rmskProfiler", which = "cache")}.}
@@ -29,18 +33,180 @@ Default NULL uses the rmskProfiler cache at
 SummarizedExperiment
 }
 \description{
-This function will sum counts to the gene level for all transcripts, and to
-the
-specified level for TE-loci. A new SummarizedExperiment object is returned
-with
-aggregated assays. rowData is added indicating the number of features summed
-('Freq')
-and a 'feature_length' column. For genes, 'feature_length' is the sum of
-reduced
-exon widths. For TEs, it is the sum of the length of all TE-loci that are
-members
-of the aggregated group, or the locus length if te_level is "locus".
+This function sums transcripts to genes, and TE-loci (unique sequences) to
+the specified level. A new SummarizedExperiment object is returned with
+gene-level and TE-level assays laid out like the output of
+\code{tximeta::summarizeToGene()}, so that it can be passed directly to
+\code{edgeR::DGEListFromTximeta()}.
 }
+\details{
+The returned object has three assays:
+\describe{
+\item{counts}{The estimated counts (the 'orig' assay of \code{x}) summed
+for each feature. These are \emph{not} divided by the overdispersion. For
+genes they can instead be generated from abundances, see
+\code{counts_from_abundance}.}
+\item{abundance}{The TPMs summed for each feature.}
+\item{length}{For genes, the average effective length of their
+transcripts weighted by their abundance in each sample, as in tximport.
+For genes with no abundance in a sample, the geometric mean of their
+lengths in the other samples is used, or, when they have no abundance in
+any sample, the mean length of their transcripts. For TEs, the sum of the
+effective lengths of the TE-loci in each feature, averaged over samples
+so that it is the same in every sample. TEs are not corrected for
+length, and the offset that edgeR forms from this assay is zero for
+them.}
+}
+
+The rowData contains the number of features summed ('Freq'), the gene name
+and type, the 'Overdispersion' of each feature, 'feature_length', and
+'n_loci'. 'feature_length' is, for genes, the sum of reduced exon widths
+and, for TEs, the sum of the widths of all genomic loci of the TE-loci in
+the feature. 'n_loci' is the number of genomic loci of the TEs in each
+feature (NA for genes). Both describe only the TE-loci present in \code{x}.
+
+\strong{Overdispersion.} The overdispersion of each aggregated feature is
+estimated by \code{importQuants()} from the Gibbs samples summed over the
+transcripts or TE-loci in the feature. This is the overdispersion of the
+summed counts themselves. Read-to-target ambiguity among the members of a
+feature (e.g. isoforms of a gene, or near-identical copies of a TE
+subfamily) cancels when they are summed, while ambiguity between features
+(e.g. between related TE subfamilies, or between TE-loci and the
+transcripts of genes) does not. The overdispersion of a gene is therefore
+usually much smaller than that of its transcripts, while the overdispersion
+of a TE feature can be smaller or larger than that of its TE-loci. For this
+reason the counts are summed from the raw estimated counts, rather than
+from the 'counts' assay of \code{x} (which is divided by the
+overdispersion of each transcript or TE-locus). See the sections below for
+using them in differential expression analyses. The overdispersions are
+estimated for the features of the object returned by \code{importQuants()}
+and are not updated if \code{x} is subset afterwards.
+
+\strong{Counts from abundance.} Summed counts are biased when differential
+transcript usage changes the average length of a gene's transcripts
+(Soneson et al. 2015). With \code{counts_from_abundance = "no"} (default)
+the summed counts are returned and the 'length' assay can be used as an
+offset (\code{edgeR::DGEListFromTximeta()} does this automatically). With
+\code{"scaledTPM"}, gene counts are the gene TPMs scaled up to the library
+size of the gene counts, and with \code{"lengthScaledTPM"}, they are the
+gene TPMs multiplied by the average length of the gene over samples, then
+scaled up to the library size of the gene counts. These methods are applied
+to genes only. TEs are always the sum of their estimated counts: TE signal
+is mostly fragments of longer transcripts, so counts (which measure
+transcribed bases) are more meaningful than abundances (which count
+fragments equally regardless of their length). TE counts are always
+simple sums of the estimated counts, with no correction for length,
+whatever \code{counts_from_abundance} is.
+
+Note that TE-loci overlapping exons, or in transcribed introns, may count
+reads from their host genes. See \code{estimateReadThrough()}.
+}
+\section{Recommended workflow for differential expression}{
+
+The recommended workflow for genes and TE subfamilies follows the methods
+of the tximport and edgeR developers:
+\enumerate{
+\item Quantify with Gibbs sampling (\code{salmonQuant()}) and import with
+\code{importQuants()}.
+\item Aggregate with \code{aggregateCounts(te_level = "subfamily")},
+keeping the default \code{counts_from_abundance = "no"}.
+\item Create a \code{DGEList} with
+\code{edgeR::DGEListFromTximeta(se, divide = TRUE)} (edgeR >= 4.10). This
+divides the counts by the 'Overdispersion' column of the rowData
+(Baldoni et al. 2024) and adds the centred log of the 'length' assay as
+\code{offset.prior}. Together these are tximport's "original counts and
+offset" method for genes. The offset is zero for TEs, which stay simple
+sums. \code{edgeR::DGEListFromTximport()} gives the same result from a
+list of the assays (see the example below).
+\item Analyse as usual. The offset is combined with the library sizes and
+normalization factors by \code{glmQLFit()}, \code{estimateDisp()},
+\code{voomLmFit()}, and \code{cpm()}.
+}
+\preformatted{
+y <- edgeR::DGEListFromTximeta(se, group = group, divide = TRUE)
+keep <- edgeR::filterByExpr(y)
+y <- y[keep, , keep.lib.sizes = FALSE]
+y <- edgeR::normLibSizes(y)
+fit <- edgeR::glmQLFit(y, design)
+res <- edgeR::glmQLFTest(fit, coef = 2)
+
+# Equivalent, with the list interface of edgeR::DGEListFromTximport()
+txi <- list(
+    abundance = assay(se, "abundance"),
+    counts = assay(se, "counts"),
+    length = assay(se, "length"),
+    countsFromAbundance = metadata(se)$countsFromAbundance
+)
+y <- edgeR::DGEListFromTximport(
+    txi,
+    genes = as.data.frame(rowData(se)),
+    group = group,
+    divide = TRUE
+)
+}
+The aggregated counts should not be analysed without the offset (e.g. with
+\code{edgeR::SE2DGEList()}). The tximport authors advise against summed
+gene counts without an offset, because they do not correct for
+differential transcript usage.
+
+The alternative tximport method, "bias corrected counts without an offset",
+is \code{counts_from_abundance = "lengthScaledTPM"} (or
+\code{"scaledTPM"}). \code{edgeR::DGEListFromTximeta()} then adds no offset
+for any row. TE counts and lengths are the same as with \code{"no"}. For
+3' tagged RNA-seq, which has no length bias,
+tximport recommends summed counts without an offset: remove it with
+\code{y$offset.prior <- NULL}.
+}
+
+\section{Relation to tximport and edgeR}{
+
+For genes, the 'counts', 'abundance', and 'length' assays (including the
+lengths of genes without abundance) and the \code{"scaledTPM"} and
+\code{"lengthScaledTPM"} counts are computed as by
+\code{tximport::summarizeToGene()}. The overdispersions are computed as by
+\code{edgeR::DGEListFromTximport()} from inferential replicates summed to
+the gene level by tximport. Three choices go beyond the tximport and edgeR
+documentation, which does not deal with TEs:
+\itemize{
+\item \emph{Dividing gene counts.} tximport and edgeR show divided counts
+for transcript-level analyses, and their gene-level examples use the
+default \code{divide = FALSE}. The rmskProfiler index also contains TE
+sequences, so reads can be ambiguous between a gene and TEs, and that
+ambiguity remains after summing. Dividing has no effect where the
+overdispersion is 1, so \code{divide = TRUE} is recommended for genes and
+TEs alike.
+\item \emph{TE lengths.} TE groups are not given tximport's abundance
+weighted length, which estimates a number of transcript molecules. TE
+reads mostly come from fragments of longer transcripts, so the summed
+counts of a TE group measure its transcribed bases. TE groups are
+therefore simple sums with no length correction, as transcripts and
+TE-loci are in edgeR's transcript-level workflow. A change in which loci
+of a group are expressed counts as a change in expression of the group.
+\item \emph{Moderation prior.} The overdispersions of genes and TE groups
+are moderated towards a prior estimated from both together, as edgeR does
+for all rows of an object. On data where the prior is above 1, gene
+overdispersions therefore differ slightly from those of edgeR run on
+genes alone.
+}
+}
+
+\section{Earlier versions of edgeR}{
+
+Divide the counts and set the offset with \code{edgeR::scaleOffset()}.
+This gives the same results as \code{edgeR::DGEListFromTximeta()}. The
+offset is only needed with \code{counts_from_abundance = "no"}:
+\preformatted{
+counts <- assay(se, "counts") / rowData(se)$Overdispersion
+y <- edgeR::DGEList(counts, group = group)
+keep <- edgeR::filterByExpr(y)
+y <- edgeR::normLibSizes(y[keep, , keep.lib.sizes = FALSE])
+len <- assay(se, "length")[keep, ]
+offset <- log(len / exp(rowMeans(log(len)))) +
+    rep(log(y$samples$lib.size * y$samples$norm.factors), each = sum(keep))
+y <- edgeR::scaleOffset(y, offset)
+}
+}
+
 \examples{
 bfc <- exampleCache(build = TRUE)
 se <- importQuants(exampleQuants(), species = "Hs", cache = bfc)
@@ -51,4 +217,22 @@ locus <- aggregateCounts(se, "Hs", te_level = "locus", cache = bfc)
 # Aggregate transcripts to genes, TEs to subfamily
 subfamily <- aggregateCounts(se, "Hs", te_level = "subfamily", cache = bfc)
 subfamily
+
+# Generate gene counts from abundances
+scaled <- aggregateCounts(
+    se,
+    "Hs",
+    counts_from_abundance = "lengthScaledTPM",
+    cache = bfc
+)
+}
+\references{
+Soneson C, Love MI, Robinson MD (2015). Differential analyses for RNA-seq:
+transcript-level estimates improve gene-level inferences. F1000Research,
+4:1521.
+
+Baldoni PL, Chen Y, Hediyeh-zadeh S, Liao Y, Dong X, Ritchie ME, Shi W,
+Smyth GK (2024). Dividing out quantification uncertainty allows efficient
+assessment of differential transcript expression with edgeR. Nucleic Acids
+Research, 52(3):e13.
 }

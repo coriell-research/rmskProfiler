@@ -51,14 +51,22 @@ loci annotations and an additional column containing a \code{GRangesList} of
 the locations for each of the TE loci and transcipts.
 }
 \details{
-The SummarizedExperiment object contains three assays, 'counts', 'orig.' and
-'tpms'.
+The SummarizedExperiment object contains four assays, 'counts', 'orig',
+'tpms', and 'length'.
 The 'counts' assay contains the counts \emph{after} adjusting for over
 dispersion.
-This is the assay to be used for downstream differential expression analyses.
+This is the assay to be used for downstream differential expression analyses
+of transcripts and TE-loci.
 The 'orig' assay contains the counts before down-scaling. The 'tpms' assay
-contains TPM values from the Salmon quant files. The metadata slot
-contains the annotation data.frame returned from \code{catchSalmon()}. The
+contains TPM values and the 'length' assay the effective lengths from the
+Salmon quant files. The metadata slot
+contains the annotation data.frame returned from \code{catchSalmon()} and,
+in 'overdispersion', a list with the overdispersions of the features created
+by \code{aggregateCounts()} for each \code{te_level}. These are estimated
+from the Gibbs samples summed over the transcripts of each gene and the
+TE-loci of each TE feature, including targets later removed because they
+have no counts (they add nothing to the summed counts but still contribute
+to the read-to-target ambiguity). The
 rowData
 slot of the SummarizedExperiment contains columns with boolean values for
 each TE loci indicating whether or not that loci has an overlap with a given

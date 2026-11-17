@@ -188,7 +188,7 @@ test_that("importQuants() returns a SummarizedExperiment", {
     expect_s4_class(se, "SummarizedExperiment")
     expect_identical(
         SummarizedExperiment::assayNames(se),
-        c("counts", "orig", "tpms")
+        c("counts", "orig", "tpms", "length")
     )
     expect_identical(ncol(se), 6L)
     expect_setequal(
@@ -237,14 +237,27 @@ test_that("aggregateCounts() aggregates to genes and TE levels", {
         )
         expect_s4_class(agg, "SummarizedExperiment")
         expect_identical(ncol(agg), ncol(se))
+        expect_identical(
+            SummarizedExperiment::assayNames(agg),
+            c("counts", "abundance", "length")
+        )
         expect_equal(
             sum(SummarizedExperiment::assay(agg, "counts")),
-            sum(SummarizedExperiment::assay(se, "counts"))
+            sum(SummarizedExperiment::assay(se, "orig"))
+        )
+        expect_equal(
+            sum(SummarizedExperiment::assay(agg, "abundance")),
+            sum(SummarizedExperiment::assay(se, "tpms"))
         )
         expect_true(all(
-            c("Freq", "feature_length") %in%
+            c("Freq", "feature_length", "n_loci", "Overdispersion") %in%
                 colnames(SummarizedExperiment::rowData(agg))
         ))
+        expect_false(anyNA(SummarizedExperiment::rowData(agg)$Overdispersion))
+        expect_identical(
+            S4Vectors::metadata(agg)$countsFromAbundance,
+            "no"
+        )
     }
     n_sub <- length(unique(paste(rd$Subfamily, rd$Family, rd$Class)[is_te]))
     agg <- suppressMessages(
@@ -320,7 +333,7 @@ test_that("importQuants() reads the Salmon counts and scales them", {
 test_that("aggregateCounts() sums counts and lengths of each feature", {
     se <- exampleSE()
     rd <- SummarizedExperiment::rowData(se)
-    counts <- SummarizedExperiment::assay(se, "counts")
+    counts <- SummarizedExperiment::assay(se, "orig")
     agg <- suppressMessages(
         aggregateCounts(se, "Hs", te_level = "subfamily", cache = builtCache())
     )
