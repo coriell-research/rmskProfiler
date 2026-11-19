@@ -1,14 +1,24 @@
 Package: rmskProfiler
 Title: Quantify transposable elements at the locus-level
 Version: 0.99.0
-Authors@R: 
+Authors@R: c(
     person("Gennaro", "Calendo", , "gcalendo@coriell.org", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-4510-5530"))
+           comment = c(ORCID = "0000-0002-4510-5530")),
+    person("Gordon", "Smyth", role = c("ctb", "cph"),
+           comment = "Author of edgeR code adapted in this package"),
+    person("Pedro", "Baldoni", role = c("ctb", "cph"),
+           comment = "Author of edgeR code adapted in this package"),
+    person("Michael", "Love", role = c("ctb", "cph"),
+           comment = "Author of tximport code adapted in this package"),
+    person("Charlotte", "Soneson", role = c("ctb", "cph"),
+           comment = "Author of tximport code adapted in this package"),
+    person("Mark", "Robinson", role = c("ctb", "cph"),
+           comment = "Author of tximport code adapted in this package"))
 Description: An end-to-end workflow for quantifying transposable elements at the
     locus-level using RNA-seq data. This package provides functions for creating
     an index, quantifying transcripts and TEs, and importing counts into annotated
     R objects for downstream analysis. 
-License: MIT + file LICENSE
+License: GPL (>= 2)
 URL: https://github.com/coriell-research/rmskProfiler
 BugReports: https://github.com/coriell-research/rmskProfiler/issues
 Encoding: UTF-8

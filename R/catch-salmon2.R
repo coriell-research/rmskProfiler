@@ -1,3 +1,23 @@
+# Copyright (C) 2024-2026 rmskProfiler authors
+#
+# Portions derived from edgeR (GPL >= 2), catchSalmon() and DGEListFromTximport(),
+# Copyright (C) Gordon K Smyth and Pedro L Baldoni, and the edgeR authors,
+# https://bioconductor.org/packages/edgeR, and from the TranscriptDE-code
+# repository of Pedro L Baldoni, https://github.com/plbaldoni/TranscriptDE-code.
+# Modified for rmskProfiler: Gibbs samples are also summed over the members of
+# each gene or TE group to estimate the overdispersion of the group.
+#
+# This file is part of rmskProfiler, which is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, either version 2 of the
+# License, or (at your option) any later version.
+#
+# rmskProfiler is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details. A copy of the license is available at
+# <https://www.gnu.org/licenses/>.
+
 #' Import transcript-level counts with offset
 #'
 #' @details

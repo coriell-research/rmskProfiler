@@ -1,3 +1,24 @@
+# Copyright (C) 2024-2026 rmskProfiler authors
+#
+# Portions derived from tximport (LGPL >= 2), summarizeToGene(),
+# Copyright (C) Michael I Love, Charlotte Soneson, and Mark D Robinson,
+# https://github.com/thelovelab/tximport, and from edgeR (GPL >= 2),
+# Copyright (C) Gordon K Smyth, Pedro L Baldoni, and the edgeR authors,
+# https://bioconductor.org/packages/edgeR. Modified for rmskProfiler: gene
+# lengths, counts from abundance, and overdispersions are computed for
+# genes and, with TEs as simple sums, for TE groups.
+#
+# This file is part of rmskProfiler, which is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, either version 2 of the
+# License, or (at your option) any later version.
+#
+# rmskProfiler is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+# details. A copy of the license is available at
+# <https://www.gnu.org/licenses/>.
+
 #' Aggregate counts to gene and TE level
 #'
 #' This function sums transcripts to genes, and TE-loci (unique sequences) to

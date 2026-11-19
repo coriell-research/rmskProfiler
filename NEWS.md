@@ -1,5 +1,9 @@
 # rmskProfiler 0.99.0
 
+* The package is now licensed GPL (>= 2) instead of MIT, because it adapts code
+  from edgeR (GPL >= 2) and tximport (LGPL >= 2). Copyright notices for the
+  adapted code were added to the source files, and its authors are listed as
+  contributors and copyright holders.
 * `aggregateCounts()` gains a `counts_from_abundance` argument (`"no"`,
   `"scaledTPM"`, or `"lengthScaledTPM"`) to generate gene counts from
   abundances, as in tximport. The aggregated object now has the assays
