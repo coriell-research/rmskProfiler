@@ -327,3 +327,199 @@ test_that("TE counts are not scaled with counts from abundance", {
         SummarizedExperiment::assay(no, "length")[is_te, ]
     )
 })
+
+# Reference results from tximport and edgeR ------------------------------------
+# tximport and edgeR are treated as the truth. They are run on the Salmon output
+# of the example quants, with a tx2gene table that maps every target that
+# importQuants() keeps to its aggregated feature.
+
+# quant.sf files of the example quants, named by sample
+quantFiles <- function() {
+    paths <- quantPaths()
+    stats::setNames(file.path(paths, "quant.sf"), basename(paths))
+}
+
+# tx2gene table mapping targets to the features of te_level. With genes_only,
+# TE-loci are left out so that tximport returns genes only
+referenceTx2Gene <- function(te_level, genes_only = FALSE) {
+    ids <- utils::read.delim(quantFiles()[1])$Name
+    rd <- readRDS(getResource(
+        "rmsk-rowData.rds",
+        species = "Hs",
+        cache = builtCache()
+    ))[ids, ]
+    feature <- .featureId(rd, te_level)
+    keep <- !ids %in% .nonStandardTranscripts(rd)
+    if (genes_only) {
+        keep <- keep & !is.na(rd$gene_id)
+    }
+    data.frame(tx = ids[keep], gene = feature[keep])
+}
+
+test_that("aggregateCounts() gene assays match tximport", {
+    skip_if_not_installed("tximport")
+    se <- exampleSE()
+    tx2gene <- referenceTx2Gene("subfamily", genes_only = TRUE)
+
+    for (method in c("no", "scaledTPM", "lengthScaledTPM")) {
+        txi <- suppressMessages(tximport::tximport(
+            quantFiles(),
+            type = "salmon",
+            tx2gene = tx2gene,
+            countsFromAbundance = method
+        ))
+        agg <- suppressMessages(aggregateCounts(
+            se,
+            "Hs",
+            te_level = "subfamily",
+            counts_from_abundance = method,
+            cache = builtCache()
+        ))
+        is_gene <- rownames(agg) %in% tx2gene$gene
+        genes <- rownames(agg)[is_gene]
+
+        # Genes left out by importQuants() have no counts
+        expect_true(all(genes %in% rownames(txi$counts)))
+        dropped <- setdiff(rownames(txi$counts), genes)
+        expect_true(all(txi$counts[dropped, ] == 0))
+
+        for (a in c("counts", "abundance", "length")) {
+            expect_equal(
+                SummarizedExperiment::assay(agg, a)[genes, ],
+                txi[[a]][genes, ],
+                label = paste0(a, " (", method, ")")
+            )
+        }
+        expect_identical(
+            S4Vectors::metadata(agg)$countsFromAbundance,
+            txi$countsFromAbundance
+        )
+    }
+})
+
+test_that("divided counts and offsets match edgeR::DGEListFromTximport()", {
+    skip_if_not_installed("tximport")
+    skip_if_not_installed("edgeR", "4.10.0")
+    se <- exampleSE()
+
+    for (level in .TE_LEVELS) {
+        # tximport sums the Gibbs samples over each feature and edgeR estimates
+        # the overdispersion of the feature from them
+        txi <- suppressMessages(tximport::tximport(
+            quantFiles(),
+            type = "salmon",
+            tx2gene = referenceTx2Gene(level),
+            dropInfReps = FALSE
+        ))
+        expected <- edgeR::DGEListFromTximport(txi, divide = TRUE)
+
+        agg <- suppressMessages(
+            aggregateCounts(se, "Hs", te_level = level, cache = builtCache())
+        )
+        y <- edgeR::DGEListFromTximeta(agg, divide = TRUE)
+        features <- rownames(agg)
+        is_te <- !features %in% SummarizedExperiment::rowData(se)$gene_id
+        expect_true(any(is_te) && any(!is_te))
+        expect_true(all(features %in% rownames(expected)))
+
+        expect_equal(
+            y$genes$Overdispersion,
+            expected$genes[features, "Overdispersion"],
+            label = paste("Overdispersion of", level)
+        )
+        expect_equal(
+            y$counts[is_te, ],
+            expected$counts[features[is_te], ],
+            label = paste("divided TE counts of", level)
+        )
+        expect_equal(
+            y$counts[!is_te, ],
+            expected$counts[features[!is_te], ],
+            label = paste("divided gene counts of", level)
+        )
+        expect_equal(
+            y$offset.prior[!is_te, ],
+            expected$offset.prior[features[!is_te], ],
+            label = paste("gene offsets of", level)
+        )
+    }
+})
+
+test_that("edgeR::DGEListFromTximeta() gives a DGEList ready for DE testing", {
+    skip_if_not_installed("edgeR", "4.10.0")
+    se <- exampleSE()
+    agg <- suppressMessages(
+        aggregateCounts(se, "Hs", te_level = "subfamily", cache = builtCache())
+    )
+    rd <- SummarizedExperiment::rowData(agg)
+    is_te <- !rownames(agg) %in% SummarizedExperiment::rowData(se)$gene_id
+    group <- factor(sub("_[0-9]+$", "", colnames(agg)))
+
+    # edgeR only re-estimates overdispersions from inferential replicates, so
+    # the 'Overdispersion' column must be used as is
+    expect_false(any(grepl("infRep", SummarizedExperiment::assayNames(agg))))
+
+    y <- edgeR::DGEListFromTximeta(agg, group = group, divide = TRUE)
+    expect_s4_class(y, "DGEList")
+    expect_no_error(edgeR:::validDGEList(y))
+
+    # Counts are the summed counts divided by the overdispersions
+    expected <- SummarizedExperiment::assay(agg, "counts") / rd$Overdispersion
+    expect_identical(dimnames(y$counts), dimnames(agg))
+    expect_equal(y$counts, expected)
+    expect_true(all(is.finite(y$counts) & y$counts >= 0))
+    expect_true(y$divided.counts)
+    expect_identical(y$tximport.counts, "raw")
+
+    # Samples: library sizes of the divided counts and the given groups
+    expect_identical(rownames(y$samples), colnames(agg))
+    expect_equal(y$samples$lib.size, unname(colSums(expected)))
+    expect_true(all(y$samples$norm.factors == 1))
+    expect_identical(y$samples$group, group)
+
+    # Gene annotation: the rowData of agg plus edgeR's length summaries
+    expect_identical(rownames(y$genes), rownames(agg))
+    expect_true(all(colnames(rd) %in% colnames(y$genes)))
+    expect_true(all(c("AveLength", "Max2MinLength") %in% colnames(y$genes)))
+    expect_equal(y$genes$Overdispersion, rd$Overdispersion)
+    expect_true(all(is.finite(y$genes$Overdispersion)))
+    expect_true(all(y$genes$Overdispersion >= 1))
+    expect_true(all(y$genes$Max2MinLength[is_te] == 1))
+
+    # The offset: centred log gene lengths, zero for TEs
+    expect_identical(dimnames(y$offset.prior), dimnames(agg))
+    expect_true(all(is.finite(y$offset.prior)))
+    expect_equal(unname(rowMeans(y$offset.prior)), rep(0, nrow(agg)))
+    expect_true(all(y$offset.prior[is_te, ] == 0))
+    expect_true(any(y$offset.prior[!is_te, ] != 0))
+
+    # Filtering keeps the offset aligned with the counts
+    keep <- edgeR::filterByExpr(y)
+    expect_true(any(keep))
+    y <- y[keep, , keep.lib.sizes = FALSE]
+    expect_identical(dimnames(y$offset.prior), dimnames(y$counts))
+    expect_equal(y$samples$lib.size, unname(colSums(y$counts)))
+
+    # The offset is combined with the library sizes and normalization factors
+    y <- edgeR::normLibSizes(y)
+    expect_false(all(y$samples$norm.factors == 1))
+    offset <- edgeR::getOffset(y)
+    expect_equal(
+        offset,
+        t(t(y$offset.prior) + log(y$samples$lib.size * y$samples$norm.factors))
+    )
+
+    # Downstream functions run and use the offset
+    design <- stats::model.matrix(~group)
+    y <- edgeR::estimateDisp(y, design)
+    expect_true(is.finite(y$common.dispersion))
+    fit <- edgeR::glmQLFit(y, design)
+    expect_equal(unname(as.matrix(fit$offset)), unname(offset))
+    res <- edgeR::glmQLFTest(fit, coef = 2)
+    expect_identical(rownames(res$table), rownames(y))
+    expect_true(all(res$table$PValue >= 0 & res$table$PValue <= 1))
+    expect_s4_class(edgeR::topTags(res), "TopTags")
+    # CPMs use the offset as the effective library size of each count
+    expect_equal(edgeR::cpm(y), y$counts / exp(offset) * 1e6)
+    expect_s4_class(edgeR::voomLmFit(y, design), "MArrayLM")
+})
